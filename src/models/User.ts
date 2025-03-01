@@ -1,34 +1,22 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
-// Define the User schema
 const UserSchema = new mongoose.Schema(
   {
     name: String,
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
+    email: { type: String, required: true, unique: true },
     emailVerified: Date,
     image: String,
-    accounts: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Account",
-      },
-    ],
-    sessions: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Session",
-      },
-    ],
+    accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Account" }],
+    sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session" }],
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+    likedPoems: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],
+    readList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],
   },
-  {
-    timestamps: true,
-  },
-)
+  { timestamps: true }
+);
 
-// Create and export the User model
-export default mongoose.models.User || mongoose.model("User", UserSchema)
-
+export default mongoose.models.User || mongoose.model("User", UserSchema);
