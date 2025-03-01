@@ -1,15 +1,12 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Providers } from "./providers"
 import "./globals.css"
-import AuthProvider from "@/components/auth-provider"
+import type { Metadata } from "next"
 import Navbar from "@/components/navbar"
 
-const inter = Inter({ subsets: ["latin"] })
-
 export const metadata: Metadata = {
-  title: "Unmatched Lines",
-  description: "A Next.js application with authentication",
+  title: "Next.js Auth Setup",
+  description: "Next.js Auth with Google and MongoDB",
 }
 
 export default function RootLayout({
@@ -19,13 +16,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <Navbar />
-          <main className="container mx-auto px-4 py-8">{children}</main>
-        </AuthProvider>
+      <body>
+        <Providers>
+          <Navbar /> 
+          {children}
+        </Providers>
       </body>
     </html>
   )
 }
-

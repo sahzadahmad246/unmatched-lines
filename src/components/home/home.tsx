@@ -1,51 +1,76 @@
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
+"use client"
 
-export default function HomePage() {
+import { useSession } from "next-auth/react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+
+export default function Home() {
+  const { data: session } = useSession()
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="relative h-96 rounded-lg overflow-hidden mb-12">
-        <Image src="/placeholder.svg?height=400&width=1200" alt="Poetry Banner" layout="fill" objectFit="cover" />
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="text-center text-white">
-            <h1 className="text-4xl font-bold mb-4">Welcome to Poetic Whispers</h1>
-            <p className="text-xl mb-6">Discover the beauty of words through timeless poetry</p>
-            <Button>Explore Poems</Button>
+      <div className="flex flex-col items-center text-center mb-12">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4">Welcome to Unmatched Lines</h1>
+        <p className="text-xl text-muted-foreground max-w-2xl">
+          Discover the beauty of poetry from renowned poets across different languages and traditions.
+        </p>
+
+        {!session && (
+          <div className="mt-8">
+            <Button size="lg" asChild>
+              <Link href="/poets">Explore Poets</Link>
+            </Button>
           </div>
-        </div>
+        )}
       </div>
 
-      <section className="mb-12">
-        <h2 className="text-3xl font-semibold mb-6">Featured Poem</h2>
-        <div className="bg-gray-100 p-6 rounded-lg">
-          <h3 className="text-2xl font-medium mb-4">The Road Not Taken</h3>
-          <p className="text-gray-700 mb-4">
-            Two roads diverged in a yellow wood,
-            <br />
-            And sorry I could not travel both
-            <br />
-            And be one traveler, long I stood
-            <br />
-            And looked down one as far as I could
-            <br />
-            To where it bent in the undergrowth;
-          </p>
-          <p className="text-right italic">- Robert Frost</p>
-        </div>
-      </section>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Poets</CardTitle>
+            <CardDescription>Discover renowned poets and their works</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Explore the lives and works of famous poets from various traditions and languages.</p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/poets">Browse Poets</Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-      <section>
-        <h2 className="text-3xl font-semibold mb-6">Explore Poetry</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 ">
-          {["Poets", "Ghazals", "Shers"].map((category) => (
-            <div key={category} className="bg-white shadow-md rounded-lg p-6 text-center border">
-              <h3 className="text-xl font-medium mb-4">{category}</h3>
-              <p className="text-gray-600 mb-4">Discover beautiful {category.toLowerCase()} from various artists.</p>
-              <Button variant="outline">Explore {category}</Button>
-            </div>
-          ))}
-        </div>
-      </section> 
+        <Card>
+          <CardHeader>
+            <CardTitle>Sher</CardTitle>
+            <CardDescription>Explore beautiful couplets</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Discover the art of Sher, the eloquent couplets that capture profound emotions and thoughts.</p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/sher">Explore Sher</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ghazal</CardTitle>
+            <CardDescription>Experience the lyrical form of poetry</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Immerse yourself in the melodious and structured form of Ghazal poetry.</p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/ghazal">Read Ghazals</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   )
 }
