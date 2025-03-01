@@ -1,53 +1,55 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI: string = process.env.MONGODB_URI!;
+// Extend the global object to include a `mongoose` property
+declare global {
+  // Using `var` to avoid block-scoping issues with global declaration
+  // eslint-disable-next-line no-var
+  var mongoose: CachedConnection | undefined;
+}
+
+const MONGODB_URI = process.env.MONGODB_URI!;
 
 if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable");
 }
 
-/**
- * Extend globalThis to include mongoose caching.
- */
-declare global {
-  // Extend NodeJS global type to include mongoose
-  namespace NodeJS {
-    interface Global {
-      mongoose?: {
-        conn: mongoose.Mongoose | null;
-        promise: Promise<mongoose.Mongoose> | null;
-      };
-    }
-  }
+interface CachedConnection {
+  conn: mongoose.Connection | null;
+  promise: Promise<mongoose.Connection> | null;
 }
 
-const globalWithMongoose = global as NodeJS.Global;
+// Use a function to manage the cached connection
+function getCachedConnection(): CachedConnection {
+  if (!global.mongoose) {
+    global.mongoose = { conn: null, promise: null };
+  }
+  return global.mongoose;
+}
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
-globalWithMongoose.mongoose = globalWithMongoose.mongoose || {
-  conn: null,
-  promise: null,
-};
+async function dbConnect(): Promise<mongoose.Connection> {
+  const cached = getCachedConnection();
 
-const cached = globalWithMongoose.mongoose;
-
-async function dbConnect() {
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
-    const opts = {
+    const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts);
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+      return mongooseInstance.connection;
+    });
   }
-  cached.conn = await cached.promise;
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
   return cached.conn;
 }
 
