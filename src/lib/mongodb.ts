@@ -1,14 +1,6 @@
 import mongoose from "mongoose";
 
-// Extend the global object to include a `mongoose` property
-declare global {
-  // Using `var` to avoid block-scoping issues with global declaration
-  // eslint-disable-next-line no-var
-  var mongoose: CachedConnection | undefined;
-}
-
-const MONGODB_URI = process.env.MONGODB_URI!;
-
+const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable");
 }
@@ -18,17 +10,23 @@ interface CachedConnection {
   promise: Promise<mongoose.Connection> | null;
 }
 
-// Use a function to manage the cached connection
-function getCachedConnection(): CachedConnection {
-  if (!global.mongoose) {
-    global.mongoose = { conn: null, promise: null };
+// Define a proper type for the global object
+declare global {
+  // This is the correct way to extend globalThis
+  interface Global {
+    mongoose?: {
+      conn: mongoose.Connection | null;
+      promise: Promise<mongoose.Connection> | null;
+    };
   }
-  return global.mongoose;
 }
 
+let cached: CachedConnection = (global as any).mongoose || { conn: null, promise: null };
+if (!cached) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cached = (global as any).mongoose = { conn: null, promise: null };
+}
 async function dbConnect(): Promise<mongoose.Connection> {
-  const cached = getCachedConnection();
-
   if (cached.conn) {
     return cached.conn;
   }
@@ -38,8 +36,8 @@ async function dbConnect(): Promise<mongoose.Connection> {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
-      return mongooseInstance.connection;
+    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+      return mongoose.connection;
     });
   }
 
