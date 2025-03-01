@@ -1,3 +1,4 @@
+// models/User.ts
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
@@ -10,7 +11,7 @@ const UserSchema = new mongoose.Schema(
     sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session" }],
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "moderator"],
       default: "user",
     },
     likedPoems: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],

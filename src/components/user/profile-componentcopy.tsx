@@ -12,13 +12,25 @@ export default function ProfileComponent() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("likes");
   const [userData, setUserData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
-      fetch("/api/user")
-        .then((res) => res.json())
-        .then((data) => setUserData(data))
-        .catch((err) => console.error(err));
+      fetch("/api/user", {
+        credentials: "include", // Send JWT cookie for authentication
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Fetch failed with status: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          console.log("Fetched userData:", data); // Debug
+          setUserData(data);
+        })
+        .catch((err) => {
+          console.error("Fetch error:", err);
+          setError("Failed to load profile data");
+        });
     }
   }, [session]);
 
@@ -28,15 +40,14 @@ export default function ProfileComponent() {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
+        credentials: "include",
       });
       if (res.ok) {
         setUserData((prev: any) => ({
           ...prev,
           user: {
             ...prev.user,
-            likedPoems: prev.user.likedPoems.filter(
-              (p: any) => p._id !== poemId
-            ),
+            likedPoems: prev.user.likedPoems.filter((p: any) => p._id !== poemId),
           },
         }));
       }
@@ -51,6 +62,7 @@ export default function ProfileComponent() {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
+        credentials: "include",
       });
       if (res.ok) {
         setUserData((prev: any) => ({
@@ -72,6 +84,7 @@ export default function ProfileComponent() {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ commentId }),
+        credentials: "include",
       });
       if (res.ok) {
         setUserData((prev: any) => ({
@@ -84,10 +97,11 @@ export default function ProfileComponent() {
     }
   };
 
-  if (status === "loading") {
+  if (status === "loading" || !userData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
         <h2 className="text-2xl font-bold">Loading...</h2>
+        {error && <p className="text-red-500">{error}</p>}
       </div>
     );
   }
@@ -95,9 +109,7 @@ export default function ProfileComponent() {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4">
-        <h2 className="text-2xl font-bold text-center">
-          Please sign in to view your profile
-        </h2>
+        <h2 className="text-2xl font-bold text-center">Please sign in to view your profile</h2>
         <Button onClick={() => signIn("google")}>Sign In</Button>
       </div>
     );
@@ -112,11 +124,7 @@ export default function ProfileComponent() {
             <Link href="/profile/edit">
               <Button>Edit Profile</Button>
             </Link>
-            <Button
-              className="text-danger"
-              variant="outline"
-              onClick={() => signOut()}
-            >
+            <Button className="text-danger" variant="outline" onClick={() => signOut()}>
               Log Out
             </Button>
           </div>
@@ -125,19 +133,13 @@ export default function ProfileComponent() {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={session.user?.image || ""} alt="Profile" />
-                <AvatarFallback>
-                  {session.user?.name?.charAt(0) || "U"}
-                </AvatarFallback>
+                <AvatarImage src={userData.user.image || ""} alt="Profile" />
+                <AvatarFallback>{userData.user.name?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               <div className="text-center sm:text-left">
-                <h3 className="text-xl sm:text-2xl font-bold">
-                  {session.user?.name}
-                </h3>
-                <p className="text-muted-foreground">{session.user?.email}</p>
-                <p className="text-sm text-muted-foreground">
-                  User ID: {session.user.id}
-                </p>
+                <h3 className="text-xl sm:text-2xl font-bold">{userData.user.name}</h3>
+                <p className="text-muted-foreground">{userData.user.email}</p>
+                <p className="text-sm text-muted-foreground">User ID: {userData.user.id}</p>
               </div>
             </div>
             <Link href="/admin" className="self-center sm:self-start">
@@ -145,74 +147,67 @@ export default function ProfileComponent() {
             </Link>
           </div>
 
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="likes">Likes</TabsTrigger>
               <TabsTrigger value="replies">Replies</TabsTrigger>
               <TabsTrigger value="reading-list">Reading List</TabsTrigger>
             </TabsList>
             <TabsContent value="likes" className="p-4 min-h-[200px]">
-              {userData?.user?.likedPoems?.length
-                ? userData.user.likedPoems.map((poem: any) => (
-                    <div
-                      key={poem._id}
-                      className="flex justify-between items-center py-2"
+              {userData.user.likedPoems?.length ? (
+                userData.user.likedPoems.map((poem: any) => (
+                  <div key={poem._id} className="flex justify-between items-center py-2">
+                    <span>{poem.title}</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleUnlike(poem._id)}
                     >
-                      <span>{poem.title}</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleUnlike(poem._id)}
-                      >
-                        Unlike
-                      </Button>
-                    </div>
-                  ))
-                : "No liked poems yet."}
+                      Unlike
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                "No liked poems yet."
+              )}
             </TabsContent>
             <TabsContent value="replies" className="p-4 min-h-[200px]">
-              {userData?.comments?.length
-                ? userData.comments.map((comment: any) => (
-                    <div
-                      key={comment._id}
-                      className="flex justify-between items-center py-2"
+              {userData.comments?.length ? (
+                userData.comments.map((comment: any) => (
+                  <div key={comment._id} className="flex justify-between items-center py-2">
+                    <span>
+                      {comment.text} (on {comment.poem.title})
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteComment(comment._id)}
                     >
-                      <span>
-                        {comment.text} (on {comment.poem.title})
-                      </span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteComment(comment._id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ))
-                : "No replies yet."}
+                      Delete
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                "No replies yet."
+              )}
             </TabsContent>
             <TabsContent value="reading-list" className="p-4 min-h-[200px]">
-              {userData?.user?.readList?.length
-                ? userData.user.readList.map((poem: any) => (
-                    <div
-                      key={poem._id}
-                      className="flex justify-between items-center py-2"
+              {userData.user.readList?.length ? (
+                userData.user.readList.map((poem: any) => (
+                  <div key={poem._id} className="flex justify-between items-center py-2">
+                    <span>{poem.title}</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveFromReadlist(poem._id)}
                     >
-                      <span>{poem.title}</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleRemoveFromReadlist(poem._id)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))
-                : "No poems in your reading list yet."}
+                      Remove
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                "No poems in your reading list yet."
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -1,15 +1,16 @@
-import mongoose from "mongoose";
+// models/Poem.ts
+import mongoose, { Schema, model, models } from "mongoose";
 
-const PoemSchema = new mongoose.Schema(
+const PoemSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
     content: { type: String, required: true },
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     likeCount: { type: Number, default: 0 },
-    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
+    comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
     commentCount: { type: Number, default: 0 },
-    readListUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     readListCount: { type: Number, default: 0 },
     coverImage: { type: String, default: "" },
     tags: [String],
@@ -30,4 +31,5 @@ PoemSchema.pre("save", function (next) {
   next();
 });
 
-export default mongoose.models.Poem || mongoose.model("Poem", PoemSchema);
+const Poem = models.Poem || model("Poem", PoemSchema);
+export default Poem;
