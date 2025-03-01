@@ -1,16 +1,21 @@
-// app/api/poem/[id]/route.ts
+// File: src/app/api/poem/[id]/route.ts
 import { getServerSession } from "next-auth/next";
-import { NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Poem from "@/models/Poem";
 import cloudinary from "@/lib/cloudinary";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+// Define the params type as a Promise-wrapped object
+interface RouteParams {
+  params: Promise<{ id: string }>; // Reflects Next.js's expectation
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
   await dbConnect();
 
   try {
-    const { id } = params;
+    const { id } = await params; // Await the Promise to get the actual params
     const poem = await Poem.findById(id).populate("author", "name");
     if (!poem) {
       return NextResponse.json({ error: "Poem not found" }, { status: 404 });
@@ -22,7 +27,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,7 +36,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   await dbConnect();
 
   try {
-    const { id } = params;
+    const { id } = await params; // Await the Promise
     const formData = await request.formData();
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
@@ -42,7 +47,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     const poem = await Poem.findById(id);
     if (!poem || poem.author.toString() !== session.user.id) {
-      return NextResponse.json({ error: "Poem not found or unauthorized" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Poem not found or unauthorized" },
+        { status: 404 }
+      );
     }
 
     let coverImageUrl = poem.coverImage;
@@ -80,7 +88,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -89,10 +97,13 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   await dbConnect();
 
   try {
-    const { id } = params;
+    const { id } = await params; // Await the Promise
     const poem = await Poem.findById(id);
     if (!poem || poem.author.toString() !== session.user.id) {
-      return NextResponse.json({ error: "Poem not found or unauthorized" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Poem not found or unauthorized" },
+        { status: 404 }
+      );
     }
 
     await poem.deleteOne();

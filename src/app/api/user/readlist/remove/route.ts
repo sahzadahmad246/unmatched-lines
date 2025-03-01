@@ -1,13 +1,14 @@
 // app/api/user/readlist/remove/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb"; // Assuming this matches your connectDB
+import dbConnect from "@/lib/mongodb"; 
+import { authOptions } from "@/lib/auth";
 import User from "@/models/User";
 import Poem from "@/models/Poem";
 import mongoose from "mongoose";
 
 export async function DELETE(request: Request) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

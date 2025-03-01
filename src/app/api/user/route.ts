@@ -1,7 +1,7 @@
 // app/api/user/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions} from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import mongoose from "mongoose"; // Add this import
 import User from "@/models/User";

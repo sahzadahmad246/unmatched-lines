@@ -2,7 +2,7 @@
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import Comment from "@/models/Comment";
 import Poem from "@/models/Poem";
 

@@ -1,7 +1,7 @@
 // app/api/poem/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Poem from "@/models/Poem";
 import cloudinary from "@/lib/cloudinary";
