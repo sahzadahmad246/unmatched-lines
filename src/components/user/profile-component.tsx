@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function ProfileComponent() {
   const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState("likes");
+  const [activeTab, setActiveTab] = useState("reading-list");
   const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
@@ -21,29 +21,6 @@ export default function ProfileComponent() {
         .catch((err) => console.error(err));
     }
   }, [session]);
-
-  const handleUnlike = async (poemId: string) => {
-    try {
-      const res = await fetch("/api/user/like/remove", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ poemId }),
-      });
-      if (res.ok) {
-        setUserData((prev: any) => ({
-          ...prev,
-          user: {
-            ...prev.user,
-            likedPoems: prev.user.likedPoems.filter(
-              (p: any) => p._id !== poemId
-            ),
-          },
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to unlike poem", error);
-    }
-  };
 
   const handleRemoveFromReadlist = async (poemId: string) => {
     try {
@@ -63,24 +40,6 @@ export default function ProfileComponent() {
       }
     } catch (error) {
       console.error("Failed to remove from readlist", error);
-    }
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      const res = await fetch("/api/user/comment/remove", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commentId }),
-      });
-      if (res.ok) {
-        setUserData((prev: any) => ({
-          ...prev,
-          comments: prev.comments.filter((c: any) => c._id !== commentId),
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to delete comment", error);
     }
   };
 
@@ -109,9 +68,6 @@ export default function ProfileComponent() {
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-2xl">Profile</CardTitle>
           <div className="flex gap-2">
-            <Link href="/profile/edit">
-              <Button>Edit Profile</Button>
-            </Link>
             <Button
               className="text-danger"
               variant="outline"
@@ -140,9 +96,11 @@ export default function ProfileComponent() {
                 </p>
               </div>
             </div>
-            <Link href="/admin" className="self-center sm:self-start">
-              <Button>Admin Dashboard</Button>
-            </Link>
+            {userData?.user?.role === "admin" && (
+              <Link href="/admin" className="self-center sm:self-start">
+                <Button>Admin Dashboard</Button>
+              </Link>
+            )}
           </div>
 
           <Tabs
@@ -150,51 +108,9 @@ export default function ProfileComponent() {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="likes">Likes</TabsTrigger>
-              <TabsTrigger value="replies">Replies</TabsTrigger>
+            <TabsList className="w-full">
               <TabsTrigger value="reading-list">Reading List</TabsTrigger>
             </TabsList>
-            <TabsContent value="likes" className="p-4 min-h-[200px]">
-              {userData?.user?.likedPoems?.length
-                ? userData.user.likedPoems.map((poem: any) => (
-                    <div
-                      key={poem._id}
-                      className="flex justify-between items-center py-2"
-                    >
-                      <span>{poem.title}</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleUnlike(poem._id)}
-                      >
-                        Unlike
-                      </Button>
-                    </div>
-                  ))
-                : "No liked poems yet."}
-            </TabsContent>
-            <TabsContent value="replies" className="p-4 min-h-[200px]">
-              {userData?.comments?.length
-                ? userData.comments.map((comment: any) => (
-                    <div
-                      key={comment._id}
-                      className="flex justify-between items-center py-2"
-                    >
-                      <span>
-                        {comment.text} (on {comment.poem.title})
-                      </span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteComment(comment._id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ))
-                : "No replies yet."}
-            </TabsContent>
             <TabsContent value="reading-list" className="p-4 min-h-[200px]">
               {userData?.user?.readList?.length
                 ? userData.user.readList.map((poem: any) => (

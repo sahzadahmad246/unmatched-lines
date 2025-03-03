@@ -1,55 +1,55 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import Image from "next/image"
-import Link from "next/link"
-
-const poets = [
-  {
-    id: 1,
-    name: "Rumi",
-    birthDate: "1207",
-    birthPlace: "Balkh",
-    ghazals: 150,
-    shers: 500,
-    image: "/placeholder.svg?height=200&width=200",
-  },
-  {
-    id: 2,
-    name: "Ghalib",
-    birthDate: "1797",
-    birthPlace: "Agra",
-    ghazals: 200,
-    shers: 700,
-    image: "/placeholder.svg?height=200&width=200",
-  },
-  {
-    id: 3,
-    name: "Hafez",
-    birthDate: "1315",
-    birthPlace: "Shiraz",
-    ghazals: 180,
-    shers: 600,
-    image: "/placeholder.svg?height=200&width=200",
-  },
-  {
-    id: 4,
-    name: "Iqbal",
-    birthDate: "1877",
-    birthPlace: "Sialkot",
-    ghazals: 100,
-    shers: 400,
-    image: "/placeholder.svg?height=200&width=200",
-  },
-]
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Poets() {
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState("");
+  const [authors, setAuthors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredPoets = poets.filter((poet) => poet.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Fetch authors from API on mount
+  useEffect(() => {
+    const fetchAuthors = async () => {
+      try {
+        const res = await fetch("/api/authors", { credentials: "include" });
+        if (!res.ok) throw new Error("Failed to fetch authors");
+        const data = await res.json();
+        setAuthors(data.authors || []);
+      } catch (err) {
+        console.error("Error fetching authors:", err);
+        setError("Failed to load poets");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAuthors();
+  }, []);
+
+  const filteredAuthors = authors.filter((author) =>
+    author.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h2 className="text-2xl font-bold">Loading poets...</h2>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h2 className="text-2xl font-bold text-red-500">{error}</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -64,30 +64,35 @@ export default function Poets() {
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPoets.map((poet) => (
-          <Card key={poet.id}>
+        {filteredAuthors.map((author) => (
+          <Card key={author._id}>
             <CardHeader>
-              <CardTitle>{poet.name}</CardTitle>
+              <CardTitle>{author.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
                 <Image
-                  src={poet.image || "/placeholder.svg"}
-                  alt={poet.name}
+                  src={author.image || "/placeholder.svg?height=100&width=100"}
+                  alt={author.name}
                   width={100}
                   height={100}
                   className="rounded-full"
                 />
                 <div>
-                  <p>Born: {poet.birthDate}</p>
-                  <p>Place: {poet.birthPlace}</p>
-                  <p>Ghazals: {poet.ghazals}</p>
-                  <p>Shers: {poet.shers}</p>
+                  <p>
+                    Born:{" "}
+                    {author.dob
+                      ? new Date(author.dob).getFullYear()
+                      : "Unknown"}
+                  </p>
+                  <p>Place: {author.city || "Unknown"}</p>
+                  <p>Ghazals: {author.ghazalCount}</p>
+                  <p>Shers: {author.sherCount}</p>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Link href={`/poets/${poet.id}`}>
+              <Link href={`/poets/${author._id}`}>
                 <Button>View Profile</Button>
               </Link>
             </CardFooter>
@@ -95,6 +100,5 @@ export default function Poets() {
         ))}
       </div>
     </div>
-  )
+  );
 }
-

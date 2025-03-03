@@ -11,10 +11,9 @@ const UserSchema = new mongoose.Schema(
     sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session" }],
     role: {
       type: String,
-      enum: ["user", "admin", "moderator"],
+      enum: ["user", "admin"],
       default: "user",
     },
-    likedPoems: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],
     readList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],
   },
   { timestamps: true }
