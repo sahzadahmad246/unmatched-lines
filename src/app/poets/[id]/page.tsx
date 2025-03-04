@@ -48,6 +48,7 @@ export default function PoetDetail() {
 
         if (!poetRes.ok) throw new Error("Failed to fetch poet");
         const poetData = await poetRes.json();
+        console.log("Fetched poet data:", poetData.author); // Debug log
         setPoet(poetData.author);
 
         if (userRes.ok) {
@@ -324,6 +325,8 @@ export default function PoetDetail() {
                               ? poem.title.en || "Untitled"
                               : poem.title;
                           const isInReadlist = readList.includes(poem._id);
+                          const slug = poem.slug?.en || poem._id; // Fallback to _id if slug.en is missing
+                          console.log("Navigating to poem slug:", slug); // Debug log
 
                           return (
                             <motion.div
@@ -407,10 +410,7 @@ export default function PoetDetail() {
                                 </CardContent>
 
                                 <CardFooter className="p-4 pt-0">
-                                  <Link
-                                    href={`/poems/${poem._id}`}
-                                    className="w-full"
-                                  >
+                                  <Link href={`/poems/${slug}`} className="w-full">
                                     <Button
                                       variant="default"
                                       size="sm"
@@ -453,6 +453,8 @@ export default function PoetDetail() {
                                 const isInReadlist = readList.includes(
                                   poem._id
                                 );
+                                const slug = poem.slug?.en || poem._id; // Fallback to _id
+                                console.log("Navigating to poem slug:", slug); // Debug log
 
                                 return (
                                   <motion.div
@@ -541,10 +543,7 @@ export default function PoetDetail() {
                                       </CardContent>
 
                                       <CardFooter className="p-4 pt-0">
-                                        <Link
-                                          href={`/poems/${poem._id}`}
-                                          className="w-full"
-                                        >
+                                        <Link href={`/poems/${slug}`} className="w-full">
                                           <Button
                                             variant="default"
                                             size="sm"

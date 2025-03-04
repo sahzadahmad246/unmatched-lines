@@ -113,7 +113,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-2xl font-bold mt-6"
+          className="text-xl sm:text-2xl font-bold mt-6"
         >
           Loading poetic treasures...
         </motion.h2>
@@ -135,7 +135,7 @@ export default function Home() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-2xl font-bold text-destructive">{error}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-destructive">{error}</h2>
           <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
             Try Again
           </Button>
@@ -157,7 +157,7 @@ export default function Home() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="text-4xl md:text-5xl font-bold mb-4"
+          className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4"
         >
           Welcome to Unmatched Lines
         </motion.h1>
@@ -165,7 +165,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
-          className="text-xl text-muted-foreground max-w-2xl"
+          className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl"
         >
           Discover the beauty of poetry from renowned poets across different languages and traditions.
         </motion.p>
@@ -188,90 +188,85 @@ export default function Home() {
       {/* Poets Section */}
       <section className="mb-12 relative">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">Featured Poets</h2>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scrollPoets("left")}
-              className="rounded-full hidden sm:flex"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scrollPoets("right")}
-              className="rounded-full hidden sm:flex"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          <h2 className="text-2xl sm:text-3xl font-bold">Featured Poets</h2>
+          <Button variant="link" asChild className="text-sm sm:text-base">
+            <Link href="/poets">See All</Link>
+          </Button>
+        </div>
+
+        <div className="relative">
+          <div
+            ref={poetsScrollRef}
+            className="flex overflow-x-auto pb-4 space-x-4 scrollbar-hide snap-x"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {poets.map((poet, index) => (
+              <motion.div
+                key={poet._id}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                className="min-w-[200px] sm:min-w-[250px] snap-start"
+                whileHover={{ y: -5 }}
+              >
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base sm:text-lg">{poet.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-4">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden flex-shrink-0">
+                        <Image
+                          src={poet.image || "/placeholder.svg?height=100&width=100"}
+                          alt={poet.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="text-xs sm:text-sm">
+                        <p>Born: {poet.dob ? new Date(poet.dob).getFullYear() : "Unknown"}</p>
+                        <p>Place: {poet.city || "Unknown"}</p>
+                        <p>Ghazals: {poet.ghazalCount}</p>
+                        <p>Shers: {poet.sherCount}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild size="sm" className="w-full text-xs sm:text-sm">
+                      <Link href={`/poets/${poet._id}`}>View Profile</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
+            ))}
           </div>
-        </div>
-
-        <div
-          ref={poetsScrollRef}
-          className="flex overflow-x-auto pb-4 space-x-4 scrollbar-hide snap-x"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {poets.map((poet, index) => (
-            <motion.div
-              key={poet._id}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="min-w-[280px] sm:min-w-[320px] snap-start"
-              whileHover={{ y: -5 }}
-            >
-              <Card className="h-full">
-                <CardHeader className="pb-2">
-                  <CardTitle>{poet.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center space-x-4">
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden">
-                      <Image
-                        src={poet.image || "/placeholder.svg?height=100&width=100"}
-                        alt={poet.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm">Born: {poet.dob ? new Date(poet.dob).getFullYear() : "Unknown"}</p>
-                      <p className="text-sm">Place: {poet.city || "Unknown"}</p>
-                      <p className="text-sm">Ghazals: {poet.ghazalCount}</p>
-                      <p className="text-sm">Shers: {poet.sherCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild size="sm" className="w-full">
-                    <Link href={`/poets/${poet._id}`}>View Profile</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="text-center mt-6">
-          <Button variant="link" asChild>
-            <Link href="/poets">See All Poets</Link>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => scrollPoets("left")}
+            className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full hidden sm:flex"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => scrollPoets("right")}
+            className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full hidden sm:flex"
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </section>
 
       {/* Ghazals Section */}
       <section className="mb-12">
-        <motion.h2
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-3xl font-bold mb-6"
-        >
-          Featured Ghazals
-        </motion.h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold">Featured Ghazals</h2>
+          <Button variant="link" asChild className="text-sm sm:text-base">
+            <Link href="/ghazal">Explore More</Link>
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <AnimatePresence>
             {ghazals.map((poem, index) => (
@@ -284,7 +279,7 @@ export default function Home() {
                 className="h-full"
               >
                 <Card className="h-full flex flex-col overflow-hidden">
-                  <div className="relative h-36 sm:h-40">
+                  <div className="relative h-32 sm:h-36">
                     <Image
                       src={poem.coverImage || "/placeholder.svg?height=200&width=300"}
                       alt={poem.title.en}
@@ -293,18 +288,16 @@ export default function Home() {
                     />
                   </div>
                   <CardContent className="flex-grow p-3 sm:p-4">
-                    <h3 className="text-base sm:text-lg font-bold line-clamp-1">{poem.title.en}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                    <h3 className="text-sm sm:text-base font-bold line-clamp-1">{poem.title.en}</h3>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                       <User className="h-3 w-3" /> {poem.author.name}
                     </p>
-                    {poem.excerpt && (
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{poem.excerpt}</p>
-                    )}
+                    {poem.excerpt && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{poem.excerpt}</p>}
                   </CardContent>
-                  <CardFooter className="p-3 sm:p-4 pt-0">
-                    <Button asChild variant="default" size="sm" className="gap-1 w-full sm:w-auto">
+                  <CardFooter className="p-3 sm:p-4 pt-0 mt-auto">
+                    <Button asChild variant="default" size="sm" className="gap-1 w-full text-xs sm:text-sm">
                       <Link href={`/poems/${poem.slug?.en || poem._id}`}>
-                        <BookOpen className="h-4 w-4" /> Read
+                        <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" /> Read
                       </Link>
                     </Button>
                   </CardFooter>
@@ -313,31 +306,16 @@ export default function Home() {
             ))}
           </AnimatePresence>
         </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center mt-6"
-        >
-          <Button variant="link" asChild className="group">
-            <Link href="/ghazal">
-              Explore More Ghazals
-              <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
-            </Link>
-          </Button>
-        </motion.div>
       </section>
 
       {/* Shers Section */}
       <section>
-        <motion.h2
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-3xl font-bold mb-6"
-        >
-          Featured Shers
-        </motion.h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold">Featured Shers</h2>
+          <Button variant="link" asChild className="text-sm sm:text-base">
+            <Link href="/sher">Explore More</Link>
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <AnimatePresence>
             {shers.map((poem, index) => (
@@ -350,7 +328,7 @@ export default function Home() {
                 className="h-full"
               >
                 <Card className="h-full flex flex-col overflow-hidden">
-                  <div className="relative h-36 sm:h-40">
+                  <div className="relative h-32 sm:h-36">
                     <Image
                       src={poem.coverImage || "/placeholder.svg?height=200&width=300"}
                       alt={poem.title.en}
@@ -359,18 +337,16 @@ export default function Home() {
                     />
                   </div>
                   <CardContent className="flex-grow p-3 sm:p-4">
-                    <h3 className="text-base sm:text-lg font-bold line-clamp-1">{poem.title.en}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                    <h3 className="text-sm sm:text-base font-bold line-clamp-1">{poem.title.en}</h3>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                       <User className="h-3 w-3" /> {poem.author.name}
                     </p>
-                    {poem.excerpt && (
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{poem.excerpt}</p>
-                    )}
+                    {poem.excerpt && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{poem.excerpt}</p>}
                   </CardContent>
-                  <CardFooter className="p-3 sm:p-4 pt-0">
-                    <Button asChild variant="default" size="sm" className="gap-1 w-full sm:w-auto">
+                  <CardFooter className="p-3 sm:p-4 pt-0 mt-auto">
+                    <Button asChild variant="default" size="sm" className="gap-1 w-full text-xs sm:text-sm">
                       <Link href={`/poems/${poem.slug?.en || poem._id}`}>
-                        <BookOpen className="h-4 w-4" /> Read
+                        <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" /> Read
                       </Link>
                     </Button>
                   </CardFooter>
@@ -379,19 +355,6 @@ export default function Home() {
             ))}
           </AnimatePresence>
         </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center mt-6"
-        >
-          <Button variant="link" asChild className="group">
-            <Link href="/sher">
-              Explore More Shers
-              <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
-            </Link>
-          </Button>
-        </motion.div>
       </section>
     </div>
   )
