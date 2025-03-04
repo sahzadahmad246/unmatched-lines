@@ -39,6 +39,6 @@ PoemSchema.pre("save", function (next) {
 });
 
 // Check if the model exists before creating a new one
-const Poem = models.Poem || model("Poem", PoemSchema);
 
-export default Poem;
+export default mongoose.models.Poem || mongoose.model("Poem", PoemSchema);
+
