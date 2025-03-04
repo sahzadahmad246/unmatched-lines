@@ -8,27 +8,40 @@ import Poem from "@/models/Poem"; // This import is crucial for registering the 
 import cloudinary from "@/lib/cloudinary";
 import mongoose from "mongoose";
 
+
+
+// Ensure the model is registered
+if (!mongoose.models.Poem) {
+  mongoose.model('Poem', Poem.schema);
+}
+
 // GET: Fetch user data
 export async function GET() {
   const session = await getServerSession(authOptions);
+  
   if (!session || !session.user?.id) {
-    console.log("No session or user ID:", session);
+  
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log("Session user ID:", session.user.id);
+
 
   try {
     await dbConnect();
-    console.log("Database connected");
+   
 
-    // Simpler approach - just importing the model is usually enough
-    // The import at the top should register the model
+    // Verify models are registered
+    
+   
 
     const user = await User.findById(session.user.id)
-      .populate("readList", "title content");
+      .populate({
+        path: 'readList',
+        model: 'Poem',
+        select: 'title content slug coverImage category'
+      });
 
-    console.log("Fetched user:", user);
+    
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -45,14 +58,15 @@ export async function GET() {
       },
     };
 
-    console.log("API Response:", response);
+
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching user data:", error);
+   
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
+// ... rest of your existing PUT method remains the same
 // PUT: Update user data
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions);

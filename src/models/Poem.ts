@@ -1,16 +1,17 @@
-import mongoose, { Schema, model, models } from "mongoose";
+// src/models/Poem.ts
+import mongoose, { Schema, model, Model } from "mongoose";
 
 const PoemSchema = new Schema(
   {
     title: {
-      en: { type: String, required: true, trim: true }, // English title
-      hi: { type: String, required: true, trim: true }, // Hindi title
-      ur: { type: String, required: true, trim: true }, // Urdu title
+      en: { type: String, required: true, trim: true },
+      hi: { type: String, required: true, trim: true },
+      ur: { type: String, required: true, trim: true },
     },
     content: {
-      en: { type: String, required: true }, // English content
-      hi: { type: String, required: true }, // Hindi content
-      ur: { type: String, required: true }, // Urdu content
+      en: { type: String, required: true },
+      hi: { type: String, required: true },
+      ur: { type: String, required: true },
     },
     author: { type: Schema.Types.ObjectId, ref: "Author", required: true },
     readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -22,23 +23,24 @@ const PoemSchema = new Schema(
       enum: ["poem", "ghazal", "sher", "other"],
       default: "poem",
     },
-    status: { type: String, enum: ["draft", "published"], default: "published" },
+    status: {
+      type: String,
+      enum: ["draft", "published"],
+      default: "published",
+    },
     slug: {
-      en: { type: String, required: true, unique: true }, // English slug
-      hi: { type: String, required: true, unique: true }, // Hindi slug
-      ur: { type: String, required: true, unique: true }, // Urdu slug
+      en: { type: String, required: true, unique: true },
+      hi: { type: String, required: true, unique: true },
+      ur: { type: String, required: true, unique: true },
     },
   },
   { timestamps: true }
 );
 
-// Pre-save hook to update readListCount
 PoemSchema.pre("save", function (next) {
   this.readListCount = this.readListUsers.length;
   next();
 });
 
-// Check if the model exists before creating a new one
-
-export default mongoose.models.Poem || mongoose.model("Poem", PoemSchema);
-
+const Poem: Model<any> = mongoose.models.Poem || model("Poem", PoemSchema);
+export default Poem;

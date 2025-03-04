@@ -1,3 +1,4 @@
+// src/app/api/poem/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     
-    // Ensure models are registered
+    // Ensure models are registered (optional, can be removed if not needed)
     try {
       mongoose.model("Author");
     } catch (e) {
@@ -82,6 +83,37 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    let coverImageUrl = poem.coverImage;
+    if (coverImage) {
+      const arrayBuffer = await coverImage.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      coverImageUrl = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          { folder: "unmatched_line/poems" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result!.secure_url);
+          }
+        ).end(buffer);
+      });
+    }
+
+    // Update the poem in the Poem collection
+    const updatedPoem = await Poem.findByIdAndUpdate(
+      id,
+      {
+        title: { en: titleEn, hi: titleHi, ur: titleUr },
+        content: { en: contentEn, hi: contentHi, ur: contentUr },
+        slug: { en: slugEn, hi: slugHi, ur: slugUr },
+        category,
+        status,
+        tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
+        coverImage: coverImageUrl,
+      },
+      { new: true, runValidators: true }
+    );
+
+    // Sync the duplicated data in the Author collection
     if (poem.category !== category) {
       const oldCategory = poem.category;
       let decrementField, incrementField;
@@ -106,33 +138,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       await Author.findByIdAndUpdate(poem.author, incrementField);
     }
 
-    let coverImageUrl = poem.coverImage;
-    if (coverImage) {
-      const arrayBuffer = await coverImage.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      coverImageUrl = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: "unmatched_line/poems" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result!.secure_url);
-          }
-        ).end(buffer);
-      });
-    }
-
-    const updatedPoem = await Poem.findByIdAndUpdate(
-      id,
+    // Update the Author's poems subdocument with the new data
+    await Author.updateOne(
+      { _id: poem.author, "poems.poemId": id },
       {
-        title: { en: titleEn, hi: titleHi, ur: titleUr },
-        content: { en: contentEn, hi: contentHi, ur: contentUr },
-        slug: { en: slugEn, hi: slugHi, ur: slugUr },
-        category,
-        status,
-        tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
-        coverImage: coverImageUrl,
-      },
-      { new: true, runValidators: true }
+        $set: {
+          "poems.$.titleEn": titleEn,
+          "poems.$.tags": tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
+          "poems.$.slug.en": slugEn,
+          "poems.$.slug.hi": slugHi,
+          "poems.$.slug.ur": slugUr,
+          "poems.$.coverImage": coverImageUrl,
+        },
+      }
     );
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
@@ -165,8 +183,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const authorId = poem.author;
     const category = poem.category;
 
+    // Remove the poem from the Poem collection
     await poem.deleteOne();
 
+    // Update the Author by removing the poem subdocument and adjusting counts
     let updateField;
     if (category === "sher") {
       updateField = { $inc: { sherCount: -1 } };
@@ -179,7 +199,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     await Author.findByIdAndUpdate(
       authorId,
       {
-        $pull: { poems: poem._id },
+        $pull: { poems: { poemId: id } }, // Pull the entire subdocument by poemId
         ...updateField,
       },
       { new: true }

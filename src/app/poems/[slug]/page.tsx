@@ -270,7 +270,7 @@ export default function PoemDetail() {
         </motion.p>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
-          <Button variant="outline" className="gap-2 font-serif" onClick={() => router.push("/poems")}>
+          <Button variant="outline" className="gap-2 font-serif" onClick={() => router.push("/ghazal")}>
             <ArrowLeft className="h-4 w-4" />
             Return to the Library
           </Button>

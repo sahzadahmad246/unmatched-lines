@@ -1,4 +1,3 @@
-// models/User.ts
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
@@ -14,7 +13,10 @@ const UserSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
-    readList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Poem" }],
+    readList: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Poem" 
+    }],
   },
   { timestamps: true }
 );
