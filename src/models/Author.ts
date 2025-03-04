@@ -1,9 +1,9 @@
-// src/models/Author.ts
 import mongoose, { Schema, model, Model } from "mongoose";
 
 const AuthorSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
+    slug: { type: String, unique: true, required: true }, 
     image: { type: String, default: "" },
     dob: { type: Date },
     city: { type: String, trim: true },

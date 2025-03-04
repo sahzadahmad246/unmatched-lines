@@ -1,15 +1,26 @@
 import { getServerSession } from "next-auth/next";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Author from "@/models/Author";
-import User from "@/models/User"; // Add this import
+import User from "@/models/User";
 import cloudinary from "@/lib/cloudinary";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   await dbConnect();
 
   try {
+    const { searchParams } = new URL(request.url);
+    const slug = searchParams.get("slug");
+
+    if (slug) {
+      const author = await Author.findOne({ slug });
+      if (!author) {
+        return NextResponse.json({ error: "Author not found" }, { status: 404 });
+      }
+      return NextResponse.json({ author });
+    }
+
     const authors = await Author.find().sort({ name: 1 });
     return NextResponse.json({ authors });
   } catch (error) {
@@ -26,16 +37,15 @@ export async function POST(request: Request) {
 
   await dbConnect();
 
-  // Check if user is admin
   const user = await User.findById(session.user.id);
-  if (!user || user.role !== "admin") { // Added !user check for safety
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   try {
     const formData = await request.formData();
     const name = formData.get("name") as string;
-    const dob = formData.get("dob") as string; // Expect ISO date string (e.g., "1990-01-01")
+    const dob = formData.get("dob") as string;
     const city = formData.get("city") as string;
     const image = formData.get("image") as File | null;
 
@@ -54,12 +64,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const author = await Author.create({
+    // Create author first to get ID
+    const author = new Author({
       name,
       dob: dob ? new Date(dob) : undefined,
       city,
       image: imageUrl || "",
     });
+
+    // Generate slug with name and part of ID
+    const baseSlug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    author.slug = `${baseSlug}-${author._id.toString().slice(-6)}`;
+    
+    await author.save();
 
     return NextResponse.json({ message: "Author added", author }, { status: 201 });
   } catch (error) {

@@ -15,7 +15,6 @@ export default function AuthorManagement() {
   const [authors, setAuthors] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Fetch all authors on mount
   useEffect(() => {
     fetch("/api/authors", { credentials: "include" })
       .then((res) => res.json())
@@ -155,7 +154,10 @@ export default function AuthorManagement() {
                 key={author._id}
                 className="flex justify-between items-center p-2 border rounded"
               >
-                <span>{author.name}</span>
+                <div>
+                  <span>{author.name}</span>
+                  <span className="text-sm text-gray-500 ml-2">({author.slug})</span>
+                </div>
                 <div className="space-x-2">
                   <Button size="sm" onClick={() => handleEdit(author)}>
                     Edit
