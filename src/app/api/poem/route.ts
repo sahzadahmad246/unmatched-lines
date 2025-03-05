@@ -1,4 +1,3 @@
-// src/app/api/poem/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -61,6 +60,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!category) {
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 }
+      );
+    }
+
     const user = await User.findById(session.user.id);
     if (user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -88,7 +94,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create the new poem in the Poem collection
     const newPoem = await Poem.create({
       title: { en: titleEn, hi: titleHi, ur: titleUr },
       content: { en: contentEn, hi: contentHi, ur: contentUr },
@@ -100,7 +105,6 @@ export async function POST(request: NextRequest) {
       coverImage: coverImageUrl || "",
     });
 
-    // Update the author with poem reference and duplicated data (full slug object)
     let updateField;
     if (category === "sher") {
       updateField = { $inc: { sherCount: 1 } };
@@ -110,19 +114,10 @@ export async function POST(request: NextRequest) {
       updateField = { $inc: { otherCount: 1 } };
     }
 
-    const poemDataForAuthor = {
-      poemId: newPoem._id,
-      titleEn: titleEn,
-      tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
-      slug: { en: slugEn, hi: slugHi, ur: slugUr }, // Store full slug object
-      coverImage: coverImageUrl || "",
-    };
-    console.log("Pushing to Author.poems:", poemDataForAuthor);
-
     const updatedAuthor = await Author.findByIdAndUpdate(
       authorId,
       {
-        $push: { poems: poemDataForAuthor },
+        $push: { poems: { poemId: newPoem._id } }, // Only store the reference
         ...updateField,
       },
       { new: true }
@@ -169,7 +164,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ poem });
     }
 
-    // Fetch all published poems if no slug is provided
     const poems = await Poem.find({ status: "published" })
       .populate("author", "name")
       .sort({ createdAt: -1 });
@@ -240,6 +234,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    if (!category) {
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 }
+      );
+    }
+
     let coverImageUrl = poem.coverImage;
     if (coverImage) {
       const arrayBuffer = await coverImage.arrayBuffer();
@@ -257,7 +258,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Update the poem in the Poem collection
     const updatedPoem = await Poem.findByIdAndUpdate(
       id,
       {
@@ -272,7 +272,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       { new: true, runValidators: true }
     );
 
-    // Sync the duplicated data in the Author collection (full slug object)
+    // Update author counters if category changes
     if (poem.category !== category) {
       const oldCategory = poem.category;
       let decrementField, incrementField;
@@ -297,28 +297,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       await Author.findByIdAndUpdate(poem.author, incrementField);
     }
 
-    console.log("Updating Author.poems with:", {
-      titleEn,
-      tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
-      slug: { en: slugEn, hi: slugHi, ur: slugUr },
-      coverImageUrl,
-    });
-
-    await Author.updateOne(
-      { _id: poem.author, "poems.poemId": id },
-      {
-        $set: {
-          "poems.$.titleEn": titleEn,
-          "poems.$.tags": tags
-            ? tags.split(",").map((tag) => tag.trim())
-            : poem.tags,
-          "poems.$.slug.en": slugEn,
-          "poems.$.slug.hi": slugHi,
-          "poems.$.slug.ur": slugUr,
-          "poems.$.coverImage": coverImageUrl,
-        },
-      }
-    );
+    // No need to update poem data in Author collection since we're only storing poemId
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
@@ -353,10 +332,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const authorId = poem.author;
     const category = poem.category;
 
-    // Remove the poem from the Poem collection
     await poem.deleteOne();
 
-    // Update the author
     let updateField;
     if (category === "sher") {
       updateField = { $inc: { sherCount: -1 } };
@@ -366,14 +343,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       updateField = { $inc: { otherCount: -1 } };
     }
 
-    await Author.findByIdAndUpdate(
+    const updatedAuthor = await Author.findByIdAndUpdate(
       authorId,
       {
-        $pull: { poems: { poemId: id } },
+        $pull: { poems: { poemId: id } }, // Remove only the poemId reference
         ...updateField,
       },
       { new: true }
     );
+
+    console.log("Author after delete:", updatedAuthor);
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {

@@ -17,18 +17,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    
-    try {
-      mongoose.model("Poem");
-    } catch (e) {
-      mongoose.model("Poem", Poem.schema);
+    console.log("Received id/slug:", id); // Debug log
+
+    // Check if the id is a valid ObjectId (24-character hex string)
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    console.log("Is valid ObjectId:", isObjectId); // Debug log
+
+    let author;
+    if (isObjectId) {
+      // If it's a valid ObjectId, try fetching by _id
+      author = await Author.findById(id).populate("poems", "title category");
+    } else {
+      // Otherwise, fetch by slug
+      author = await Author.findOne({ slug: id }).populate("poems", "title category");
     }
-    
-    const author = await Author.findOne({ $or: [{ _id: id }, { slug: id }] })
-      .populate("poems", "title category");
+
     if (!author) {
+      console.log("Author not found for:", id);
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
+
+    console.log("Fetched author:", author);
     return NextResponse.json({ author });
   } catch (error) {
     console.error("Error fetching author:", error);
@@ -36,6 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// PUT and DELETE handlers remain unchanged for this fix
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -57,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const city = formData.get("city") as string;
     const image = formData.get("image") as File | null;
 
-    const author = await Author.findById(id);
+    const author = await Author.findById(id); // PUT assumes ID, not slug
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
@@ -77,7 +87,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Generate new slug only if name changes
     let slug = author.slug;
     if (name && name !== author.name) {
       const baseSlug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -118,7 +127,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    const author = await Author.findById(id);
+    const author = await Author.findById(id); // DELETE assumes ID, not slug
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }

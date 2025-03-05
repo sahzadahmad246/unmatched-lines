@@ -30,43 +30,70 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function PoetDetail() {
-  const { id } = useParams(); // Get the poet ID from the URL
+  const { slug } = useParams(); // Get the poet slug from the URL
   const [poet, setPoet] = useState<any>(null);
+  const [poems, setPoems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readList, setReadList] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("all");
 
-  // Fetch poet by ID from API
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [poetRes, userRes] = await Promise.all([
-          fetch(`/api/authors/${id}`, { credentials: "include" }),
+        const [poetRes, poemRes, userRes] = await Promise.all([
+          fetch(`/api/authors/${slug}`, { credentials: "include" }),
+          fetch("/api/poem", { credentials: "include" }),
           fetch("/api/user", { credentials: "include" }),
         ]);
 
-        if (!poetRes.ok) throw new Error("Failed to fetch poet");
+        // Handle poet response
+        if (!poetRes.ok) {
+          const poetError = await poetRes.text();
+
+          throw new Error(`Failed to fetch poet: ${poetError}`);
+        }
         const poetData = await poetRes.json();
-        console.log("Fetched poet data:", poetData.author); // Debug log
+
         setPoet(poetData.author);
 
+        // Handle poems response
+        if (!poemRes.ok) {
+          const poemError = await poemRes.text();
+
+          throw new Error(`Failed to fetch poems: ${poemError}`);
+        }
+        const poemData = await poemRes.json();
+
+        const filteredPoems = poemData.poems.filter(
+          (poem: any) =>
+            poem.author?._id.toString() === poetData.author._id.toString()
+        );
+
+        setPoems(filteredPoems);
+
+        // Handle user response
         if (userRes.ok) {
           const userData = await userRes.json();
+
           setReadList(
             userData.user.readList.map((poem: any) => poem._id.toString())
           );
+        } else {
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load poet details");
+        setError("Failed to load poet details or poems");
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) fetchData();
-  }, [id]);
+    if (slug) fetchData();
+    else {
+      setError("No poet slug provided");
+      setLoading(false);
+    }
+  }, [slug]);
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
@@ -88,6 +115,19 @@ export default function PoetDetail() {
           isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
         );
 
+        setPoems((prevPoems) =>
+          prevPoems.map((poem) =>
+            poem._id === poemId
+              ? {
+                  ...poem,
+                  readListCount: isInReadlist
+                    ? (poem.readListCount || 1) - 1
+                    : (poem.readListCount || 0) + 1,
+                }
+              : poem
+          )
+        );
+
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
@@ -106,10 +146,6 @@ export default function PoetDetail() {
         });
       }
     } catch (error) {
-      console.error(
-        `Error ${isInReadlist ? "removing from" : "adding to"} reading list:`,
-        error
-      );
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
         duration: 3000,
@@ -117,8 +153,7 @@ export default function PoetDetail() {
     }
   };
 
-  // Group poems by category
-  const groupedPoems = poet?.poems?.reduce((acc: any, poem: any) => {
+  const groupedPoems = poems.reduce((acc: any, poem: any) => {
     const category = poem.category || "other";
     if (!acc[category]) acc[category] = [];
     acc[category].push(poem);
@@ -260,7 +295,7 @@ export default function PoetDetail() {
                 </div>
               </div>
 
-              <div className="text-sm text-muted-foreground pt-4 border-t">
+              <div className="text -sm text-muted-foreground pt-4 border-t">
                 <p>
                   <span className="font-semibold">Added:</span>{" "}
                   {new Date(poet.createdAt).toLocaleDateString("en-US", {
@@ -295,7 +330,7 @@ export default function PoetDetail() {
               <CardTitle className="text-2xl">Works by {poet.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              {poet.poems && poet.poems.length > 0 ? (
+              {poems.length > 0 ? (
                 <Tabs defaultValue="all" onValueChange={setActiveTab}>
                   <TabsList className="mb-6">
                     <TabsTrigger value="all">All Works</TabsTrigger>
@@ -319,12 +354,10 @@ export default function PoetDetail() {
                         transition={{ duration: 0.3 }}
                         className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                       >
-                        {poet.poems.map((poem: any, index: number) => {
-                          const poemTitle = poem.titleEn;
-
+                        {poems.map((poem: any, index: number) => {
+                          const poemTitle = poem.title?.en || "Untitled";
                           const isInReadlist = readList.includes(poem._id);
-                          const slug = poem.slug?.en || poem._id; // Fallback to _id if slug.en is missing
-                          console.log("Navigating to poem slug:", slug); // Debug log
+                          const slug = poem.slug?.en || poem._id;
 
                           return (
                             <motion.div
@@ -355,7 +388,7 @@ export default function PoetDetail() {
                                   <div className="absolute top-2 right-2">
                                     <Badge
                                       variant="secondary"
-                                      className="flex items-center gap-1 bg-background/80 backdrop-blur-sm"
+                                      className="flex items-center gap-1 bg-background /80 backdrop-blur-sm"
                                     >
                                       <Heart className="h-3 w-3 text-primary" />
                                       <span>{poem.readListCount || 0}</span>
@@ -447,15 +480,11 @@ export default function PoetDetail() {
                               className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                             >
                               {poems.map((poem: any, index: number) => {
-                                const poemTitle =
-                                  typeof poem.title === "object"
-                                    ? poem.title.en || "Untitled"
-                                    : poem.title;
+                                const poemTitle = poem.title?.en || "Untitled";
                                 const isInReadlist = readList.includes(
                                   poem._id
                                 );
-                                const slug = poem.slug?.en || poem._id; // Fallback to _id
-                                console.log("Navigating to poem slug:", slug); // Debug log
+                                const slug = poem.slug?.en || poem._id;
 
                                 return (
                                   <motion.div
@@ -518,11 +547,11 @@ export default function PoetDetail() {
                                                 poemTitle
                                               )
                                             }
-                                            className={`${
-                                              isInReadlist
-                                                ? "text-primary"
-                                                : "text-muted-foreground"
-                                            } hover:text-primary`}
+                                            className={`$ {
+ isInReadlist
+ ? "text-primary"
+ : "text-muted-foreground"
+ } hover:text-primary`}
                                           >
                                             {isInReadlist ? (
                                               <motion.div

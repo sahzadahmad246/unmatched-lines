@@ -3,20 +3,30 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, Loader2, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface Poet {
+  _id: string;
+  name: string;
+  slug: string; // Add slug to the interface
+  image?: string;
+  dob?: string;
+  city?: string;
+  ghazalCount: number;
+  sherCount: number;
+}
 
 export default function Poets() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [authors, setAuthors] = useState<any[]>([]);
+  const [authors, setAuthors] = useState<Poet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Fetch authors from API on mount
   useEffect(() => {
     const fetchAuthors = async () => {
       try {
@@ -25,7 +35,7 @@ export default function Poets() {
         const data = await res.json();
         setAuthors(data.authors || []);
       } catch (err) {
-        console.error("Error fetching authors:", err);
+       
         setError("Failed to load poets");
       } finally {
         setLoading(false);
@@ -100,34 +110,32 @@ export default function Poets() {
       </motion.div>
 
       <AnimatePresence>
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {filteredAuthors.map((author, index) => (
             <motion.div
               key={author._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.4 }}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+              className="min-w-0"
             >
-              <Card className="h-full flex flex-col overflow-hidden hover:shadow-md transition-shadow">
-                <div className="flex justify-center pt-6">
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden">
-                    <Image
-                      src={author.image || "/placeholder.svg?height=100&width=100"}
-                      alt={author.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100px, 100px"
-                    />
-                  </div>
+              <Card className="h-full flex flex-col overflow-hidden transition-all hover:shadow-lg">
+                <div className="relative aspect-square overflow-hidden">
+                  <Image
+                    src={author.image || "/placeholder.svg?height=180&width=180"}
+                    alt={author.name}
+                    fill
+                    className="object-cover transition-transform hover:scale-105 duration-300"
+                  />
                 </div>
-                <CardHeader className="pt-4 pb-2 text-center">
-                  <CardTitle className="text-lg line-clamp-1">{author.name}</CardTitle>
-                </CardHeader>
-                <CardFooter className="pt-0 pb-6 flex justify-center">
-                  <Link href={`/poets/${author._id}`}>
-                    <Button size="sm" className="w-full">View Profile</Button>
-                  </Link>
+                <CardContent className="flex-grow p-3 text-center">
+                  <h3 className="font-medium text-sm sm:text-base line-clamp-1">{author.name}</h3>
+                </CardContent>
+                <CardFooter className="p-3 pt-0">
+                  <Button asChild size="sm" className="w-full text-xs">
+                    <Link href={`/poets/${author.slug}`}>View Profile</Link>
+                  </Button>
                 </CardFooter>
               </Card>
             </motion.div>

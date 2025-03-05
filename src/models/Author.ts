@@ -3,7 +3,7 @@ import mongoose, { Schema, model, Model } from "mongoose";
 const AuthorSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, unique: true, required: true }, 
+    slug: { type: String, unique: true, required: true },
     image: { type: String, default: "" },
     dob: { type: Date },
     city: { type: String, trim: true },
@@ -13,14 +13,6 @@ const AuthorSchema = new Schema(
     poems: [
       {
         poemId: { type: Schema.Types.ObjectId, ref: "Poem", required: true },
-        titleEn: { type: String, required: true, trim: true },
-        tags: [String],
-        slug: {
-          en: { type: String, required: true },
-          hi: { type: String, required: true },
-          ur: { type: String, required: true },
-        },
-        coverImage: { type: String, default: "" },
       },
     ],
   },
