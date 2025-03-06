@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PoemDetail from "@/components/admin/poems/poem-detail";
+import PoemDetail from "@/components/poems/poem-detail";
 
 // Define the Poem interface
 interface Poem {

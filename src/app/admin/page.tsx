@@ -1,5 +1,11 @@
-import AdminDashboard from "@/components/admin/admin-dashboard";
+import { Metadata } from "next";
+import { DashboardOverview } from "@/components/admin/dashboard-overview";
 
-export default function ProfilePage() {
-  return <AdminDashboard />;
+export const metadata: Metadata = {
+  title: "Admin Dashboard | Unmatched Lines",
+  description: "Manage your poetry collection",
+};
+
+export default function AdminDashboardPage() {
+  return <DashboardOverview />;
 }

@@ -1,23 +1,24 @@
-// src/app/admin/layout.tsx
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+"use client"
+
+import type React from "react"
+
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { AdminSidebar } from "@/components/admin/admin-sidebar"
+
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <div className="admin-layout">
-      {/* Admin sidebar or navigation */}
-      <nav className="bg-gray-800 text-white p-4">
-        <h2 className="text-xl font-bold mb-4">Admin Panel</h2>
-        <Link href="/admin/authors">
-          <Button variant="outline">Manage Authors</Button>
-        </Link>
-      </nav>
-
-      {/* Admin content */}
-      <main className="p-4">{children}</main>
-    </div>
-  );
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen">
+        <AdminSidebar />
+        <SidebarInset className="flex-1">
+          <main className="p-6">{children}</main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  )
 }
+
