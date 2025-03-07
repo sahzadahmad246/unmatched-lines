@@ -1,4 +1,4 @@
-// src/app/api/poem/route.ts
+// src/app/api/poem/[id]/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -18,14 +18,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    
-    // Ensure models are registered (optional, can be removed if not needed)
-    try {
-      mongoose.model("Author");
-    } catch (e) {
-      mongoose.model("Author", Author.schema);
-    }
-    
     const poem = await Poem.findById(id).populate("author", "name");
     if (!poem) {
       return NextResponse.json({ error: "Poem not found" }, { status: 404 });
@@ -51,9 +43,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const titleEn = formData.get("titleEn") as string;
     const titleHi = formData.get("titleHi") as string;
     const titleUr = formData.get("titleUr") as string;
-    const contentEn = formData.get("contentEn") as string;
-    const contentHi = formData.get("contentHi") as string;
-    const contentUr = formData.get("contentUr") as string;
+    const contentEn = formData.getAll("contentEn[]") as string[];
+    const contentHi = formData.getAll("contentHi[]") as string[];
+    const contentUr = formData.getAll("contentUr[]") as string[];
     const slugEn = formData.get("slugEn") as string;
     const slugHi = formData.get("slugHi") as string;
     const slugUr = formData.get("slugUr") as string;
@@ -72,13 +64,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (
-      !titleEn || !titleHi || !titleUr ||
-      !contentEn || !contentHi || !contentUr ||
-      !slugEn || !slugHi || !slugUr
-    ) {
+    if (!titleEn || !titleHi || !titleUr || !slugEn || !slugHi || !slugUr) {
       return NextResponse.json(
-        { error: "Title, content, and slug are required for all languages (English, Hindi, Urdu)" },
+        { error: "Title and slug are required for all languages" },
+        { status: 400 }
+      );
+    }
+
+    if (!contentEn.length || !contentHi.length || !contentUr.length) {
+      return NextResponse.json(
+        { error: "At least one verse is required for each language" },
         { status: 400 }
       );
     }
@@ -98,7 +93,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Update the poem in the Poem collection
     const updatedPoem = await Poem.findByIdAndUpdate(
       id,
       {
@@ -113,7 +107,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       { new: true, runValidators: true }
     );
 
-    // Sync the duplicated data in the Author collection
     if (poem.category !== category) {
       const oldCategory = poem.category;
       let decrementField, incrementField;
@@ -138,21 +131,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       await Author.findByIdAndUpdate(poem.author, incrementField);
     }
 
-    // Update the Author's poems subdocument with the new data
-    await Author.updateOne(
-      { _id: poem.author, "poems.poemId": id },
-      {
-        $set: {
-          "poems.$.titleEn": titleEn,
-          "poems.$.tags": tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
-          "poems.$.slug.en": slugEn,
-          "poems.$.slug.hi": slugHi,
-          "poems.$.slug.ur": slugUr,
-          "poems.$.coverImage": coverImageUrl,
-        },
-      }
-    );
-
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
     console.error("Error updating poem:", error);
@@ -161,6 +139,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  // DELETE remains unchanged
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -183,10 +162,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const authorId = poem.author;
     const category = poem.category;
 
-    // Remove the poem from the Poem collection
     await poem.deleteOne();
 
-    // Update the Author by removing the poem subdocument and adjusting counts
     let updateField;
     if (category === "sher") {
       updateField = { $inc: { sherCount: -1 } };
@@ -199,7 +176,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     await Author.findByIdAndUpdate(
       authorId,
       {
-        $pull: { poems: { poemId: id } }, // Pull the entire subdocument by poemId
+        $pull: { poems: { poemId: id } },
         ...updateField,
       },
       { new: true }

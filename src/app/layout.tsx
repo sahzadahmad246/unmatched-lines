@@ -5,6 +5,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Navbar from "@/components/navbar";
 import { Toaster } from "sonner";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import ClientLayout from "./client-layout"; // New client component
 
 export const metadata: Metadata = {
   title: {
@@ -17,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Unmatched Lines - Poetry Collection",
     description: "Explore a diverse collection of beautiful poetry from famous poets across languages and cultures.",
-    url: "https://unmatched-lines.vercel.app", 
+    url: "https://unmatched-lines.vercel.app",
     siteName: "Unmatched Lines",
     type: "website",
     locale: "en_US",
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Unmatched Lines - Poetry Collection",
     description: "Discover poetry from renowned poets in multiple languages at Unmatched Lines.",
-    creator: "@shahzadahmad246", 
+    creator: "@shahzadahmad246",
   },
   robots: {
     index: true,
@@ -37,7 +39,7 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  metadataBase: new URL("https://unmatched-lines.vercel.app"), // Replace with your actual domain
+  metadataBase: new URL("https://unmatched-lines.vercel.app"),
 };
 
 export default function RootLayout({
@@ -49,8 +51,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
-          <Navbar />
-          {children}
+          <ClientLayout>
+            {children}
+          </ClientLayout>
           <Toaster position="top-right" />
         </Providers>
       </body>

@@ -166,3 +166,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Add this to your existing globals.css */
+
+/* Poetry Styling */
+.poem-content {
+  @apply text-lg;
+}
+
+.poem-stanza {
+  @apply my-6 first:mt-0 last:mb-0;
+}
+
+.poem-line {
+  @apply select-text;
+}
+
+/* For English and Hindi poems */
+.poem-content:not(.rtl) .poem-line {
+  @apply indent-8 first:indent-0;
+}
+
+/* For Urdu poems */
+.poem-content.rtl {
+  @apply text-right;
+}
+
+.poem-content.rtl .poem-line {
+  @apply indent-0;
+}
+
+/* Directional formatting */
+.rtl {
+  direction: rtl;
+}
+

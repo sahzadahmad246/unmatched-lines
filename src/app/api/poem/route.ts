@@ -1,3 +1,4 @@
+// src/app/api/poem/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -21,9 +22,9 @@ export async function POST(request: NextRequest) {
     const titleEn = formData.get("titleEn") as string;
     const titleHi = formData.get("titleHi") as string;
     const titleUr = formData.get("titleUr") as string;
-    const contentEn = formData.get("contentEn") as string;
-    const contentHi = formData.get("contentHi") as string;
-    const contentUr = formData.get("contentUr") as string;
+    const contentEn = formData.getAll("contentEn[]") as string[];
+    const contentHi = formData.getAll("contentHi[]") as string[];
+    const contentUr = formData.getAll("contentUr[]") as string[];
     const slugEn = formData.get("slugEn") as string;
     const slugHi = formData.get("slugHi") as string;
     const slugUr = formData.get("slugUr") as string;
@@ -33,38 +34,49 @@ export async function POST(request: NextRequest) {
     const coverImage = formData.get("coverImage") as File | null;
     const authorId = formData.get("authorId") as string;
 
+    // Log incoming data for debugging
+    console.log("FormData received:", {
+      titleEn, titleHi, titleUr,
+      contentEn, contentHi, contentUr,
+      slugEn, slugHi, slugUr,
+      category, status, tags, authorId,
+      coverImage: coverImage ? "File present" : "No file",
+    });
+
+    // Validation
     if (!authorId) {
+      return NextResponse.json({ error: "Author ID is required" }, { status: 400 });
+    }
+
+    if (!titleEn || !titleHi || !titleUr || !slugEn || !slugHi || !slugUr) {
       return NextResponse.json(
-        { error: "Author ID is required" },
+        { error: "Title and slug are required for all languages" },
         { status: 400 }
       );
     }
 
-    if (
-      !titleEn ||
-      !titleHi ||
-      !titleUr ||
-      !contentEn ||
-      !contentHi ||
-      !contentUr ||
-      !slugEn ||
-      !slugHi ||
-      !slugUr
-    ) {
+    // Ensure content fields are valid arrays of strings
+    if (!Array.isArray(contentEn) || contentEn.length === 0 || contentEn.some(v => typeof v !== "string" || !v.trim())) {
       return NextResponse.json(
-        {
-          error:
-            "Title, content, and slug are required for all languages (English, Hindi, Urdu)",
-        },
+        { error: "English content must be a non-empty array of non-empty strings" },
+        { status: 400 }
+      );
+    }
+    if (!Array.isArray(contentHi) || contentHi.length === 0 || contentHi.some(v => typeof v !== "string" || !v.trim())) {
+      return NextResponse.json(
+        { error: "Hindi content must be a non-empty array of non-empty strings" },
+        { status: 400 }
+      );
+    }
+    if (!Array.isArray(contentUr) || contentUr.length === 0 || contentUr.some(v => typeof v !== "string" || !v.trim())) {
+      return NextResponse.json(
+        { error: "Urdu content must be a non-empty array of non-empty strings" },
         { status: 400 }
       );
     }
 
     if (!category) {
-      return NextResponse.json(
-        { error: "Category is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Category is required" }, { status: 400 });
     }
 
     const user = await User.findById(session.user.id);
@@ -94,16 +106,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const newPoem = await Poem.create({
+    // Create the poem document - keeping the content as arrays
+    const poemData = {
       title: { en: titleEn, hi: titleHi, ur: titleUr },
-      content: { en: contentEn, hi: contentHi, ur: contentUr },
+      content: {
+        en: contentEn,
+        hi: contentHi,
+        ur: contentUr,
+      },
       slug: { en: slugEn, hi: slugHi, ur: slugUr },
       author: authorId,
       category,
       status,
       tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
       coverImage: coverImageUrl || "",
-    });
+    };
+
+    console.log("Poem data to save:", JSON.stringify(poemData, null, 2));
+
+    const newPoem = await Poem.create(poemData);
 
     let updateField;
     if (category === "sher") {
@@ -114,16 +135,14 @@ export async function POST(request: NextRequest) {
       updateField = { $inc: { otherCount: 1 } };
     }
 
-    const updatedAuthor = await Author.findByIdAndUpdate(
+    await Author.findByIdAndUpdate(
       authorId,
       {
-        $push: { poems: { poemId: newPoem._id } }, // Only store the reference
+        $push: { poems: { poemId: newPoem._id } },
         ...updateField,
       },
       { new: true }
     );
-
-    console.log("Updated Author:", updatedAuthor);
 
     return NextResponse.json(
       { message: "Poem added", poem: newPoem },
@@ -132,14 +151,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error adding poem:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
-}
-
-interface RouteParams {
-  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest) {
@@ -150,17 +168,14 @@ export async function GET(request: NextRequest) {
     const slug = url.searchParams.get("slug");
 
     if (slug) {
-      console.log("Searching for poem with slug:", slug);
       const poem = await Poem.findOne({
         $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
       }).populate("author", "name");
 
       if (!poem) {
-        console.log("Poem not found for slug:", slug);
         return NextResponse.json({ error: "Poem not found" }, { status: 404 });
       }
 
-      console.log("Found poem:", poem);
       return NextResponse.json({ poem });
     }
 
@@ -168,7 +183,6 @@ export async function GET(request: NextRequest) {
       .populate("author", "name")
       .sort({ createdAt: -1 });
 
-    console.log("Fetched all poems:", poems);
     return NextResponse.json({ poems });
   } catch (error) {
     console.error("Error fetching poems:", error);
@@ -177,6 +191,10 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -193,9 +211,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const titleEn = formData.get("titleEn") as string;
     const titleHi = formData.get("titleHi") as string;
     const titleUr = formData.get("titleUr") as string;
-    const contentEn = formData.get("contentEn") as string;
-    const contentHi = formData.get("contentHi") as string;
-    const contentUr = formData.get("contentUr") as string;
+    const contentEn = formData.getAll("contentEn[]") as string[];
+    const contentHi = formData.getAll("contentHi[]") as string[];
+    const contentUr = formData.getAll("contentUr[]") as string[];
     const slugEn = formData.get("slugEn") as string;
     const slugHi = formData.get("slugHi") as string;
     const slugUr = formData.get("slugUr") as string;
@@ -214,29 +232,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (
-      !titleEn ||
-      !titleHi ||
-      !titleUr ||
-      !contentEn ||
-      !contentHi ||
-      !contentUr ||
-      !slugEn ||
-      !slugHi ||
-      !slugUr
-    ) {
+    if (!titleEn || !titleHi || !titleUr || !slugEn || !slugHi || !slugUr) {
       return NextResponse.json(
-        {
-          error:
-            "Title, content, and slug are required for all languages (English, Hindi, Urdu)",
-        },
+        { error: "Title and slug are required for all languages" },
         { status: 400 }
       );
     }
 
-    if (!category) {
+    if (!contentEn.length || !contentHi.length || !contentUr.length) {
       return NextResponse.json(
-        { error: "Category is required" },
+        { error: "At least one verse is required for each language" },
         { status: 400 }
       );
     }
@@ -258,11 +263,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    // Keep content as arrays when updating
     const updatedPoem = await Poem.findByIdAndUpdate(
       id,
       {
         title: { en: titleEn, hi: titleHi, ur: titleUr },
-        content: { en: contentEn, hi: contentHi, ur: contentUr },
+        content: { 
+          en: contentEn, 
+          hi: contentHi, 
+          ur: contentUr 
+        },
         slug: { en: slugEn, hi: slugHi, ur: slugUr },
         category,
         status,
@@ -272,7 +282,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       { new: true, runValidators: true }
     );
 
-    // Update author counters if category changes
     if (poem.category !== category) {
       const oldCategory = poem.category;
       let decrementField, incrementField;
@@ -296,8 +305,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       await Author.findByIdAndUpdate(poem.author, decrementField);
       await Author.findByIdAndUpdate(poem.author, incrementField);
     }
-
-    // No need to update poem data in Author collection since we're only storing poemId
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
@@ -343,16 +350,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       updateField = { $inc: { otherCount: -1 } };
     }
 
-    const updatedAuthor = await Author.findByIdAndUpdate(
+    await Author.findByIdAndUpdate(
       authorId,
       {
-        $pull: { poems: { poemId: id } }, // Remove only the poemId reference
+        $pull: { poems: { poemId: id } },
         ...updateField,
       },
       { new: true }
     );
-
-    console.log("Author after delete:", updatedAuthor);
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {

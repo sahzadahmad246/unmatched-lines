@@ -98,6 +98,25 @@ export function DashboardOverview() {
             </CardFooter>
           </Card>
         </motion.div>
+
+        <motion.div variants={item}>
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl">Manage Authors</CardTitle>
+              <CardDescription>
+                Edit and organize existing poets info
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FileText className="h-12 w-12 text-primary/80" />
+            </CardContent>
+            <CardFooter>
+              <Button asChild>
+                <Link href="/admin/manage-authors">Manage Authors</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </motion.div>
       </motion.div>
     </div>
   );
