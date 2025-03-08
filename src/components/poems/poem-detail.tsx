@@ -303,12 +303,6 @@ export default function PoemDetail() {
         ctx.font = `${fontSize}px ${fontFamily}`;
         ctx.fillStyle = "white";
 
-        // Add poem title at the top
-        const title = poem.title?.[downloadLanguage] || "";
-        const maxTitleSize = Math.max(canvas.width * 0.05, 32);
-        ctx.font = `bold ${maxTitleSize}px ${fontFamily}`;
-        ctx.fillText(title, canvas.width / 2, canvas.height * 0.15);
-
         // Reset to verse font size
         ctx.font = `${fontSize}px ${fontFamily}`;
 
@@ -546,11 +540,11 @@ export default function PoemDetail() {
       >
         <Button
           variant="ghost"
-          onClick={() => router.push("/poems")}
+          onClick={() => router.push("/library")}
           className="gap-2 text-muted-foreground hover:text-foreground font-serif"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Poems
+          Back to library
         </Button>
       </motion.div>
 
@@ -669,21 +663,14 @@ export default function PoemDetail() {
                     </span>
                   </div>
 
-                  {poem.publishedDate && (
+                  {poem.createdAt && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-primary" />
                       <span className="text-sm text-muted-foreground font-serif italic">
-                        {new Date(poem.publishedDate).toLocaleDateString()}
+                        {new Date(poem.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                   )}
-
-                  <div className="flex items-center gap-2 ml-auto">
-                    <Eye className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-muted-foreground font-serif italic">
-                      {Math.floor(Math.random() * 1000) + 100} views
-                    </span>
-                  </div>
                 </motion.div>
 
                 <AnimatePresence mode="wait">
@@ -694,7 +681,7 @@ export default function PoemDetail() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.4 }}
-                      className="prose prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content rtl:text-right"
+                      className="prose prose-sm md:prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content rtl:text-right"
                     >
                       {formatPoetryContent(poem.content?.en) ||
                         "Content not available in English"}
@@ -708,7 +695,7 @@ export default function PoemDetail() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.4 }}
-                      className="prose prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content"
+                      className="prose prose-sm md:prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content"
                     >
                       {formatPoetryContent(poem.content?.hi) ||
                         "हिंदी में सामग्री उपलब्ध नहीं है"}
@@ -722,7 +709,7 @@ export default function PoemDetail() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.4 }}
-                      className="prose prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content rtl"
+                      className="prose prose-sm md:prose-lg max-w-none text-foreground leading-relaxed font-serif poem-content rtl"
                     >
                       {formatPoetryContent(poem.content?.ur) ||
                         "مواد اردو میں دستیاب نہیں ہے"}
