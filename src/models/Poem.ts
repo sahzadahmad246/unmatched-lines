@@ -9,9 +9,9 @@ const PoemSchema = new Schema(
       ur: { type: String, required: true, trim: true },
     },
     content: {
-      en: [{ type: String, required: true }], // Array of verses for English
-      hi: [{ type: String, required: true }], // Array of verses for Hindi
-      ur: [{ type: String, required: true }], // Array of verses for Urdu
+      en: [{ type: String, required: true }], 
+      hi: [{ type: String, required: true }], 
+      ur: [{ type: String, required: true }], 
     },
     author: { type: Schema.Types.ObjectId, ref: "Author", required: true },
     readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],

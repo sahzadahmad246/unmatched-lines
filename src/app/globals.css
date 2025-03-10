@@ -202,3 +202,7 @@
   direction: rtl;
 }
 
+.relative .always-visible > * {
+  opacity: 1 !important;
+  visibility: visible !important; /* Add this in case visibility is toggled */
+}
