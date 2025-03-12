@@ -32,6 +32,7 @@ interface VerseDownloadProps {
 
 export function VerseDownload({ verse, author, imageUrl, title = "Verse", languages }: VerseDownloadProps) {
   const [showDownloadDialog, setShowDownloadDialog] = useState(false)
+  const [showShareDialog, setShowShareDialog] = useState(false)
   const [downloadLanguage, setDownloadLanguage] = useState<"en" | "hi" | "ur">("en")
   const [selectedVerse, setSelectedVerse] = useState<string>(verse)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -170,8 +171,11 @@ export function VerseDownload({ verse, author, imageUrl, title = "Verse", langua
         toast.success("Copied to clipboard", {
           description: "The verse has been copied to your clipboard",
         })
+        setShowShareDialog(true)
       }
     } catch (error) {
+      // If sharing fails or is cancelled, show the dialog with copy option
+      setShowShareDialog(true)
       toast.error("Sharing failed", { description: "Could not share the verse. Please try again." })
     }
   }
@@ -180,23 +184,29 @@ export function VerseDownload({ verse, author, imageUrl, title = "Verse", langua
     <>
       <canvas ref={canvasRef} className="hidden" />
 
-      <div className="flex items-center gap-2 ">
+      <div className="flex  sm:flex-row items-center gap-2 text-black ">
         <Button
           variant="outline"
           size="sm"
           onClick={() => setShowDownloadDialog(true)}
-          className="gap-2 font-serif text-xs sm:text-sm text-black"
+          className="gap-2 font-serif text-xs sm:text-sm w-full"
         >
           <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">Download</span>
+          <span className="hidden sm:inline">Download Verse</span>
         </Button>
 
-        <Button variant="outline" size="sm" onClick={shareVerse} className=" text-black gap-2 font-serif text-xs sm:text-sm">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={shareVerse}
+          className="gap-2 font-serif text-xs sm:text-sm w-full"
+        >
           <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden sm:inline">Share</span>
         </Button>
       </div>
 
+      {/* Download Dialog */}
       <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
         <DialogContent className="border border-primary/20 sm:max-w-[525px]">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -277,7 +287,44 @@ export function VerseDownload({ verse, author, imageUrl, title = "Verse", langua
           </motion.div>
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="border border-primary/20">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <DialogHeader>
+              <DialogTitle className="font-serif text-xl">Share this verse</DialogTitle>
+              <DialogDescription>Copy the link below to share this beautiful verse with others</DialogDescription>
+            </DialogHeader>
+            <div className="my-4 flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={typeof window !== "undefined" ? window.location.href : ""}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href)
+                  toast.success("Link copied", {
+                    description: "The verse's link has been copied to your clipboard",
+                    icon: <Sparkles className="h-4 w-4" />,
+                  })
+                  setShowShareDialog(false)
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowShareDialog(false)} className="font-serif">
+                Close
+              </Button>
+            </DialogFooter>
+          </motion.div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
-

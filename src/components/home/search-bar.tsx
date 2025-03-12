@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, Loader2 } from "lucide-react";
@@ -10,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 interface SearchResult {
@@ -24,7 +25,11 @@ interface SearchResult {
   excerpt?: string;
 }
 
-export function SearchBar({ className = "", fullWidth = false }) {
+export function SearchBar({
+  className = "",
+  fullWidth = false,
+  isMobile = false,
+}) {
   const [query, setQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -41,7 +46,9 @@ export function SearchBar({ className = "", fullWidth = false }) {
 
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(query)}`
+        );
         if (!response.ok) throw new Error("Failed to fetch");
 
         const data = await response.json();
@@ -68,15 +75,25 @@ export function SearchBar({ className = "", fullWidth = false }) {
 
   const filteredResults = results.filter((result) => {
     if (activeTab === "all") return true;
-    if (activeTab === "poems") return result.type === "poem"; // Adjusted comparison
-    if (activeTab === "poets") return result.type === "poet"; // Adjusted comparison
+    if (activeTab === "poems") return result.type === "poem";
+    if (activeTab === "poets") return result.type === "poet";
     return false;
   });
-  
 
   return (
     <>
-      <div className={`relative ${className} ${fullWidth ? "w-full" : ""}`}>
+      <motion.div
+        className={`relative sm:relative ${className} ${
+          fullWidth ? "w-full" : ""
+        } ${
+          isMobile
+            ? "fixed top-0 left-0 right-0 z-50 bg-white p-2 shadow-md"
+            : ""
+        }`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <Input
           placeholder="Search poems, poets..."
           className="pl-10 py-6 text-sm sm:text-base"
@@ -89,16 +106,22 @@ export function SearchBar({ className = "", fullWidth = false }) {
         />
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
         {query && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
-            onClick={() => setQuery("")}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+              onClick={() => setQuery("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[600px] p-0">
@@ -112,11 +135,19 @@ export function SearchBar({ className = "", fullWidth = false }) {
                 autoFocus
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              {isLoading && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 animate-spin" />}
+              {isLoading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 animate-spin" />
+              )}
             </form>
           </div>
 
-          <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as "all" | "poems" | "poets")}>
+          <Tabs
+            defaultValue="all"
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "all" | "poems" | "poets")
+            }
+          >
             <div className="px-4 border-b">
               <TabsList className="w-full justify-start">
                 <TabsTrigger value="all">All Results</TabsTrigger>
@@ -129,21 +160,44 @@ export function SearchBar({ className = "", fullWidth = false }) {
               <TabsContent value={activeTab} className="m-0 p-0">
                 <AnimatePresence>
                   {query.trim().length < 2 ? (
-                    <div className="p-6 text-center text-muted-foreground">Type at least 2 characters to search</div>
+                    <div className="p-6 text-center text-muted-foreground">
+                      Type at least 2 characters to search
+                    </div>
                   ) : isLoading ? (
                     <div className="p-6 flex justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : filteredResults.length === 0 ? (
-                    <div className="p-6 text-center text-muted-foreground">No results found for "{query}"</div>
+                    <div className="p-6 text-center text-muted-foreground">
+                      No results found for "{query}"
+                    </div>
                   ) : (
                     <ul className="divide-y">
                       {filteredResults.map((result) => (
-                        <motion.li key={result._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 hover:bg-muted/50">
-                          <Link href={result.type === "poem" ? `/poems/${result.slug || result._id}` : `/poets/${result.slug || result._id}`} className="flex items-start gap-3" onClick={() => setIsSearchOpen(false)}>
+                        <motion.li
+                          key={result._id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="p-4 hover:bg-muted/50"
+                        >
+                          <Link
+                            href={
+                              result.type === "poem"
+                                ? `/poems/${result.slug || result._id}`
+                                : `/poets/${result.slug || result._id}`
+                            }
+                            className="flex items-start gap-3"
+                            onClick={() => setIsSearchOpen(false)}
+                          >
                             {result.type === "poet" ? (
                               <Avatar className="h-10 w-10 rounded-full">
-                                <img src={result.image || "/placeholder.svg"} alt={result.name || ""} className="h-full w-full object-cover" />
+                                <img
+                                  src={result.image || "/placeholder.svg"}
+                                  alt={result.name || ""}
+                                  className="h-full w-full object-cover"
+                                />
                               </Avatar>
                             ) : (
                               <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center text-primary">
@@ -151,8 +205,16 @@ export function SearchBar({ className = "", fullWidth = false }) {
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm sm:text-base truncate">{result.type === "poem" ? result.title?.en : result.name}</h4>
-                              {result.excerpt && <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{result.excerpt}</p>}
+                              <h4 className="font-medium text-sm sm:text-base truncate">
+                                {result.type === "poem"
+                                  ? result.title?.en
+                                  : result.name}
+                              </h4>
+                              {result.excerpt && (
+                                <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                                  {result.excerpt}
+                                </p>
+                              )}
                             </div>
                           </Link>
                         </motion.li>
@@ -165,7 +227,17 @@ export function SearchBar({ className = "", fullWidth = false }) {
 
             {filteredResults.length > 0 && (
               <div className="p-4 border-t">
-                <Button className="w-full" onClick={() => { router.push(`/search?q=${encodeURIComponent(query)}&type=${activeTab}`); setIsSearchOpen(false); }}>View All Results</Button>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    router.push(
+                      `/search?q=${encodeURIComponent(query)}&type=${activeTab}`
+                    );
+                    setIsSearchOpen(false);
+                  }}
+                >
+                  View All Results
+                </Button>
               </div>
             )}
           </Tabs>
