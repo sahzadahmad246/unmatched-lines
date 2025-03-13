@@ -23,7 +23,6 @@ import {
   BookmarkCheck,
   Feather,
   ArrowRight,
-  Download,
   Share2,
   Heart,
   Sparkles,
@@ -62,7 +61,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { VerseDownload } from "@/components/home/verse-download"; // Add this import
+import { LoadingComponent } from "@/components/utils/LoadingComponent"; // Updated import
 
 const fadeIn = {
   hidden: { opacity: 0 },
@@ -83,24 +82,9 @@ export default function Library() {
   const [readList, setReadList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [featuredPoem, setFeaturedPoem] = useState<any>(null);
   const [activeLang, setActiveLang] = useState<"en" | "hi" | "ur">("en");
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
-  const [selectedVerse, setSelectedVerse] = useState<string>("");
-  const [downloadLanguage, setDownloadLanguage] = useState<"en" | "hi" | "ur">(
-    "en"
-  );
-  const [versesMap, setVersesMap] = useState<{
-    en: string[];
-    hi: string[];
-    ur: string[];
-  }>({
-    en: [],
-    hi: [],
-    ur: [],
-  });
   const [todayDate] = useState(
     new Date().toLocaleDateString("en-US", {
       month: "long",
@@ -160,7 +144,6 @@ export default function Library() {
         setAllPoems(poems);
         setFilteredPoems(poems);
 
-        // Fix TypeScript error by explicitly typing the categories as string[]
         const categories = Array.from(
           new Set(poems.map((poem: any) => poem.category).filter(Boolean))
         ) as string[];
@@ -269,28 +252,6 @@ export default function Library() {
       const poemIndex = hourIndex % allPoems.length;
       const selectedPoem = allPoems[poemIndex];
       setFeaturedPoem(selectedPoem);
-
-      const verses = {
-        en: Array.isArray(selectedPoem.content?.en)
-          ? selectedPoem.content.en.filter(Boolean)
-          : selectedPoem.content?.en?.split("\n").filter(Boolean) || [],
-        hi: Array.isArray(selectedPoem.content?.hi)
-          ? selectedPoem.content.hi.filter(Boolean)
-          : selectedPoem.content?.hi?.split("\n").filter(Boolean) || [],
-        ur: Array.isArray(selectedPoem.content?.ur)
-          ? selectedPoem.content.ur.filter(Boolean)
-          : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
-      };
-      setVersesMap(verses);
-
-      if (verses.en.length > 0) setSelectedVerse(verses.en[0]);
-      else if (verses.hi.length > 0) {
-        setSelectedVerse(verses.hi[0]);
-        setDownloadLanguage("hi");
-      } else if (verses.ur.length > 0) {
-        setSelectedVerse(verses.ur[0]);
-        setDownloadLanguage("ur");
-      }
     };
 
     updateFeaturedPoem();
@@ -298,13 +259,11 @@ export default function Library() {
     return () => clearInterval(interval);
   }, [allPoems]);
 
-  // Filter poems based on search query and selected categories
   useEffect(() => {
     if (allPoems.length === 0) return;
 
     let filtered = [...allPoems];
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -315,7 +274,6 @@ export default function Library() {
       );
     }
 
-    // Filter by selected categories
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((poem) =>
         selectedCategories.includes(poem.category)
@@ -414,141 +372,7 @@ export default function Library() {
     }
   };
 
- 
-
-  const handleLanguageChange = (lang: "en" | "hi" | "ur") => {
-    setDownloadLanguage(lang);
-    if (versesMap[lang].length > 0) setSelectedVerse(versesMap[lang][0]);
-  };
-
-  const renderVerseToCanvas = async (
-    verse: string,
-    imageUrl: string
-  ): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return reject("Canvas not found");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject("Unable to get canvas context");
-
-      const img: HTMLImageElement = new window.Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        let fontFamily = "serif";
-        if (downloadLanguage === "ur") {
-          fontFamily = "Noto Nastaliq Urdu, serif";
-          ctx.direction = "rtl";
-        } else if (downloadLanguage === "hi")
-          fontFamily = "Noto Sans Devanagari, serif";
-        const fontSize = Math.max(canvas.width * 0.035, 24);
-        ctx.font = `${fontSize}px ${fontFamily}`;
-        ctx.fillStyle = "white";
-
-        const lines = [];
-        const maxWidth = canvas.width * 0.8;
-        const verseLines = verse.split("\n").filter(Boolean); // Split by explicit newlines
-
-        for (const line of verseLines) {
-          if (ctx.measureText(line).width <= maxWidth) lines.push(line);
-          else {
-            const words = line.split(" ");
-            let currentLine = "";
-            for (const word of words) {
-              const testLine = currentLine + (currentLine ? " " : "") + word;
-              if (ctx.measureText(testLine).width <= maxWidth)
-                currentLine = testLine;
-              else {
-                if (currentLine) lines.push(currentLine);
-                currentLine = word;
-              }
-            }
-            if (currentLine) lines.push(currentLine);
-          }
-        }
-
-        const lineHeight = fontSize * 1.5;
-        const totalTextHeight = lines.length * lineHeight;
-        let yPosition = (canvas.height - totalTextHeight) / 2;
-        for (const line of lines) {
-          ctx.fillText(line, canvas.width / 2, yPosition);
-          yPosition += lineHeight;
-        }
-
-        const authorName = lineOfTheDay
-          ? lineAuthor
-          : featuredPoem.author?.name || "Unknown Author";
-        ctx.font = `italic ${fontSize * 0.8}px ${fontFamily}`;
-        ctx.fillText(`— ${authorName}`, canvas.width / 2, canvas.height * 0.85);
-
-        resolve(canvas.toDataURL("image/jpeg", 0.9));
-      };
-      img.onerror = () => reject("Failed to load image");
-      img.src = imageUrl;
-    });
-  };
-
-  const downloadVerseImage = async () => {
-    if (!selectedVerse || !featuredPoem) return;
-    try {
-      toast.loading("Creating your verse image...");
-      const imageUrl = featuredPoem.coverImage || "/placeholder.jpg";
-      const dataUrl = await renderVerseToCanvas(selectedVerse, imageUrl);
-
-      const downloadLink = document.createElement("a");
-      downloadLink.href = dataUrl;
-      const title = featuredPoem.title?.[downloadLanguage] || "poem";
-      downloadLink.download = `${title
-        .replace(/\s+/g, "-")
-        .toLowerCase()}-verse.jpg`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-
-      setShowDownloadDialog(false);
-      toast.dismiss();
-      toast.success("Verse image downloaded", {
-        description: "Your verse has been captured as an image",
-        icon: <Sparkles className="h-4 w-4" />,
-      });
-    } catch (error) {
-      console.error("Error generating verse image:", error);
-      toast.dismiss();
-      toast.error("Download failed", {
-        description: "Could not create your verse image. Please try again.",
-      });
-    }
-  };
-
-  const formatPoetryContent = (content: string[] | undefined) => {
-    if (!content || !Array.isArray(content) || content.length === 0) {
-      return (
-        <div className="italic text-muted-foreground">
-          Content not available
-        </div>
-      );
-    }
-    return (
-      <div className="space-y-8">
-        {content.map((stanza, index) => (
-          <div key={index} className="poem-stanza">
-            {stanza.split("\n").map((line, lineIndex) => (
-              <div key={lineIndex} className="poem-line leading-relaxed">
-                {line || "\u00A0"}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  };
+  
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
@@ -559,41 +383,7 @@ export default function Library() {
   };
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div
-          animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-          transition={{
-            rotate: {
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            },
-            scale: {
-              duration: 1.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            },
-          }}
-        >
-          <Feather className="h-16 w-16 text-primary/60" />
-        </motion.div>
-        <motion.h2
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-xl sm:text-2xl font-bold mt-6 font-serif italic"
-        >
-          Loading poetic treasures...
-        </motion.h2>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: "250px" }}
-          transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
-          className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent mt-4"
-        />
-      </div>
-    );
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -618,9 +408,6 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background mb-16">
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Line of the Day */}
       <LineOfTheDay
         lineOfTheDay={lineOfTheDay}
         lineAuthor={lineAuthor}
@@ -629,20 +416,18 @@ export default function Library() {
         todayDate={todayDate}
       />
 
-      {/* Library Main Section */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar */}
           <div className="md:w-64 lg:w-72 shrink-0">
-            <div className="sticky top-4 bg-background rounded-lg border p-4 shadow-sm">
+            <div className="sticky top-4 bg-background rounded-lg md:border p-4 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold font-serif flex items-center gap-2 hidden md:flex">
+                <h2 className="text-xl font-bold font-serif flex items-center gap-2  md:flex">
                   <BookText className="h-5 w-5 text-primary" />
                   <span>Library</span>
                 </h2>
               </div>
 
-              <div className="hidden md:block space-y-6 border border-red-500">
+              <div className="hidden md:block space-y-6 ">
                 <div>
                   <h3 className="font-medium mb-2 text-sm">Search</h3>
                   <div className="relative">
@@ -729,7 +514,6 @@ export default function Library() {
             </div>
           </div>
 
-          {/* Mobile Filter Drawer */}
           {isMobile && (
             <Drawer open={filterOpen} onOpenChange={setFilterOpen}>
               <DrawerContent>
@@ -841,16 +625,13 @@ export default function Library() {
             </Drawer>
           )}
 
-          {/* Main Content */}
           <div className="flex-1">
             <div className="flex items-center justify-between mb-6">
-              {/* Hide "Poetry Collection" on mobile */}
               <h1 className="text-xl md:text-2xl font-bold font-serif hidden md:block">
                 Poetry Collection
               </h1>
 
               <div className="flex items-center gap-2 w-full md:w-auto">
-                {/* Mobile search and filter */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <div className="relative flex-1 md:hidden">
                     <Input
@@ -893,7 +674,6 @@ export default function Library() {
               </div>
             </div>
 
-            {/* Content Tabs */}
             <Tabs
               value={activeTab}
               onValueChange={(value) =>
@@ -913,7 +693,6 @@ export default function Library() {
               </TabsList>
 
               <TabsContent value="poems" className="mt-0">
-                {/* Results Count and View Toggle */}
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     Showing{" "}
@@ -947,7 +726,6 @@ export default function Library() {
                   </div>
                 </div>
 
-                {/* Poems Grid/List */}
                 {filteredPoems.length === 0 ? (
                   <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
                     <BookText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
@@ -1082,7 +860,6 @@ export default function Library() {
         </div>
       </div>
 
-      {/* Share Dialog */}
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <AlertDialogContent className="border border-primary/20">
           <motion.div initial={fadeIn.hidden} animate={fadeIn.visible}>
@@ -1122,120 +899,6 @@ export default function Library() {
               <AlertDialogCancel className="font-serif">
                 Close
               </AlertDialogCancel>
-            </AlertDialogFooter>
-          </motion.div>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Download Verse Dialog */}
-      <AlertDialog
-        open={showDownloadDialog}
-        onOpenChange={setShowDownloadDialog}
-      >
-        <AlertDialogContent className="border border-primary/20 sm:max-w-[525px]">
-          <motion.div initial={fadeIn.hidden} animate={fadeIn.visible}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif text-xl flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                Download Verse Image
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Select a verse and language to create a shareable image with
-                your favorite lines
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="my-6 space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="download-language" className="font-serif">
-                  Language
-                </Label>
-                <RadioGroup
-                  defaultValue={downloadLanguage}
-                  onValueChange={(value: string) =>
-                    handleLanguageChange(value as "en" | "hi" | "ur")
-                  }
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="en"
-                      id="en"
-                      disabled={!versesMap.en.length}
-                    />
-                    <Label htmlFor="en">English</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="hi"
-                      id="hi"
-                      disabled={!versesMap.hi.length}
-                    />
-                    <Label htmlFor="hi">Hindi</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="ur"
-                      id="ur"
-                      disabled={!versesMap.ur.length}
-                    />
-                    <Label htmlFor="ur">Urdu</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="selected-verse" className="font-serif">
-                  Select Verse
-                </Label>
-                <Select
-                  value={selectedVerse}
-                  onValueChange={setSelectedVerse}
-                  disabled={versesMap[downloadLanguage].length === 0}
-                >
-                  <SelectTrigger className="w-full font-serif">
-                    <SelectValue placeholder="Choose a verse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {versesMap[downloadLanguage].map((verse, index) => (
-                      <SelectItem
-                        key={index}
-                        value={verse}
-                        className="font-serif whitespace-normal"
-                      >
-                        {verse.substring(0, 60)}...
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {selectedVerse && (
-                <div className="p-4 bg-muted/30 border rounded-md max-h-48 overflow-y-auto">
-                  <h4 className="text-sm font-medium mb-2 font-serif">
-                    Preview:
-                  </h4>
-                  <div
-                    className={`text-sm italic ${
-                      downloadLanguage === "ur" ? "rtl text-right" : ""
-                    }`}
-                  >
-                    {selectedVerse}
-                  </div>
-                </div>
-              )}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="font-serif">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={downloadVerseImage}
-                className="font-serif gap-2"
-                disabled={
-                  !selectedVerse || versesMap[downloadLanguage].length === 0
-                }
-              >
-                <Download className="h-4 w-4" />
-                Download Image
-              </AlertDialogAction>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>
@@ -1324,7 +987,6 @@ function PoemCard({
                 <Heart className="h-3 w-3 mr-1 text-primary" />
                 <span>{poem.readListCount || 0}</span>
               </div>
-              
               <Button
                 variant="ghost"
                 size="sm"
@@ -1426,8 +1088,6 @@ function PoemListItem({
                 <Heart className="h-3 w-3 mr-1 text-primary" />
                 <span>{poem.readListCount || 0} Readers</span>
               </div>
-              
-              
             </div>
           </div>
         </div>

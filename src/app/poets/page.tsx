@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, AlertTriangle, Search, Filter } from 'lucide-react'
 import { motion, AnimatePresence } from "framer-motion"
 import { PoetCard } from "@/components/home/poet-card"
+import { LoadingComponent } from "@/components/utils/LoadingComponent"
 import { useMediaQuery } from "@/components/home/use-media-query"
 import {
   Drawer,
@@ -79,10 +80,7 @@ export default function Poets() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <h2 className="text-2xl font-bold">Loading poets...</h2>
-      </div>
+      <LoadingComponent/>
     )
   }
 

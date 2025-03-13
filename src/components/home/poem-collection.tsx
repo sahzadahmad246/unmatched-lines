@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
+import { LoadingComponent } from "../utils/LoadingComponent";
 interface PoemCollectionProps {
   category: "ghazal" | "sher";
   title: string;
@@ -148,14 +148,7 @@ export default function PoemCollection({
 
   if (loading) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
-      >
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <h2 className="text-2xl font-bold">Loading {title.toLowerCase()}...</h2>
-      </motion.div>
+     <LoadingComponent/>
     );
   }
 

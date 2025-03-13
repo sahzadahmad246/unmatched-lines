@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-
+import { LoadingComponent } from "@/components/utils/LoadingComponent";
 export default function PoetDetail() {
   const { slug } = useParams(); // Get the poet slug from the URL
   const [poet, setPoet] = useState<any>(null);
@@ -162,46 +162,7 @@ export default function PoetDetail() {
 
   if (loading) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh]"
-      >
-        <motion.div
-          animate={{
-            rotate: 360,
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            rotate: {
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            },
-            scale: {
-              duration: 1.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            },
-          }}
-        >
-          <Feather className="h-16 w-16 text-primary/60" />
-        </motion.div>
-        <motion.h2
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-2xl font-serif italic font-bold mt-6"
-        >
-          Unveiling the verses...
-        </motion.h2>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: "250px" }}
-          transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
-          className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent mt-4"
-        />
-      </motion.div>
+     <LoadingComponent/>
     );
   }
 

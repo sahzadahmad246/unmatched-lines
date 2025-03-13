@@ -3,7 +3,7 @@
 import { Book, BookAIcon, Home, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MoreScreen } from "./more-screen";
 
@@ -12,6 +12,11 @@ export function MobileBottomNav() {
   const isActive = (path: string) => pathname === path;
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  // Close the "More" screen when the pathname changes
+  useEffect(() => {
+    setIsMoreOpen(false);
+  }, [pathname]);
 
   const mainNavItems = [
     { href: "/", icon: Home, label: "Home" },
@@ -33,9 +38,7 @@ export function MobileBottomNav() {
             }`}
           >
             <item.icon
-              className={`h-5 w-5 mb-1 ${
-                isActive(item.href) ? "text-primary" : ""
-              }`}
+              className={`h-5 w-5 mb-1 ${isActive(item.href) ? "text-primary" : ""}`}
             />
             <span className="text-xs font-medium">{item.label}</span>
           </Link>
@@ -49,7 +52,7 @@ export function MobileBottomNav() {
             <span className="text-xs font-medium">More</span>
           </SheetTrigger>
           <SheetContent side="right" className="p-0 w-full sm:max-w-md">
-            <MoreScreen />
+            <MoreScreen onClose={() => setIsMoreOpen(false)} />
           </SheetContent>
         </Sheet>
       </div>

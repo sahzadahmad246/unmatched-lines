@@ -12,7 +12,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Footer } from "./footer";
+import { LoadingComponent } from "../utils/LoadingComponent";
 import {
   BookOpen,
   ChevronLeft,
@@ -272,42 +272,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div
-          animate={{
-            rotate: 360,
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            rotate: {
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            },
-            scale: {
-              duration: 1.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            },
-          }}
-        >
-          <Feather className="h-12 w-12 sm:h-16 sm:w-16 text-primary/60" />
-        </motion.div>
-        <motion.h2
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-lg sm:text-xl md:text-2xl font-bold mt-6 font-serif italic"
-        >
-          Loading poetic treasures...
-        </motion.h2>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: "250px" }}
-          transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
-          className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent mt-4"
-        />
-      </div>
+     <LoadingComponent/>
     );
   }
 
@@ -750,7 +715,7 @@ export default function Home() {
                 variant="secondary"
                 className="font-serif text-xs sm:text-sm"
               >
-                <Link href="/poems">Explore Collection</Link>
+                <Link href="/library">Explore Collection</Link>
               </Button>
 
               {!session && (
