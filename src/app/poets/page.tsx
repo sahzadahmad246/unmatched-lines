@@ -103,7 +103,7 @@ export default function Poets() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 mb-16">
       {/* Sticky search bar for mobile */}
       {isMobile && (
         <div className="sticky top-0 z-10 bg-background pt-4 pb-4 mb-4">

@@ -617,7 +617,7 @@ export default function Library() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background mb-16">
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Line of the Day */}
@@ -642,7 +642,7 @@ export default function Library() {
                 </h2>
               </div>
 
-              <div className="hidden md:block space-y-6">
+              <div className="hidden md:block space-y-6 border border-red-500">
                 <div>
                   <h3 className="font-medium mb-2 text-sm">Search</h3>
                   <div className="relative">

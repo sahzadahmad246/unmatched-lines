@@ -179,7 +179,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <Card className="max-w-4xl mx-auto mt-8">
+    <Card className="max-w-4xl mx-auto mt-8 mb-16">
       <CardHeader>
         <CardTitle>Admin Dashboard</CardTitle>
       </CardHeader>

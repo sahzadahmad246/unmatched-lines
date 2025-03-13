@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Footer } from "./footer";
 import {
   BookOpen,
   ChevronLeft,
@@ -81,48 +82,47 @@ export default function Home() {
 
   const poetsScrollRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-
+  const hasInitializedRef = useRef(false)
   useEffect(() => {
+    // Only fetch data once when the component mounts
+    if (hasInitializedRef.current) return
+    hasInitializedRef.current = true
+
     const fetchData = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
         // Fetch poets
         const poetsRes = await fetch("/api/authors", {
           credentials: "include",
-        });
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
-        const poetsData = await poetsRes.json();
-        setPoets(poetsData.authors || []);
+        })
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
+        const poetsData = await poetsRes.json()
+        setPoets(poetsData.authors || [])
 
         // Fetch poems
-        const poemsRes = await fetch("/api/poem", { credentials: "include" });
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
-        const poemsData = await poemsRes.json();
-        const poems = poemsData.poems || [];
+        const poemsRes = await fetch("/api/poem", { credentials: "include" })
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems")
+        const poemsData = await poemsRes.json()
+        const poems = poemsData.poems || []
 
         // Filter by category
-        setGhazals(
-          poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6)
-        );
-        setShers(
-          poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6)
-        );
+        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
+        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
 
         // Set featured poem (random selection)
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length);
-          setFeaturedPoem(poems[randomIndex]);
+          const randomIndex = Math.floor(Math.random() * poems.length)
+          setFeaturedPoem(poems[randomIndex])
         }
 
         // Set poem of the day (based on date)
         if (poems.length > 0) {
-          const dateStr = new Date().toISOString().split("T")[0];
-          let seed = 0;
-          for (let i = 0; i < dateStr.length; i++)
-            seed += dateStr.charCodeAt(i);
-          const poemIndex = seed % poems.length;
-          const selectedPoem = poems[poemIndex];
-          setPoemOfTheDay(selectedPoem);
+          const dateStr = new Date().toISOString().split("T")[0]
+          let seed = 0
+          for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i)
+          const poemIndex = seed % poems.length
+          const selectedPoem = poems[poemIndex]
+          setPoemOfTheDay(selectedPoem)
 
           // Extract line of the day
           const verses = {
@@ -135,52 +135,39 @@ export default function Home() {
             ur: Array.isArray(selectedPoem.content?.ur)
               ? selectedPoem.content.ur.filter(Boolean)
               : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
-          };
+          }
 
           const verseArray =
-            verses.en.length > 0
-              ? verses.en
-              : verses.hi.length > 0
-              ? verses.hi
-              : verses.ur.length > 0
-              ? verses.ur
-              : [];
+            verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : []
           if (verseArray.length > 0) {
-            const verseIndex = seed % verseArray.length;
-            setLineOfTheDay(verseArray[verseIndex] || "No verse available");
+            const verseIndex = seed % verseArray.length
+            setLineOfTheDay(verseArray[verseIndex] || "No verse available")
           }
-          setLineAuthor(selectedPoem.author?.name || "Unknown Author");
+          setLineAuthor(selectedPoem.author?.name || "Unknown Author")
         }
 
         // Fetch user's reading list if logged in
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" });
+          const userRes = await fetch("/api/user", { credentials: "include" })
           if (userRes.ok) {
-            const userData = await userRes.json();
-            setReadList(
-              userData.user.readList.map((poem: any) => poem._id.toString())
-            );
+            const userData = await userRes.json()
+            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
           }
         }
 
-        toast.success("Welcome to Unmatched Lines", {
-          description: "Discover beautiful poetry from renowned poets",
-          icon: <Feather className="h-4 w-4" />,
-          position: "top-center",
-          duration: 3000,
-        });
+        // Removed the welcome toast
       } catch (err) {
-        setError("Failed to load data");
+        setError("Failed to load data")
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        });
+        })
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchData();
-  }, [session]);
+    fetchData()
+  }, [session])
 
   const scrollPoets = (direction: "left" | "right") => {
     if (poetsScrollRef.current) {

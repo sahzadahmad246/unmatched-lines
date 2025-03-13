@@ -528,7 +528,7 @@ export default function PoemDetail() {
     );
   };
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl mb-20">
       {/* Hidden canvas for image processing */}
       <canvas ref={canvasRef} className="hidden" />
 
