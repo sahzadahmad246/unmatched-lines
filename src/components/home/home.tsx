@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-
+import { Footer } from "./footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -46,7 +46,6 @@ interface Poem {
   title: { en: string; hi?: string; ur?: string };
   author: { name: string; _id: string };
   category: "ghazal" | "sher";
-  coverImage?: string;
   excerpt?: string;
   slug?: { en: string };
   content?: {
@@ -55,6 +54,13 @@ interface Poem {
     ur?: string[] | string;
   };
   readListCount?: number;
+}
+
+interface CoverImage {
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
 }
 
 export default function Home() {
@@ -67,6 +73,7 @@ export default function Home() {
   const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
   const [lineAuthor, setLineAuthor] = useState<string>("");
   const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<
@@ -82,49 +89,49 @@ export default function Home() {
 
   const poetsScrollRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const hasInitializedRef = useRef(false)
+  const hasInitializedRef = useRef(false);
+
   useEffect(() => {
-    // Only fetch data once when the component mounts
-    if (hasInitializedRef.current) return
-    hasInitializedRef.current = true
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
     const fetchData = async () => {
       try {
-        setLoading(true)
-        // Fetch poets
+        setLoading(true);
+
         const poetsRes = await fetch("/api/authors", {
           credentials: "include",
-        })
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
-        const poetsData = await poetsRes.json()
-        setPoets(poetsData.authors || [])
+        });
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
+        const poetsData = await poetsRes.json();
+        setPoets(poetsData.authors || []);
 
-        // Fetch poems
-        const poemsRes = await fetch("/api/poem", { credentials: "include" })
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems")
-        const poemsData = await poemsRes.json()
-        const poems = poemsData.poems || []
+        const poemsRes = await fetch("/api/poem", { credentials: "include" });
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
+        const poemsData = await poemsRes.json();
+        const poems = poemsData.poems || [];
 
-        // Filter by category
-        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
-        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
+        setGhazals(
+          poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6)
+        );
+        setShers(
+          poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6)
+        );
 
-        // Set featured poem (random selection)
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length)
-          setFeaturedPoem(poems[randomIndex])
+          const randomIndex = Math.floor(Math.random() * poems.length);
+          setFeaturedPoem(poems[randomIndex]);
         }
 
-        // Set poem of the day (based on date)
         if (poems.length > 0) {
-          const dateStr = new Date().toISOString().split("T")[0]
-          let seed = 0
-          for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i)
-          const poemIndex = seed % poems.length
-          const selectedPoem = poems[poemIndex]
-          setPoemOfTheDay(selectedPoem)
+          const dateStr = new Date().toISOString().split("T")[0];
+          let seed = 0;
+          for (let i = 0; i < dateStr.length; i++)
+            seed += dateStr.charCodeAt(i);
+          const poemIndex = seed % poems.length;
+          const selectedPoem = poems[poemIndex];
+          setPoemOfTheDay(selectedPoem);
 
-          // Extract line of the day
           const verses = {
             en: Array.isArray(selectedPoem.content?.en)
               ? selectedPoem.content.en.filter(Boolean)
@@ -135,43 +142,62 @@ export default function Home() {
             ur: Array.isArray(selectedPoem.content?.ur)
               ? selectedPoem.content.ur.filter(Boolean)
               : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
-          }
+          };
 
           const verseArray =
-            verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : []
+            verses.en.length > 0
+              ? verses.en
+              : verses.hi.length > 0
+              ? verses.hi
+              : verses.ur.length > 0
+              ? verses.ur
+              : [];
           if (verseArray.length > 0) {
-            const verseIndex = seed % verseArray.length
-            setLineOfTheDay(verseArray[verseIndex] || "No verse available")
+            const verseIndex = seed % verseArray.length;
+            setLineOfTheDay(verseArray[verseIndex] || "No verse available");
           }
-          setLineAuthor(selectedPoem.author?.name || "Unknown Author")
+          setLineAuthor(selectedPoem.author?.name || "Unknown Author");
         }
 
-        // Fetch user's reading list if logged in
+        const coverImagesRes = await fetch("/api/cover-images", {
+          credentials: "include",
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
+
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" })
+          const userRes = await fetch("/api/user", { credentials: "include" });
           if (userRes.ok) {
-            const userData = await userRes.json()
-            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+            const userData = await userRes.json();
+            setReadList(
+              userData.user.readList.map((poem: any) => poem._id.toString())
+            );
           }
         }
-
-        // Removed the welcome toast
       } catch (err) {
-        setError("Failed to load data")
+        setError("Failed to load data");
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [session])
+    fetchData();
+  }, [session]);
+
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const scrollPoets = (direction: "left" | "right") => {
     if (poetsScrollRef.current) {
-      const scrollAmount = 150; // Adjusted for smaller cards
+      const scrollAmount = 150;
       const scrollPosition =
         direction === "left"
           ? poetsScrollRef.current.scrollLeft - scrollAmount
@@ -271,9 +297,7 @@ export default function Home() {
   };
 
   if (loading) {
-    return (
-     <LoadingComponent/>
-    );
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -308,10 +332,7 @@ export default function Home() {
       >
         <div className="absolute inset-0 z-0">
           <Image
-            src={
-              featuredPoem?.coverImage ||
-              "/placeholder.svg?height=1080&width=1920"
-            }
+            src={getRandomCoverImage()}
             alt="Poetry background"
             fill
             priority
@@ -411,10 +432,7 @@ export default function Home() {
               <div className="relative overflow-hidden rounded-lg shadow-md">
                 <div className="absolute inset-0 z-0">
                   <Image
-                    src={
-                      poemOfTheDay?.coverImage ||
-                      "/placeholder.svg?height=800&width=1200"
-                    }
+                    src={getRandomCoverImage()}
                     alt="Line of the Day background"
                     fill
                     className="object-cover"
@@ -440,10 +458,7 @@ export default function Home() {
                     <VerseDownload
                       verse={lineOfTheDay}
                       author={lineAuthor}
-                      imageUrl={
-                        poemOfTheDay?.coverImage ||
-                        "/placeholder.svg?height=800&width=1200"
-                      }
+                      imageUrl={getRandomCoverImage()}
                       title="Line of the Day"
                       languages={poemOfTheDay?.content}
                     />
@@ -601,6 +616,7 @@ export default function Home() {
                     <PoemCard
                       key={poem._id}
                       poem={poem}
+                      coverImage={getRandomCoverImage()}
                       index={index}
                       isInReadlist={readList.includes(poem._id)}
                       handleReadlistToggle={handleReadlistToggle}
@@ -616,6 +632,7 @@ export default function Home() {
                   <PoemCard
                     key={poem._id}
                     poem={poem}
+                    coverImage={getRandomCoverImage()}
                     index={index}
                     isInReadlist={readList.includes(poem._id)}
                     handleReadlistToggle={handleReadlistToggle}
@@ -630,6 +647,7 @@ export default function Home() {
                   <PoemCard
                     key={poem._id}
                     poem={poem}
+                    coverImage={getRandomCoverImage()}
                     index={index}
                     isInReadlist={readList.includes(poem._id)}
                     handleReadlistToggle={handleReadlistToggle}
@@ -732,12 +750,14 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <Footer/>
     </div>
   );
 }
 
 interface PoemCardProps {
   poem: Poem;
+  coverImage: string; // Moved coverImage out of Poem type
   index: number;
   isInReadlist: boolean;
   handleReadlistToggle: (id: string, title: string) => void;
@@ -745,6 +765,7 @@ interface PoemCardProps {
 
 function PoemCard({
   poem,
+  coverImage,
   index,
   isInReadlist,
   handleReadlistToggle,
@@ -759,7 +780,7 @@ function PoemCard({
       <Card className="h-full flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
         <div className="relative h-40 sm:h-48 md:h-52">
           <Image
-            src={poem.coverImage || "/placeholder.svg?height=400&width=600"}
+            src={coverImage}
             alt={poem.title.en}
             fill
             className="object-cover transition-transform duration-300 hover:scale-105"

@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -20,19 +21,40 @@ import {
   Home,
   FileText,
   Settings,
-  BookOpen,
   ChevronLeft,
   Menu,
   X,
+  Upload,
+  BarChart3,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "../home/logo";
+import { useSession, signOut } from "next-auth/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 export function AdminSidebar() {
   const pathname = usePathname();
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { data: session } = useSession();
 
   const isActive = (path: string) => {
     return pathname === path;
+  };
+
+  const handleSignOut = () => {
+    signOut();
   };
 
   // Mobile menu trigger that will be shown in the header
@@ -174,6 +196,38 @@ export function AdminSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/admin/upload-images")}
+                tooltip="Upload Images"
+              >
+                <Link
+                  href="/admin/upload-images"
+                  onClick={() => isMobile && setOpenMobile(false)}
+                >
+                  <Upload className="h-5 w-5" />
+                  <span>Upload Images</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/admin/analytics")}
+                tooltip="Analytics"
+              >
+                <Link
+                  href="/admin/analytics"
+                  onClick={() => isMobile && setOpenMobile(false)}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Analytics</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
 
@@ -203,7 +257,64 @@ export function AdminSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
+            {session && (
+              <SidebarMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <SidebarMenuButton tooltip="Sign Out">
+                      <LogOut className="h-5 w-5" />
+                      <span>Sign Out</span>
+                    </SidebarMenuButton>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="border border-primary/20 shadow-lg">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-lg font-serif">
+                        Sign out?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="italic text-sm font-serif">
+                        Are you sure you want to sign out of the admin panel?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4">
+                      <AlertDialogCancel className="text-sm">
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleSignOut}
+                        className="text-sm bg-primary hover:bg-primary/90"
+                      >
+                        Sign out
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
+
+          {session && (
+            <div className="px-3 py-2">
+              <div className="flex items-center space-x-3 rounded-md border p-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={session.user?.image || ""} alt="Profile" />
+                  <AvatarFallback>
+                    {session.user?.name?.charAt(0) || "A"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 truncate">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-none">
+                      {session.user?.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.user?.email}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </SidebarFooter>
       </Sidebar>
     </>

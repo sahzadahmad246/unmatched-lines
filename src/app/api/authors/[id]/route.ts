@@ -17,18 +17,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    console.log("Received id/slug:", id); // Debug log
+    console.log("Received id/slug:", id);
 
-    // Check if the id is a valid ObjectId (24-character hex string)
     const isObjectId = mongoose.Types.ObjectId.isValid(id);
-    console.log("Is valid ObjectId:", isObjectId); // Debug log
+    console.log("Is valid ObjectId:", isObjectId);
 
     let author;
     if (isObjectId) {
-      // If it's a valid ObjectId, try fetching by _id
       author = await Author.findById(id).populate("poems", "title category");
     } else {
-      // Otherwise, fetch by slug
       author = await Author.findOne({ slug: id }).populate("poems", "title category");
     }
 
@@ -45,7 +42,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PUT and DELETE handlers remain unchanged for this fix
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -65,9 +61,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const name = formData.get("name") as string;
     const dob = formData.get("dob") as string;
     const city = formData.get("city") as string;
+    const bio = formData.get("bio") as string;  // Added bio
     const image = formData.get("image") as File | null;
 
-    const author = await Author.findById(id); // PUT assumes ID, not slug
+    const author = await Author.findById(id);
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
@@ -100,6 +97,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         slug,
         dob: dob ? new Date(dob) : author.dob,
         city,
+        bio,  // Added bio to update
         image: imageUrl,
       },
       { new: true, runValidators: true }
@@ -112,6 +110,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// DELETE remains unchanged
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -127,7 +126,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    const author = await Author.findById(id); // DELETE assumes ID, not slug
+    const author = await Author.findById(id);
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }

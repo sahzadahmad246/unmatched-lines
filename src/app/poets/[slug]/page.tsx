@@ -29,8 +29,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { LoadingComponent } from "@/components/utils/LoadingComponent";
+
 export default function PoetDetail() {
-  const { slug } = useParams(); // Get the poet slug from the URL
+  const { slug } = useParams();
   const [poet, setPoet] = useState<any>(null);
   const [poems, setPoems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,39 +48,29 @@ export default function PoetDetail() {
           fetch("/api/user", { credentials: "include" }),
         ]);
 
-        // Handle poet response
         if (!poetRes.ok) {
           const poetError = await poetRes.text();
-
           throw new Error(`Failed to fetch poet: ${poetError}`);
         }
         const poetData = await poetRes.json();
-
         setPoet(poetData.author);
 
-        // Handle poems response
         if (!poemRes.ok) {
           const poemError = await poemRes.text();
-
           throw new Error(`Failed to fetch poems: ${poemError}`);
         }
         const poemData = await poemRes.json();
-
         const filteredPoems = poemData.poems.filter(
           (poem: any) =>
             poem.author?._id.toString() === poetData.author._id.toString()
         );
-
         setPoems(filteredPoems);
 
-        // Handle user response
         if (userRes.ok) {
           const userData = await userRes.json();
-
           setReadList(
             userData.user.readList.map((poem: any) => poem._id.toString())
           );
-        } else {
         }
       } catch (err) {
         setError("Failed to load poet details or poems");
@@ -161,9 +152,7 @@ export default function PoetDetail() {
   }, {});
 
   if (loading) {
-    return (
-     <LoadingComponent/>
-    );
+    return <LoadingComponent />;
   }
 
   if (error || !poet) {
@@ -221,6 +210,13 @@ export default function PoetDetail() {
               />
             </div>
             <CardContent className="space-y-4 p-6">
+              {poet.bio && (
+                <div className="flex items-start gap-2">
+                  <Feather className="h-5 w-5 text-muted-foreground mt-1" />
+                  <p className="text-muted-foreground">{poet.bio}</p>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <span>
@@ -256,7 +252,7 @@ export default function PoetDetail() {
                 </div>
               </div>
 
-              <div className="text -sm text-muted-foreground pt-4 border-t">
+              <div className="text-sm text-muted-foreground pt-4 border-t">
                 <p>
                   <span className="font-semibold">Added:</span>{" "}
                   {new Date(poet.createdAt).toLocaleDateString("en-US", {
@@ -349,7 +345,7 @@ export default function PoetDetail() {
                                   <div className="absolute top-2 right-2">
                                     <Badge
                                       variant="secondary"
-                                      className="flex items-center gap-1 bg-background /80 backdrop-blur-sm"
+                                      className="flex items-center gap-1 bg-background/80 backdrop-blur-sm"
                                     >
                                       <Heart className="h-3 w-3 text-primary" />
                                       <span>{poem.readListCount || 0}</span>
@@ -508,11 +504,11 @@ export default function PoetDetail() {
                                                 poemTitle
                                               )
                                             }
-                                            className={`$ {
- isInReadlist
- ? "text-primary"
- : "text-muted-foreground"
- } hover:text-primary`}
+                                            className={`${
+                                              isInReadlist
+                                                ? "text-primary"
+                                                : "text-muted-foreground"
+                                            } hover:text-primary`}
                                           >
                                             {isInReadlist ? (
                                               <motion.div

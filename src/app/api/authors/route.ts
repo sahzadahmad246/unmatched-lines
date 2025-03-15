@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     const name = formData.get("name") as string;
     const dob = formData.get("dob") as string;
     const city = formData.get("city") as string;
+    const bio = formData.get("bio") as string;  // Added bio
     const image = formData.get("image") as File | null;
 
     let imageUrl = "";
@@ -64,15 +65,14 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create author first to get ID
     const author = new Author({
       name,
       dob: dob ? new Date(dob) : undefined,
       city,
+      bio,  // Added bio
       image: imageUrl || "",
     });
 
-    // Generate slug with name and part of ID
     const baseSlug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     author.slug = `${baseSlug}-${author._id.toString().slice(-6)}`;
     

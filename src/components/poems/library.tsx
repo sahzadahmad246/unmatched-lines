@@ -61,7 +61,30 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LoadingComponent } from "@/components/utils/LoadingComponent"; // Updated import
+import { LoadingComponent } from "@/components/utils/LoadingComponent";
+
+interface Poem {
+  _id: string;
+  title: { en: string; hi?: string; ur?: string };
+  author: { name: string; _id: string };
+  category: string;
+  excerpt?: string;
+  slug?: { en: string };
+  content?: {
+    en?: string[] | string;
+    hi?: string[] | string;
+    ur?: string[] | string;
+  };
+  readListCount?: number;
+  tags?: string[];
+}
+
+interface CoverImage {
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
+}
 
 const fadeIn = {
   hidden: { opacity: 0 },
@@ -78,8 +101,8 @@ export default function Library() {
   const [poemsByPoet, setPoemsByPoet] = useState<{ [key: string]: any[] }>({});
   const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
   const [lineAuthor, setLineAuthor] = useState<string>("");
-  const [coverImage, setCoverImage] = useState<string>("");
   const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]); // New state for cover images
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [featuredPoem, setFeaturedPoem] = useState<any>(null);
@@ -92,13 +115,13 @@ export default function Library() {
       year: "numeric",
     })
   );
-  const [allPoems, setAllPoems] = useState<any[]>([]);
+  const [allPoems, setAllPoems] = useState<Poem[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredPoems, setFilteredPoems] = useState<any[]>([]);
+  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
   const [poemOfTheDay, setPoemOfTheDay] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState<"poems" | "poets">("poems");
@@ -145,18 +168,26 @@ export default function Library() {
         setFilteredPoems(poems);
 
         const categories = Array.from(
-          new Set(poems.map((poem: any) => poem.category).filter(Boolean))
+          new Set(poems.map((poem: Poem) => poem.category).filter(Boolean))
         ) as string[];
         setAvailableCategories(categories);
+
+        // Fetch cover images
+        const coverImagesRes = await fetch("/api/cover-images", {
+          credentials: "include",
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
         const poemsByPoetMap: { [key: string]: any[] } = {};
         shuffledPoets.slice(0, 4).forEach((poet) => {
           const poetPoems = poems.filter(
-            (poem: any) =>
+            (poem: Poem) =>
               poem.author?._id === poet._id || poem.author?.name === poet.name
           );
           const categorizedPoems: { [key: string]: any[] } = {};
-          poetPoems.forEach((poem: any) => {
+          poetPoems.forEach((poem: Poem) => {
             if (!categorizedPoems[poem.category])
               categorizedPoems[poem.category] = [];
             categorizedPoems[poem.category].push(poem);
@@ -216,9 +247,6 @@ export default function Library() {
             const verseIndex = seed % verseArray.length;
             setLineOfTheDay(verseArray[verseIndex] || "No verse available");
           }
-          setCoverImage(
-            selectedPoem.coverImage || "/placeholder.svg?height=600&width=800"
-          );
           setLineAuthor(selectedPoem.author?.name || "Unknown Author");
         }
 
@@ -282,6 +310,13 @@ export default function Library() {
 
     setFilteredPoems(filtered);
   }, [searchQuery, selectedCategories, allPoems]);
+
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=300&width=300";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
@@ -372,8 +407,6 @@ export default function Library() {
     }
   };
 
-  
-
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
       prev.includes(category)
@@ -391,7 +424,7 @@ export default function Library() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
+        className=" personally mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
       >
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-destructive">{error}</h2>
@@ -411,7 +444,7 @@ export default function Library() {
       <LineOfTheDay
         lineOfTheDay={lineOfTheDay}
         lineAuthor={lineAuthor}
-        coverImage={coverImage}
+        coverImage={getRandomCoverImage()} // Use random cover image here
         poemOfTheDay={poemOfTheDay}
         todayDate={todayDate}
       />
@@ -421,13 +454,13 @@ export default function Library() {
           <div className="md:w-64 lg:w-72 shrink-0">
             <div className="sticky top-4 bg-background rounded-lg md:border p-4 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold font-serif flex items-center gap-2  md:flex">
+                <h2 className="text-xl font-bold font-serif flex items-center gap-2 md:flex">
                   <BookText className="h-5 w-5 text-primary" />
                   <span>Library</span>
                 </h2>
               </div>
 
-              <div className="hidden md:block space-y-6 ">
+              <div className="hidden md:block space-y-6">
                 <div>
                   <h3 className="font-medium mb-2 text-sm">Search</h3>
                   <div className="relative">
@@ -764,6 +797,7 @@ export default function Library() {
                         >
                           <PoemCard
                             poem={poem}
+                            coverImage={getRandomCoverImage()}
                             englishSlug={englishSlug}
                             isInReadlist={isInReadlist}
                             poemTitle={poemTitle}
@@ -788,6 +822,7 @@ export default function Library() {
                         >
                           <PoemListItem
                             poem={poem}
+                            coverImage={getRandomCoverImage()}
                             englishSlug={englishSlug}
                             isInReadlist={isInReadlist}
                             poemTitle={poemTitle}
@@ -907,25 +942,29 @@ export default function Library() {
   );
 }
 
-function PoemCard({
-  poem,
-  englishSlug,
-  isInReadlist,
-  poemTitle,
-  handleReadlistToggle,
-}: {
-  poem: any;
+interface PoemCardProps {
+  poem: Poem;
+  coverImage: string; // Separate prop for random cover image
   englishSlug: string;
   isInReadlist: boolean;
   poemTitle: string;
   handleReadlistToggle: (id: string, title: string) => void;
-}) {
+}
+
+function PoemCard({
+  poem,
+  coverImage,
+  englishSlug,
+  isInReadlist,
+  poemTitle,
+  handleReadlistToggle,
+}: PoemCardProps) {
   return (
     <Card className="h-full overflow-hidden border-primary/10 hover:border-primary/30 transition-colors shadow-sm hover:shadow-md">
       <div className="flex flex-col h-full overflow-hidden">
         <div className="relative aspect-[16/9] overflow-hidden">
           <Image
-            src={poem.coverImage || "/placeholder.svg?height=300&width=300"}
+            src={coverImage}
             alt={poemTitle}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -1009,25 +1048,29 @@ function PoemCard({
   );
 }
 
-function PoemListItem({
-  poem,
-  englishSlug,
-  isInReadlist,
-  poemTitle,
-  handleReadlistToggle,
-}: {
-  poem: any;
+interface PoemListItemProps {
+  poem: Poem;
+  coverImage: string; // Separate prop for random cover image
   englishSlug: string;
   isInReadlist: boolean;
   poemTitle: string;
   handleReadlistToggle: (id: string, title: string) => void;
-}) {
+}
+
+function PoemListItem({
+  poem,
+  coverImage,
+  englishSlug,
+  isInReadlist,
+  poemTitle,
+  handleReadlistToggle,
+}: PoemListItemProps) {
   return (
     <Card className="overflow-hidden border-primary/10 hover:border-primary/30 transition-colors shadow-sm hover:shadow-md">
       <div className="flex flex-row overflow-hidden">
         <div className="relative w-20 sm:w-24 md:w-32 aspect-square">
           <Image
-            src={poem.coverImage || "/placeholder.svg?height=300&width=300"}
+            src={coverImage}
             alt={poemTitle}
             fill
             sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 128px"

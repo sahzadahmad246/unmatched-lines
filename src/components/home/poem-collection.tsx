@@ -21,6 +21,24 @@ import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { LoadingComponent } from "../utils/LoadingComponent";
+
+interface Poem {
+  _id: string;
+  title: { en: string; hi?: string; ur?: string };
+  author: { name: string; _id: string };
+  category: "ghazal" | "sher";
+  excerpt?: string;
+  slug?: { en: string };
+  readListCount?: number;
+}
+
+interface CoverImage {
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
+}
+
 interface PoemCollectionProps {
   category: "ghazal" | "sher";
   title: string;
@@ -31,8 +49,9 @@ export default function PoemCollection({
   title,
 }: PoemCollectionProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [poems, setPoems] = useState<any[]>([]);
+  const [poems, setPoems] = useState<Poem[]>([]);
   const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]); // New state for cover images
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -40,15 +59,27 @@ export default function PoemCollection({
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+
+        // Fetch poems
         const poemRes = await fetch("/api/poem", { credentials: "include" });
         if (!poemRes.ok) throw new Error(`Failed to fetch ${category}s`);
         const poemData = await poemRes.json();
         const filteredPoems = poemData.poems.filter(
-          (poem: any) => poem.category === category
+          (poem: Poem) => poem.category === category
         );
         console.log(`Fetched ${category}s:`, filteredPoems);
         setPoems(filteredPoems);
 
+        // Fetch cover images
+        const coverImagesRes = await fetch("/api/cover-images", {
+          credentials: "include",
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
+
+        // Fetch user's read list
         const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -71,6 +102,13 @@ export default function PoemCollection({
     fetchData();
   }, [category]);
 
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=200&width=300";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
+
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
     const url = isInReadlist
@@ -89,7 +127,6 @@ export default function PoemCollection({
         setReadList((prev) =>
           isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
         );
-        // Update the UI without alerts
         const updatedPoems = [...poems];
         const poemIndex = updatedPoems.findIndex((poem) => poem._id === poemId);
         if (poemIndex !== -1) {
@@ -102,7 +139,6 @@ export default function PoemCollection({
           setPoems(updatedPoems);
         }
 
-        // Show toast notification
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
@@ -147,9 +183,7 @@ export default function PoemCollection({
   );
 
   if (loading) {
-    return (
-     <LoadingComponent/>
-    );
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -222,97 +256,14 @@ export default function PoemCollection({
               const poemTitle = poem.title?.en || "Untitled";
 
               return (
-                <motion.div
+                <PoemCard
                   key={poem._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05, duration: 0.4 }}
-                  whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                >
-                  <Card className="overflow-hidden h-full flex flex-col transition-all hover:shadow-lg">
-                    <div className="relative h-48 overflow-hidden">
-                      <Image
-                        src={
-                          poem.coverImage ||
-                          "/placeholder.svg?height=200&width=300"
-                        }
-                        alt={poemTitle}
-                        fill
-                        className="object-cover transition-transform hover:scale-105 duration-300"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge
-                          variant="secondary"
-                          className="flex items-center gap-1 bg-background/80 backdrop-blur-sm"
-                        >
-                          <Heart className="h-3 w-3 text-primary" />
-                          <span>{poem.readListCount || 0}</span>
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <CardContent className="flex-grow p-4">
-                      <h3 className="text-xl font-bold line-clamp-1 mb-1">
-                        {poemTitle}
-                      </h3>
-                      <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                        <User className="h-3.5 w-3.5" />
-                        <span className="text-sm">
-                          {poem.author?.name || "Unknown Author"}
-                        </span>
-                      </div>
-
-                      {poem.excerpt && (
-                        <p className="text-muted-foreground text-sm line-clamp-2 mt-2">
-                          {poem.excerpt}
-                        </p>
-                      )}
-                    </CardContent>
-
-                    <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                      <Link
-                        href={`/poems/${englishSlug}`}
-                        className="inline-flex"
-                      >
-                        <Button variant="default" size="sm" className="gap-1">
-                          <BookOpen className="h-4 w-4" />
-                          <span>Read</span>
-                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                        </Button>
-                      </Link>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          handleReadlistToggle(poem._id, poemTitle)
-                        }
-                        className={`${
-                          isInReadlist
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        } hover:text-primary`}
-                      >
-                        {isInReadlist ? (
-                          <motion.div
-                            initial={{ scale: 0.5 }}
-                            animate={{ scale: 1 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 500,
-                              damping: 15,
-                            }}
-                          >
-                            <BookmarkCheck className="h-5 w-5" />
-                          </motion.div>
-                        ) : (
-                          <BookmarkPlus className="h-5 w-5" />
-                        )}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
+                  poem={poem}
+                  coverImage={getRandomCoverImage()}
+                  index={index}
+                  isInReadlist={isInReadlist}
+                  handleReadlistToggle={handleReadlistToggle}
+                />
               );
             })}
           </motion.div>
@@ -346,5 +297,101 @@ export default function PoemCollection({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+interface PoemCardProps {
+  poem: Poem;
+  coverImage: string; // Separate prop for random cover image
+  index: number;
+  isInReadlist: boolean;
+  handleReadlistToggle: (id: string, title: string) => void;
+}
+
+function PoemCard({
+  poem,
+  coverImage,
+  index,
+  isInReadlist,
+  handleReadlistToggle,
+}: PoemCardProps) {
+  const poemTitle = poem.title?.en || "Untitled";
+  const englishSlug = poem.slug?.en || poem._id;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4 }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+    >
+      <Card className="overflow-hidden h-full flex flex-col transition-all hover:shadow-lg">
+        <div className="relative h-48 overflow-hidden">
+          <Image
+            src={coverImage}
+            alt={poemTitle}
+            fill
+            className="object-cover transition-transform hover:scale-105 duration-300"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          <div className="absolute top-2 right-2">
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1 bg-background/80 backdrop-blur-sm"
+            >
+              <Heart className="h-3 w-3 text-primary" />
+              <span>{poem.readListCount || 0}</span>
+            </Badge>
+          </div>
+        </div>
+
+        <CardContent className="flex-grow p-4">
+          <h3 className="text-xl font-bold line-clamp-1 mb-1">{poemTitle}</h3>
+          <div className="flex items-center gap-2 text-muted-foreground mb-3">
+            <User className="h-3.5 w-3.5" />
+            <span className="text-sm">
+              {poem.author?.name || "Unknown Author"}
+            </span>
+          </div>
+
+          {poem.excerpt && (
+            <p className="text-muted-foreground text-sm line-clamp-2 mt-2">
+              {poem.excerpt}
+            </p>
+          )}
+        </CardContent>
+
+        <CardFooter className="p-4 pt-0 flex justify-between items-center">
+          <Link href={`/poems/${englishSlug}`} className="inline-flex">
+            <Button variant="default" size="sm" className="gap-1">
+              <BookOpen className="h-4 w-4" />
+              <span>Read</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </Link>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleReadlistToggle(poem._id, poemTitle)}
+            className={`${
+              isInReadlist ? "text-primary" : "text-muted-foreground"
+            } hover:text-primary`}
+          >
+            {isInReadlist ? (
+              <motion.div
+                initial={{ scale: 0.5 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 15 }}
+              >
+                <BookmarkCheck className="h-5 w-5" />
+              </motion.div>
+            ) : (
+              <BookmarkPlus className="h-5 w-5" />
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 }
