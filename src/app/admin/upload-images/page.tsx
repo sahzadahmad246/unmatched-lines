@@ -245,7 +245,7 @@ export default function CoverImageManager() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="w-full">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 md:mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 md:mb-6 w-full ">
         <motion.h1
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

@@ -119,7 +119,7 @@ export default function ManageAuthors() {
 
   // Card view for mobile
   const AuthorCard = ({ author }: { author: Author }) => (
-    <motion.div variants={item} className="rounded-lg border p-2 md:p-4 bg-card hover:shadow-md transition-shadow">
+    <motion.div variants={item} className="rounded-lg border p-2 md:p-4 bg-card hover:shadow-md transition-shadow w-full">
       <div className="flex justify-between items-start gap-1 md:gap-2">
         <div className="space-y-0.5 md:space-y-1">
           <h3 className="font-medium">{author.name}</h3>
@@ -161,11 +161,11 @@ export default function ManageAuthors() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full"
+      className="w-full max-w-full"
     >
-      <div className="bg-card rounded-lg border shadow-sm">
+      <div className="bg-card rounded-lg border shadow-sm w-full">
         <div className="p-3 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 mb-3 md:mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 mb-3 md:mb-6 w-full">
             <div className="flex items-center gap-2">
               <User className="h-6 w-6 text-primary" />
               <h1 className="text-2xl font-bold">Manage Authors</h1>
@@ -180,7 +180,7 @@ export default function ManageAuthors() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button asChild>
+              <Button asChild className="w-full sm:w-auto">
                 <Link href="/admin/manage-authors" className="whitespace-nowrap">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Author
@@ -189,9 +189,9 @@ export default function ManageAuthors() {
             </div>
           </div>
 
-          <div className="mt-2">
+          <div className="mt-2 w-full">
             {loading ? (
-              <div className="grid gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-3 w-full">
                 {[...Array(6)].map((_, index) => (
                   <div key={index} className="rounded-lg border p-4 animate-pulse">
                     <div className="flex justify-between">
@@ -205,7 +205,7 @@ export default function ManageAuthors() {
                 ))}
               </div>
             ) : filteredAuthors.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="py-12 text-center w-full">
                 <User className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
                 <h3 className="text-lg font-medium">No authors found</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
@@ -275,7 +275,7 @@ export default function ManageAuthors() {
 
                 {/* Mobile Card View */}
                 <motion.div
-                  className="grid lg:hidden gap-4 grid-cols-1 md:grid-cols-2"
+                  className="grid lg:hidden gap-4 grid-cols-1 md:grid-cols-2 w-full"
                   variants={container}
                   initial="hidden"
                   animate="show"
@@ -313,4 +313,3 @@ export default function ManageAuthors() {
     </motion.div>
   )
 }
-

@@ -78,7 +78,7 @@ export function SearchBar({ className = "", fullWidth = false, isMobile = false 
     <>
       <motion.div
         className={`relative sm:relative ${className} ${fullWidth ? "w-full" : ""} ${
-          isMobile ? "fixed top-16 left-0 right-0 z-40 bg-white p-2 shadow-md" : ""
+          isMobile ? "fixed top-4 left-0 right-0 z-40 bg-white p-2 shadow-md" : ""
         }`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -114,7 +114,7 @@ export function SearchBar({ className = "", fullWidth = false, isMobile = false 
       </motion.div>
 
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 w-[95%] sm:w-auto mx-auto">
+        <DialogContent className="sm:max-w-[600px] p-0 w-[95%] sm:w-auto mx-auto top-[20%] sm:top-[50%]">
           <div className="p-3 sm:p-4 border-b">
             <form onSubmit={handleSubmit} className="relative">
               <Input
