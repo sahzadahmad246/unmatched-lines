@@ -114,7 +114,7 @@ export function SearchBar({ className = "", fullWidth = false, isMobile = false 
       </motion.div>
 
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 w-[95%] sm:w-auto mx-auto top-[20%] sm:top-[50%]">
+        <DialogContent className="sm:max-w-[600px] p-0 w-[95%] sm:w-auto mx-auto top-[50%] sm:top-[50%]">
           <div className="p-3 sm:p-4 border-b">
             <form onSubmit={handleSubmit} className="relative">
               <Input
