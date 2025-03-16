@@ -145,7 +145,7 @@ export default function ProfileComponent() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col items-center justify-center min-h-[60vh] gap-4"
+        className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full"
       >
         <motion.div
           animate={{
@@ -187,7 +187,7 @@ export default function ProfileComponent() {
 
   if (!session) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="min-h-[80vh] flex items-center justify-center w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -251,7 +251,7 @@ export default function ProfileComponent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl mb-20">
+    <div className="container mx-auto px-4 py-8 max-w-5xl mb-20 w-full">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Profile Sidebar */}
         <motion.div

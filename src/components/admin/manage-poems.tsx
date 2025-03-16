@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Edit,
   Trash2,
@@ -277,7 +278,7 @@ export default function ManagePoems() {
       className="w-full"
     >
       <div className="bg-card rounded-lg border shadow-sm">
-        <div className="p-3 md:p-6">
+        <div className="p-2 sm:p-3 md:p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 mb-3 md:mb-6">
             <div className="flex items-center gap-2">
               <BookOpen className="h-6 w-6 text-primary" />
@@ -335,23 +336,72 @@ export default function ManagePoems() {
 
           <div className="mt-2">
             {loading ? (
-              <div className="grid gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[...Array(6)].map((_, index) => (
-                  <div key={index} className="rounded-lg border p-4 animate-pulse">
-                    <div className="flex justify-between">
-                      <div className="space-y-2">
-                        <div className="h-4 w-32 bg-muted rounded"></div>
-                        <div className="h-3 w-24 bg-muted rounded"></div>
+              <>
+                {/* Skeleton for desktop view */}
+                <div className="hidden lg:block rounded-md border w-full overflow-hidden">
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Author</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...Array(6)].map((_, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="py-3">
+                            <Skeleton className="h-5 w-32" />
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Skeleton className="h-5 w-24" />
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Skeleton className="h-6 w-16 rounded-full" />
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Skeleton className="h-6 w-16 rounded-full" />
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Skeleton className="h-5 w-20" />
+                          </TableCell>
+                          <TableCell className="text-right py-3">
+                            <div className="flex justify-end gap-1">
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Skeleton for mobile card view */}
+                <div className="grid lg:hidden gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={index} className="rounded-lg border p-4 animate-pulse">
+                      <div className="flex justify-between">
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                        <Skeleton className="h-8 w-8 rounded-md" />
                       </div>
-                      <div className="h-8 w-8 bg-muted rounded-md"></div>
+                      <div className="flex gap-2 mt-3">
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-24 mt-3" />
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <div className="h-5 w-16 bg-muted rounded"></div>
-                      <div className="h-5 w-16 bg-muted rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             ) : filteredPoems.length === 0 ? (
               <div className="py-12 text-center">
                 <BookOpen className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
