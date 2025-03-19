@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const imageFiles = formData.getAll("images") as File[]; // Changed to getAll for multiple files
+    const imageFiles = formData.getAll("images") as File[];
 
     if (!imageFiles || imageFiles.length === 0 || imageFiles.length > 5) {
       return NextResponse.json(
@@ -71,11 +71,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   await dbConnect();
 
   try {
@@ -93,7 +88,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// delete multiple images
 export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
@@ -126,7 +120,9 @@ export async function DELETE(request: NextRequest) {
         await CoverImage.deleteOne({ _id: image._id });
       });
   
-      await Promise.all(deletePromises);
+      await
+
+ Promise.all(deletePromises);
   
       return NextResponse.json({ message: "Cover images deleted" });
     } catch (error) {
@@ -136,4 +132,4 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
-  }
+}

@@ -28,7 +28,7 @@ export default function ClientLayout({
                 <AdminSidebar />
               </div>
               {/* Main content */}
-              <main className="flex-1 p-0 md:p-6 w-full">{children}</main>
+              <main className="flex-1 p-0 md:p-6 w-full mb-16">{children}</main>
             </div>
             {/* Admin Mobile Bottom Nav for mobile */}
             <div className="md:hidden">
@@ -39,7 +39,7 @@ export default function ClientLayout({
           <>
             {/* Regular layout for non-admin routes */}
             <Navbar />
-            <main className="flex-1 w-full p-0 md:p-6">{children}</main>
+            <main className="flex-1 w-full p-0 md:p-6 mb-16">{children}</main>
           </>
         )}
       </div>
