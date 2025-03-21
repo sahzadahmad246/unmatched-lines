@@ -1,193 +1,151 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useSession } from "next-auth/react"
-import Link from "next/link"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { toast } from "sonner"
-import { Footer } from "./footer"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { LoadingComponent } from "../utils/LoadingComponent"
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Footer } from "./footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { LoadingComponent } from "../utils/LoadingComponent";
 import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
   Feather,
   ArrowRight,
-  Calendar,
   Quote,
   Sparkles,
   BookHeart,
-} from "lucide-react"
-import { SearchBar } from "./search-bar"
-import { VerseDownload } from "./verse-download"
-import { FeaturedCollection } from "./featured-collection"
+} from "lucide-react";
+import { SearchBar } from "./search-bar";
+import { FeaturedCollection } from "./featured-collection";
+import { LineOfTheDay } from "../poems/line-of-the-day";
+import { TopFivePicks } from "./TopFivePicks";
 
+// Interfaces
 interface Poet {
-  _id: string
-  name: string
-  slug: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount: number
-  sherCount: number
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  dob?: string;
+  city?: string;
+  ghazalCount: number;
+  sherCount: number;
 }
 
 interface Poem {
-  _id: string
-  title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
-  category: "ghazal" | "sher"
-  excerpt?: string
-  slug?: { en: string }
+  _id: string;
+  title: { en: string; hi?: string; ur?: string };
+  author: { name: string; _id: string };
+  category: "ghazal" | "sher";
+  excerpt?: string;
+  slug?: { en: string };
   content?: {
-    en?: string[] | string
-    hi?: string[] | string
-    ur?: string[] | string
-  }
-  readListCount?: number
+    en?: string[] | string;
+    hi?: string[] | string;
+    ur?: string[] | string;
+  };
+  readListCount?: number;
 }
 
 interface CoverImage {
-  _id: string
-  url: string
-  uploadedBy: { name: string }
-  createdAt: string
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
 }
 
 export default function Home() {
-  const { data: session } = useSession()
-  const [poets, setPoets] = useState<Poet[]>([])
-  const [ghazals, setGhazals] = useState<Poem[]>([])
-  const [shers, setShers] = useState<Poem[]>([])
-  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null)
-  const [poemOfTheDay, setPoemOfTheDay] = useState<Poem | null>(null)
-  const [lineOfTheDay, setLineOfTheDay] = useState<string>("")
-  const [lineAuthor, setLineAuthor] = useState<string>("")
-  const [readList, setReadList] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [todayDate] = useState(
-    new Date().toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }),
-  )
+  const { data: session } = useSession();
+  const [poets, setPoets] = useState<Poet[]>([]);
+  const [ghazals, setGhazals] = useState<Poem[]>([]);
+  const [shers, setShers] = useState<Poem[]>([]);
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
+  const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const poetsScrollRef = useRef<HTMLDivElement>(null)
-  const heroRef = useRef<HTMLDivElement>(null)
-  const hasInitializedRef = useRef(false)
+  const poetsScrollRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return
-    hasInitializedRef.current = true
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
     const fetchData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
-        const poetsRes = await fetch("/api/authors", {
-          credentials: "include",
-        })
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
-        const poetsData = await poetsRes.json()
-        setPoets(poetsData.authors || [])
+        const poetsRes = await fetch("/api/authors", { credentials: "include" });
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
+        const poetsData = await poetsRes.json();
+        setPoets(poetsData.authors || []);
 
-        const poemsRes = await fetch("/api/poem", { credentials: "include" })
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems")
-        const poemsData = await poemsRes.json()
-        const poems = poemsData.poems || []
+        const poemsRes = await fetch("/api/poem", { credentials: "include" });
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
+        const poemsData = await poemsRes.json();
+        const poems = poemsData.poems || [];
 
-        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
-        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
+        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6));
+        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6));
 
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length)
-          setFeaturedPoem(poems[randomIndex])
+          const randomIndex = Math.floor(Math.random() * poems.length);
+          setFeaturedPoem(poems[randomIndex]);
         }
 
-        if (poems.length > 0) {
-          const dateStr = new Date().toISOString().split("T")[0]
-          let seed = 0
-          for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i)
-          const poemIndex = seed % poems.length
-          const selectedPoem = poems[poemIndex]
-          setPoemOfTheDay(selectedPoem)
-
-          const verses = {
-            en: Array.isArray(selectedPoem.content?.en)
-              ? selectedPoem.content.en.filter(Boolean)
-              : selectedPoem.content?.en?.split("\n").filter(Boolean) || [],
-            hi: Array.isArray(selectedPoem.content?.hi)
-              ? selectedPoem.content.hi.filter(Boolean)
-              : selectedPoem.content?.hi?.split("\n").filter(Boolean) || [],
-            ur: Array.isArray(selectedPoem.content?.ur)
-              ? selectedPoem.content.ur.filter(Boolean)
-              : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
-          }
-
-          const verseArray =
-            verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : []
-          if (verseArray.length > 0) {
-            const verseIndex = seed % verseArray.length
-            setLineOfTheDay(verseArray[verseIndex] || "No verse available")
-          }
-          setLineAuthor(selectedPoem.author?.name || "Unknown Author")
-        }
-
-        const coverImagesRes = await fetch("/api/cover-images", {
-          credentials: "include",
-        })
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
-        const coverImagesData = await coverImagesRes.json()
-        setCoverImages(coverImagesData.coverImages || [])
+        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" })
+          const userRes = await fetch("/api/user", { credentials: "include" });
           if (userRes.ok) {
-            const userData = await userRes.json()
-            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+            const userData = await userRes.json();
+            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
           }
         }
       } catch (err) {
-        setError("Failed to load data")
+        setError("Failed to load data");
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [session])
+    fetchData();
+  }, [session]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const scrollPoets = (direction: "left" | "right") => {
     if (poetsScrollRef.current) {
-      const scrollAmount = 150
+      const scrollAmount = 150;
       const scrollPosition =
         direction === "left"
           ? poetsScrollRef.current.scrollLeft - scrollAmount
-          : poetsScrollRef.current.scrollLeft + scrollAmount
+          : poetsScrollRef.current.scrollLeft + scrollAmount;
 
       poetsScrollRef.current.scrollTo({
         left: scrollPosition,
         behavior: "smooth",
-      })
+      });
     }
-  }
+  };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     if (!session) {
@@ -197,13 +155,13 @@ export default function Home() {
           label: "Sign In",
           onClick: () => (window.location.href = "/api/auth/signin"),
         },
-      })
-      return
+      });
+      return;
     }
 
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -211,15 +169,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
 
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
-          })
+          });
         } else {
           toast.custom(
             (t) => (
@@ -236,39 +194,19 @@ export default function Home() {
                 </div>
               </motion.div>
             ),
-            { duration: 3000 },
-          )
+            { duration: 3000 }
+          );
         }
       }
     } catch (error) {
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
-      })
+      });
     }
-  }
-
-  const formatPoetryContent = (content: string[] | string | undefined) => {
-    if (!content) return "Content not available"
-
-    if (typeof content === "string") {
-      return content.split("\n").filter(Boolean)[0] || "Content not available"
-    }
-
-    if (Array.isArray(content) && content.length > 0) {
-      return content[0].split("\n").filter(Boolean)[0] || "Content not available"
-    }
-
-    return "Content not available"
-  }
-
-  const formatVerseForDisplay = (verse: string) => {
-    if (!verse) return ["No verse available"]
-    const lines = verse.split("\n").filter(Boolean)
-    return lines.length > 0 ? lines : [verse]
-  }
+  };
 
   if (loading) {
-    return <LoadingComponent />
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -285,7 +223,7 @@ export default function Home() {
           </Button>
         </motion.div>
       </div>
-    )
+    );
   }
 
   return (
@@ -297,7 +235,7 @@ export default function Home() {
       >
         <div className="absolute inset-0 z-0">
           <Image
-            src={getRandomCoverImage() || "/placeholder.svg"}
+            src={getRandomCoverImage()}
             alt="Poetry background"
             fill
             priority
@@ -362,75 +300,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Line of the Day */}
-      <section className="py-10 sm:py-16 bg-muted/30">
-        <div className="container mx-auto px-4 ">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className="flex items-center justify-between mb-6 sm:mb-8">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif">Line of the Day</h2>
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground font-serif">{todayDate}</div>
-            </div>
+      {/* Line of the Day Section */}
+      <LineOfTheDay poems={[...ghazals, ...shers]} coverImages={coverImages} />
 
-            {lineOfTheDay ? (
-              <div className="relative overflow-hidden rounded-lg shadow-md">
-                <div className="absolute inset-0 z-0">
-                  <Image
-                    src={getRandomCoverImage() || "/placeholder.svg"}
-                    alt="Line of the Day background"
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 1200px"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80" />
-                </div>
-
-                <div className="relative z-10 p-6 sm:p-10 md:p-12 flex flex-col items-center text-center text-white">
-                  <div className="text-sm sm:text-base md:text-xl italic font-serif mb-4 leading-relaxed">
-                    {formatVerseForDisplay(lineOfTheDay).map((line, index) => (
-                      <p key={index} className="mb-2">
-                        "{line}"
-                      </p>
-                    ))}
-                  </div>
-                  <Separator className="w-12 sm:w-16 my-3 sm:my-4 bg-white/30" />
-                  <p className="text-xs sm:text-sm md:text-base text-white/80 font-serif mb-6">— {lineAuthor}</p>
-
-                  <div className="flex items-center justify-center gap-3 ">
-                    <VerseDownload
-                      verse={lineOfTheDay}
-                      author={lineAuthor}
-                      imageUrl={getRandomCoverImage()}
-                      title="Line of the Day"
-                      languages={poemOfTheDay?.content}
-                    />
-
-                    {poemOfTheDay && (
-                      <Button
-                        asChild
-                        variant="secondary"
-                        size="sm"
-                        className="gap-2 font-serif text-xs sm:text-sm text-black border "
-                      >
-                        <Link href={`/poems/${poemOfTheDay.slug?.en || poemOfTheDay._id}`}>
-                          <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          <span>Read Full Poem</span>
-                        </Link>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
-                <p className="text-muted-foreground italic font-serif">No line of the day available</p>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </section>
+      {/* Top Five Picks Section */}
+      <TopFivePicks poems={[...ghazals, ...shers]} coverImages={coverImages} />
 
       {/* Poets Section */}
       <section className="py-10 sm:py-16">
@@ -500,7 +374,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Collections - Now using the separate component */}
+      {/* Featured Collections */}
       <FeaturedCollection
         ghazals={ghazals}
         shers={shers}
@@ -564,8 +438,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
       <Footer />
     </div>
-  )
+  );
 }
-

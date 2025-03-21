@@ -3,12 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { BookOpen, ArrowRight, User, ChevronDown, BookmarkPlus, BookHeart, Languages } from "lucide-react"
-
+import { BookOpen, ArrowRight, User, ChevronDown, BookmarkPlus, BookHeart, Languages, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { toast } from "sonner"
 
 interface Poem {
   _id: string
@@ -60,7 +60,7 @@ export function FeaturedCollection({ ghazals, shers, readList, handleReadlistTog
           </div>
 
           <TabsContent value="all" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
               {[...ghazals.slice(0, 3), ...shers.slice(0, 3)].map((poem, index) => (
                 <PoemCard
                   key={poem._id}
@@ -74,7 +74,7 @@ export function FeaturedCollection({ ghazals, shers, readList, handleReadlistTog
           </TabsContent>
 
           <TabsContent value="ghazal" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
               {ghazals.map((poem, index) => (
                 <PoemCard
                   key={poem._id}
@@ -88,7 +88,7 @@ export function FeaturedCollection({ ghazals, shers, readList, handleReadlistTog
           </TabsContent>
 
           <TabsContent value="sher" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
               {shers.map((poem, index) => (
                 <PoemCard
                   key={poem._id}
@@ -140,35 +140,70 @@ function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardP
     setContentLang(availableLanguages[0] as "en" | "hi" | "ur")
   }
 
-  // Format content into proper poetry verses (each verse has two lines)
-  const formatContent = (content: string[] | string | undefined) => {
-    if (!content) return []
+  // Format poetry content similar to PoemDetail
+  const formatPoetryContent = (content: string[] | string | undefined) => {
+    if (!content) {
+      return <div className="italic text-muted-foreground text-xs">Content not available</div>
+    }
 
-    let lines: string[] = []
+    let stanzas: string[] = [];
     if (typeof content === "string") {
-      lines = content.split("\n").filter(Boolean)
+      stanzas = content.split("\n\n").filter(Boolean);
     } else if (Array.isArray(content)) {
-      lines = content.filter(Boolean)
+      stanzas = content;
     }
 
-    // Group lines into verses (pairs of lines)
-    const verses: string[][] = []
-    for (let i = 0; i < lines.length; i += 2) {
-      const verse = [lines[i]]
-      if (i + 1 < lines.length) {
-        verse.push(lines[i + 1])
-      }
-      verses.push(verse)
+    if (stanzas.length === 0) {
+      return <div className="italic text-muted-foreground text-xs">Content not available</div>
     }
 
-    return verses
+    return (
+      <div className="space-y-4">
+        {stanzas.slice(0, 2).map((stanza, index) => (
+          <div key={index} className="poem-stanza">
+            {stanza.split("\n").map((line, lineIndex) => (
+              <div 
+                key={lineIndex} 
+                className="poem-line leading-relaxed text-[11px] sm:text-xs"
+              >
+                {line || "\u00A0"}
+              </div>
+            ))}
+          </div>
+        ))}
+        {stanzas.length > 2 && (
+          <div className="text-xs text-muted-foreground italic">...</div>
+        )}
+      </div>
+    )
   }
 
   const getContentForLanguage = (lang: "en" | "hi" | "ur") => {
-    return formatContent(poem.content?.[lang])
+    return formatPoetryContent(poem.content?.[lang])
+  }
+
+  const getRawContentForCopy = (lang: "en" | "hi" | "ur") => {
+    const content = poem.content?.[lang];
+    if (!content) return "";
+    if (typeof content === "string") return content;
+    return content.join("\n\n");
   }
 
   const currentContent = getContentForLanguage(contentLang)
+
+  const handleCopy = () => {
+    const contentToCopy = getRawContentForCopy(contentLang);
+    navigator.clipboard.writeText(contentToCopy).then(() => {
+      toast.success("Verses copied", {
+        description: "The poem verses have been copied to your clipboard",
+        icon: <Copy className="h-4 w-4" />,
+      });
+    }).catch(() => {
+      toast.error("Copy failed", {
+        description: "Failed to copy the verses",
+      });
+    });
+  }
 
   // Get language display names
   const languageNames: Record<string, string> = {
@@ -183,9 +218,9 @@ function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardP
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className="h-full"
+      className="flex flex-col" // Ensure column layout
     >
-      <Card className="h-full flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
+      <Card className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
         <CardContent className="flex-grow p-3 sm:p-4 pt-4">
           <div className="flex justify-between items-start mb-2 sm:mb-3">
             <Badge variant="secondary" className="font-serif capitalize text-xs">
@@ -226,53 +261,44 @@ function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardP
           <AnimatePresence>
             {isExpanded && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="overflow-hidden"
+                className="overflow-hidden mt-2"
               >
                 {availableLanguages.length > 1 && (
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <Languages className="h-3 w-3 text-muted-foreground" />
-                    <Tabs
-                      value={contentLang}
-                      onValueChange={(value) => setContentLang(value as "en" | "hi" | "ur")}
-                      className="w-full"
+                  <div className="mb-2 flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="h-3 w-3 text-muted-foreground" />
+                      <Tabs
+                        value={contentLang}
+                        onValueChange={(value) => setContentLang(value as "en" | "hi" | "ur")}
+                        className="w-auto"
+                      >
+                        <TabsList className="h-7">
+                          {availableLanguages.map((lang) => (
+                            <TabsTrigger key={lang} value={lang} className="text-xs px-2 py-0.5 h-5">
+                              {languageNames[lang]}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className="p-1 hover:bg-muted rounded-full transition-colors"
+                      aria-label="Copy verses"
                     >
-                      <TabsList className="h-7">
-                        {availableLanguages.map((lang) => (
-                          <TabsTrigger key={lang} value={lang} className="text-xs px-2 py-0.5 h-5">
-                            {languageNames[lang]}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                    </Tabs>
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
                   </div>
                 )}
 
-                <div className="bg-muted/30 p-2 sm:p-3 rounded-md text-xs sm:text-sm font-serif">
-                  {currentContent.length > 0 ? (
-                    <div className={contentLang === "ur" ? "text-right" : ""}>
-                      {/* Only show first two verses */}
-                      {currentContent.slice(0, 2).map((verse, i) => (
-                        <div key={i} className="mb-2 last:mb-0">
-                          {verse.map((line, j) => (
-                            <p key={j} className={j === 0 ? "mb-0.5" : ""}>
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      ))}
-                      {currentContent.length > 2 && (
-                        <p className="text-xs text-muted-foreground mt-1 italic">
-                          {contentLang === "ur" ? "..." : "..."}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground italic">No content available</p>
-                  )}
+                <div className="bg-muted/30 p-2 sm:p-3 rounded-md font-serif poem-content">
+                  <div className={contentLang === "ur" ? "text-right" : ""}>
+                    {currentContent}
+                  </div>
                 </div>
 
                 <div className="mt-3">
@@ -300,5 +326,5 @@ function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardP
       </Card>
     </motion.div>
   )
+  // Ensure column layout
 }
-

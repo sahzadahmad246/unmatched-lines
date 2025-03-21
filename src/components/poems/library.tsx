@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -48,7 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LineOfTheDay } from "@/components/poems/line-of-the-day";
+import { LineOfTheDay } from "./line-of-the-day";
 import { PoetCard } from "@/components/home/poet-card";
 import {
   Drawer,
@@ -99,22 +99,13 @@ const slideUp = {
 export default function Library() {
   const [poets, setPoets] = useState<any[]>([]);
   const [poemsByPoet, setPoemsByPoet] = useState<{ [key: string]: any[] }>({});
-  const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
-  const [lineAuthor, setLineAuthor] = useState<string>("");
   const [readList, setReadList] = useState<string[]>([]);
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([]); // New state for cover images
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [featuredPoem, setFeaturedPoem] = useState<any>(null);
   const [activeLang, setActiveLang] = useState<"en" | "hi" | "ur">("en");
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [todayDate] = useState(
-    new Date().toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
-  );
   const [allPoems, setAllPoems] = useState<Poem[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -122,7 +113,6 @@ export default function Library() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
-  const [poemOfTheDay, setPoemOfTheDay] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState<"poems" | "poets">("poems");
 
@@ -144,19 +134,14 @@ export default function Library() {
       setLoading(true);
       setError(null);
       try {
-        const poetsRes = await fetch("/api/authors", {
-          credentials: "include",
-        });
+        const poetsRes = await fetch("/api/authors", { credentials: "include" });
         if (!poetsRes.ok) throw new Error("Failed to fetch poets");
         const poetsData = await poetsRes.json();
 
         const shuffledPoets = [...poetsData.authors];
         for (let i = shuffledPoets.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [shuffledPoets[i], shuffledPoets[j]] = [
-            shuffledPoets[j],
-            shuffledPoets[i],
-          ];
+          [shuffledPoets[i], shuffledPoets[j]] = [shuffledPoets[j], shuffledPoets[i]];
         }
         setPoets(shuffledPoets);
 
@@ -172,10 +157,7 @@ export default function Library() {
         ) as string[];
         setAvailableCategories(categories);
 
-        // Fetch cover images
-        const coverImagesRes = await fetch("/api/cover-images", {
-          credentials: "include",
-        });
+        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
         if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
         const coverImagesData = await coverImagesRes.json();
         setCoverImages(coverImagesData.coverImages || []);
@@ -183,13 +165,11 @@ export default function Library() {
         const poemsByPoetMap: { [key: string]: any[] } = {};
         shuffledPoets.slice(0, 4).forEach((poet) => {
           const poetPoems = poems.filter(
-            (poem: Poem) =>
-              poem.author?._id === poet._id || poem.author?.name === poet.name
+            (poem: Poem) => poem.author?._id === poet._id || poem.author?.name === poet.name
           );
           const categorizedPoems: { [key: string]: any[] } = {};
           poetPoems.forEach((poem: Poem) => {
-            if (!categorizedPoems[poem.category])
-              categorizedPoems[poem.category] = [];
+            if (!categorizedPoems[poem.category]) categorizedPoems[poem.category] = [];
             categorizedPoems[poem.category].push(poem);
           });
 
@@ -204,58 +184,17 @@ export default function Library() {
               ];
             }
             shuffledCategoryPoems.slice(0, 4).forEach((poem) => {
-              poetPoemsWithCategory.push({
-                ...poem,
-                displayCategory: category,
-              });
+              poetPoemsWithCategory.push({ ...poem, displayCategory: category });
             });
           });
-          if (poetPoemsWithCategory.length > 0)
-            poemsByPoetMap[poet._id] = poetPoemsWithCategory;
+          if (poetPoemsWithCategory.length > 0) poemsByPoetMap[poet._id] = poetPoemsWithCategory;
         });
         setPoemsByPoet(poemsByPoetMap);
-
-        if (poems.length > 0) {
-          const dateStr = new Date().toISOString().split("T")[0];
-          let seed = 0;
-          for (let i = 0; i < dateStr.length; i++)
-            seed += dateStr.charCodeAt(i);
-          const poemIndex = seed % poems.length;
-          const selectedPoem = poems[poemIndex];
-          setPoemOfTheDay(selectedPoem);
-
-          const verses = {
-            en: Array.isArray(selectedPoem.content?.en)
-              ? selectedPoem.content.en.filter(Boolean)
-              : selectedPoem.content?.en?.split("\n").filter(Boolean) || [],
-            hi: Array.isArray(selectedPoem.content?.hi)
-              ? selectedPoem.content.hi.filter(Boolean)
-              : selectedPoem.content?.hi?.split("\n").filter(Boolean) || [],
-            ur: Array.isArray(selectedPoem.content?.ur)
-              ? selectedPoem.content.ur.filter(Boolean)
-              : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
-          };
-          const verseArray =
-            verses.en.length > 0
-              ? verses.en
-              : verses.hi.length > 0
-              ? verses.hi
-              : verses.ur.length > 0
-              ? verses.ur
-              : [];
-          if (verseArray.length > 0) {
-            const verseIndex = seed % verseArray.length;
-            setLineOfTheDay(verseArray[verseIndex] || "No verse available");
-          }
-          setLineAuthor(selectedPoem.author?.name || "Unknown Author");
-        }
 
         const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
           const userData = await userRes.json();
-          setReadList(
-            userData.user.readList.map((poem: any) => poem._id.toString())
-          );
+          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
         } else if (userRes.status === 401) {
           setReadList([]);
         } else {
@@ -303,26 +242,21 @@ export default function Library() {
     }
 
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter((poem) =>
-        selectedCategories.includes(poem.category)
-      );
+      filtered = filtered.filter((poem) => selectedCategories.includes(poem.category));
     }
 
     setFilteredPoems(filtered);
   }, [searchQuery, selectedCategories, allPoems]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0)
-      return "/placeholder.svg?height=300&width=300";
+    if (coverImages.length === 0) return "/placeholder.svg?height=300&width=300";
     const randomIndex = Math.floor(Math.random() * coverImages.length);
     return coverImages[randomIndex].url;
   };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist
-      ? "/api/user/readlist/remove"
-      : "/api/user/readlist/add";
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
     const method = isInReadlist ? "DELETE" : "POST";
 
     try {
@@ -340,9 +274,7 @@ export default function Library() {
           prev?._id === poemId
             ? {
                 ...prev,
-                readListCount: isInReadlist
-                  ? (prev.readListCount || 1) - 1
-                  : (prev.readListCount || 0) + 1,
+                readListCount: isInReadlist ? (prev.readListCount || 1) - 1 : (prev.readListCount || 0) + 1,
               }
             : prev
         );
@@ -353,9 +285,7 @@ export default function Library() {
               if (poem._id === poemId) {
                 return {
                   ...poem,
-                  readListCount: isInReadlist
-                    ? (poem.readListCount || 1) - 1
-                    : (poem.readListCount || 0) + 1,
+                  readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1,
                 };
               }
               return poem;
@@ -380,9 +310,7 @@ export default function Library() {
                 <BookHeart className="h-5 w-5" />
                 <div>
                   <div className="font-medium">Added to your anthology</div>
-                  <div className="text-sm opacity-90">
-                    "{poemTitle}" now resides in your collection
-                  </div>
+                  <div className="text-sm opacity-90">"{poemTitle}" now resides in your collection</div>
                 </div>
               </motion.div>
             ),
@@ -409,9 +337,7 @@ export default function Library() {
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
     );
   };
 
@@ -424,15 +350,11 @@ export default function Library() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className=" personally mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
+        className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
       >
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-destructive">{error}</h2>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => window.location.reload()}
-        >
+        <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
           Try Again
         </Button>
       </motion.div>
@@ -441,13 +363,8 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background mb-16">
-      <LineOfTheDay
-        lineOfTheDay={lineOfTheDay}
-        lineAuthor={lineAuthor}
-        coverImage={getRandomCoverImage()} // Use random cover image here
-        poemOfTheDay={poemOfTheDay}
-        todayDate={todayDate}
-      />
+      {/* Use the LineOfTheDay component */}
+      <LineOfTheDay poems={allPoems} coverImages={coverImages} />
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-6">
@@ -500,10 +417,7 @@ export default function Library() {
                   </h3>
                   <div className="space-y-2">
                     {availableCategories.map((category) => (
-                      <div
-                        key={category}
-                        className="flex items-center space-x-2"
-                      >
+                      <div key={category} className="flex items-center space-x-2">
                         <Checkbox
                           id={`category-${category}`}
                           checked={selectedCategories.includes(category)}
@@ -552,9 +466,7 @@ export default function Library() {
               <DrawerContent>
                 <DrawerHeader>
                   <DrawerTitle>Filters</DrawerTitle>
-                  <DrawerDescription>
-                    Refine your poetry collection
-                  </DrawerDescription>
+                  <DrawerDescription>Refine your poetry collection</DrawerDescription>
                 </DrawerHeader>
                 <div className="px-4 py-2 space-y-6">
                   <div>
@@ -596,10 +508,7 @@ export default function Library() {
                     </h3>
                     <div className="space-y-2">
                       {availableCategories.map((category) => (
-                        <div
-                          key={category}
-                          className="flex items-center space-x-2"
-                        >
+                        <div key={category} className="flex items-center space-x-2">
                           <Checkbox
                             id={`mobile-category-${category}`}
                             checked={selectedCategories.includes(category)}
@@ -647,9 +556,7 @@ export default function Library() {
                   </div>
                 </div>
                 <DrawerFooter>
-                  <Button onClick={() => setFilterOpen(false)}>
-                    Apply Filters
-                  </Button>
+                  <Button onClick={() => setFilterOpen(false)}>Apply Filters</Button>
                   <DrawerClose asChild>
                     <Button variant="outline">Cancel</Button>
                   </DrawerClose>
@@ -707,13 +614,7 @@ export default function Library() {
               </div>
             </div>
 
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) =>
-                setActiveTab(value as "poems" | "poets")
-              }
-              className="mb-6"
-            >
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "poems" | "poets")} className="mb-6">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="poems" className="text-xs sm:text-sm">
                   <BookOpen className="h-4 w-4 mr-2" />
@@ -728,14 +629,9 @@ export default function Library() {
               <TabsContent value="poems" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Showing{" "}
-                    <span className="font-medium">{filteredPoems.length}</span>{" "}
-                    poems
+                    Showing <span className="font-medium">{filteredPoems.length}</span> poems
                     {selectedCategories.length > 0 && (
-                      <span>
-                        {" "}
-                        in {selectedCategories.map((c) => c).join(", ")}
-                      </span>
+                      <span> in {selectedCategories.map((c) => c).join(", ")}</span>
                     )}
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
@@ -762,9 +658,7 @@ export default function Library() {
                 {filteredPoems.length === 0 ? (
                   <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
                     <BookText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium mb-2">
-                      No poems found
-                    </h3>
+                    <h3 className="text-base sm:text-lg font-medium mb-2">No poems found</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground italic font-serif">
                       Try adjusting your filters or search query
                     </p>
@@ -838,20 +732,14 @@ export default function Library() {
               <TabsContent value="poets" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Showing <span className="font-medium">{poets.length}</span>{" "}
-                    poets
+                    Showing <span className="font-medium">{poets.length}</span> poets
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {poets.slice(0, 8).map((poet, index) => (
-                    <PoetCard
-                      key={poet._id}
-                      poet={poet}
-                      variant="compact"
-                      index={index}
-                    />
+                    <PoetCard key={poet._id} poet={poet} variant="compact" index={index} />
                   ))}
                 </div>
 
@@ -899,9 +787,7 @@ export default function Library() {
         <AlertDialogContent className="border border-primary/20">
           <motion.div initial={fadeIn.hidden} animate={fadeIn.visible}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif text-xl">
-                Share this poem
-              </AlertDialogTitle>
+              <AlertDialogTitle className="font-serif text-xl">Share this poem</AlertDialogTitle>
               <AlertDialogDescription>
                 Copy the link below to share this beautiful poem with others
               </AlertDialogDescription>
@@ -910,9 +796,7 @@ export default function Library() {
               <input
                 type="text"
                 readOnly
-                value={
-                  typeof window !== "undefined" ? window.location.href : ""
-                }
+                value={typeof window !== "undefined" ? window.location.href : ""}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <Button
@@ -920,8 +804,7 @@ export default function Library() {
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
-                    description:
-                      "The poem's link has been copied to your clipboard",
+                    description: "The poem's link has been copied to your clipboard",
                     icon: <Sparkles className="h-4 w-4" />,
                   });
                   setShowShareDialog(false);
@@ -931,9 +814,7 @@ export default function Library() {
               </Button>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="font-serif">
-                Close
-              </AlertDialogCancel>
+              <AlertDialogCancel className="font-serif">Close</AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>
@@ -944,7 +825,7 @@ export default function Library() {
 
 interface PoemCardProps {
   poem: Poem;
-  coverImage: string; // Separate prop for random cover image
+  coverImage: string;
   englishSlug: string;
   isInReadlist: boolean;
   poemTitle: string;
@@ -977,9 +858,7 @@ function PoemCard({
             </h3>
             <div className="flex items-center gap-2 text-white/80">
               <User className="h-3 w-3" />
-              <span className="text-xs">
-                {poem.author?.name || "Unknown Author"}
-              </span>
+              <span className="text-xs">{poem.author?.name || "Unknown Author"}</span>
             </div>
           </div>
           <Badge
@@ -1004,20 +883,14 @@ function PoemCard({
                   </Badge>
                 ))}
                 {poem.tags.length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{poem.tags.length - 3}
-                  </Badge>
+                  <Badge variant="outline" className="text-xs">+{poem.tags.length - 3}</Badge>
                 )}
               </div>
             )}
           </div>
           <div className="flex justify-between items-center mt-2">
             <Link href={`/poems/${englishSlug}`} className="inline-flex">
-              <Button
-                variant="default"
-                size="sm"
-                className="gap-1 font-serif text-xs"
-              >
+              <Button variant="default" size="sm" className="gap-1 font-serif text-xs">
                 <BookOpen className="h-3 w-3" /> Read
               </Button>
             </Link>
@@ -1030,15 +903,9 @@ function PoemCard({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleReadlistToggle(poem._id, poemTitle)}
-                className={`${
-                  isInReadlist ? "text-primary" : "text-muted-foreground"
-                } hover:text-primary p-1 h-auto`}
+                className={`${isInReadlist ? "text-primary" : "text-muted-foreground"} hover:text-primary p-1 h-auto`}
               >
-                {isInReadlist ? (
-                  <BookmarkCheck className="h-4 w-4" />
-                ) : (
-                  <BookmarkPlus className="h-4 w-4" />
-                )}
+                {isInReadlist ? <BookmarkCheck className="h-4 w-4" /> : <BookmarkPlus className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -1050,7 +917,7 @@ function PoemCard({
 
 interface PoemListItemProps {
   poem: Poem;
-  coverImage: string; // Separate prop for random cover image
+  coverImage: string;
   englishSlug: string;
   isInReadlist: boolean;
   poemTitle: string;
@@ -1093,22 +960,14 @@ function PoemListItem({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleReadlistToggle(poem._id, poemTitle)}
-                className={`${
-                  isInReadlist ? "text-primary" : "text-muted-foreground"
-                } hover:text-primary p-1 h-auto`}
+                className={`${isInReadlist ? "text-primary" : "text-muted-foreground"} hover:text-primary p-1 h-auto`}
               >
-                {isInReadlist ? (
-                  <BookmarkCheck className="h-4 w-4" />
-                ) : (
-                  <BookmarkPlus className="h-4 w-4" />
-                )}
+                {isInReadlist ? <BookmarkCheck className="h-4 w-4" /> : <BookmarkPlus className="h-4 w-4" />}
               </Button>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <User className="h-3 w-3" />
-              <span className="text-xs">
-                {poem.author?.name || "Unknown Author"}
-              </span>
+              <span className="text-xs">{poem.author?.name || "Unknown Author"}</span>
             </div>
             {poem.excerpt && (
               <p className="text-xs text-muted-foreground line-clamp-1 font-serif mb-2">
@@ -1118,11 +977,7 @@ function PoemListItem({
           </div>
           <div className="flex justify-between items-center mt-2">
             <Link href={`/poems/${englishSlug}`} className="inline-flex">
-              <Button
-                variant="default"
-                size="sm"
-                className="gap-1 font-serif text-xs"
-              >
+              <Button variant="default" size="sm" className="gap-1 font-serif text-xs">
                 <BookOpen className="h-3 w-3" /> Read Poem
               </Button>
             </Link>

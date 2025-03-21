@@ -1,45 +1,87 @@
-"use client"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Calendar, BookOpen } from "lucide-react"
-import Link from "next/link"
-import { VerseDownload } from "@/components/home/verse-download"
+"use client";
 
-interface LineOfTheDayProps {
-  lineOfTheDay: string
-  lineAuthor: string
-  coverImage: string
-  poemOfTheDay?: any
-  todayDate: string
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import Image from "next/image";
+import { Calendar, BookOpen } from "lucide-react";
+import { VerseDownload } from "../home/verse-download";
+
+interface Poem {
+  _id: string;
+  title: { en: string; hi?: string; ur?: string };
+  author: { name: string; _id: string };
+  category: string; 
+  slug?: { en: string };
+  content?: {
+    en?: string[] | string;
+    hi?: string[] | string;
+    ur?: string[] | string;
+  };
 }
 
-export function LineOfTheDay({ lineOfTheDay, lineAuthor, coverImage, poemOfTheDay, todayDate }: LineOfTheDayProps) {
-  const formatVerseForDisplay = (verse: string) => {
-    if (!verse) return ["No verse available"]
-    const lines = []
-    const maxLength = 40
-    const verseLines = verse.split("\n").filter(Boolean)
+interface LineOfTheDayProps {
+  poems: Poem[];
+  coverImages: { url: string }[];
+}
 
-    for (const line of verseLines) {
-      if (line.length <= maxLength) lines.push(line)
-      else {
-        const words = line.split(" ")
-        let currentLine = ""
-        for (const word of words) {
-          const testLine = currentLine + (currentLine ? " " : "") + word
-          if (testLine.length <= maxLength) currentLine = testLine
-          else {
-            if (currentLine) lines.push(currentLine)
-            currentLine = word
-          }
-        }
-        if (currentLine) lines.push(currentLine)
-      }
+export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
+  const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
+  const [lineAuthor, setLineAuthor] = useState<string>("");
+  const [poemOfTheDay, setPoemOfTheDay] = useState<Poem | null>(null);
+  const [todayDate] = useState(
+    new Date().toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  );
+
+  useEffect(() => {
+    if (poems.length === 0) return;
+
+    const dateStr = new Date().toISOString().split("T")[0];
+    let seed = 0;
+    for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i);
+
+    const poemIndex = seed % poems.length;
+    const selectedPoem = poems[poemIndex];
+    setPoemOfTheDay(selectedPoem);
+
+    const verses = {
+      en: Array.isArray(selectedPoem.content?.en)
+        ? selectedPoem.content.en.filter(Boolean)
+        : selectedPoem.content?.en?.split("\n").filter(Boolean) || [],
+      hi: Array.isArray(selectedPoem.content?.hi)
+        ? selectedPoem.content.hi.filter(Boolean)
+        : selectedPoem.content?.hi?.split("\n").filter(Boolean) || [],
+      ur: Array.isArray(selectedPoem.content?.ur)
+        ? selectedPoem.content.ur.filter(Boolean)
+        : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
+    };
+
+    const verseArray =
+      verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : [];
+    if (verseArray.length > 0) {
+      const verseIndex = seed % verseArray.length;
+      setLineOfTheDay(verseArray[verseIndex] || "No verse available");
     }
-    return lines.length > 0 ? lines : [verse]
-  }
+    setLineAuthor(selectedPoem.author?.name || "Unknown Author");
+  }, [poems]);
+
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
+
+  const formatVerseForDisplay = (verse: string) => {
+    if (!verse) return ["No verse available"];
+    const lines = verse.split("\n").filter(Boolean);
+    return lines.length > 0 ? lines : [verse];
+  };
 
   return (
     <section className="py-10 sm:py-16 bg-muted/30">
@@ -57,7 +99,7 @@ export function LineOfTheDay({ lineOfTheDay, lineAuthor, coverImage, poemOfTheDa
             <div className="relative overflow-hidden rounded-lg shadow-md">
               <div className="absolute inset-0 z-0">
                 <Image
-                  src={coverImage || "/placeholder.svg?height=800&width=1200" || "/placeholder.svg"}
+                  src={getRandomCoverImage()}
                   alt="Line of the Day background"
                   fill
                   className="object-cover"
@@ -69,23 +111,20 @@ export function LineOfTheDay({ lineOfTheDay, lineAuthor, coverImage, poemOfTheDa
               <div className="relative z-10 p-6 sm:p-10 md:p-12 flex flex-col items-center text-center text-white">
                 <div className="text-sm sm:text-base md:text-xl italic font-serif mb-4 leading-relaxed">
                   {formatVerseForDisplay(lineOfTheDay).map((line, index) => (
-                    <p key={index} className="mb-2">
-                      "{line}"
-                    </p>
+                    <p key={index} className="mb-2">"{line}"</p>
                   ))}
                 </div>
                 <Separator className="w-12 sm:w-16 my-3 sm:my-4 bg-white/30" />
                 <p className="text-xs sm:text-sm md:text-base text-white/80 font-serif mb-6">— {lineAuthor}</p>
 
-                <div className="flex items-center justify-center gap-3 w-full ">
+                <div className="flex items-center justify-center gap-3">
                   <VerseDownload
                     verse={lineOfTheDay}
                     author={lineAuthor}
-                    imageUrl={coverImage || "/placeholder.svg?height=800&width=1200"}
+                    imageUrl={getRandomCoverImage()}
                     title="Line of the Day"
                     languages={poemOfTheDay?.content}
                   />
-
                   {poemOfTheDay && (
                     <Button
                       asChild
@@ -110,6 +149,5 @@ export function LineOfTheDay({ lineOfTheDay, lineAuthor, coverImage, poemOfTheDa
         </motion.div>
       </div>
     </section>
-  )
+  );
 }
-
