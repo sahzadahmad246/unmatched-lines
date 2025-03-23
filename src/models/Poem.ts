@@ -9,9 +9,9 @@ const PoemSchema = new Schema(
       ur: { type: String, required: true, trim: true },
     },
     content: {
-      en: [{ type: String, required: true }], 
-      hi: [{ type: String, required: true }], 
-      ur: [{ type: String, required: true }], 
+      en: [{ type: String, required: true }],
+      hi: [{ type: String, required: true }],
+      ur: [{ type: String, required: true }],
     },
     author: { type: Schema.Types.ObjectId, ref: "Author", required: true },
     readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -20,9 +20,19 @@ const PoemSchema = new Schema(
     tags: [String],
     category: {
       type: String,
-      enum: ["poem", "ghazal", "sher", "other"],
+      enum: [
+        "poem",
+        "ghazal",
+        "sher",
+        "nazm",
+        "rubai",
+        "marsiya",
+        "qataa",
+        "other",
+      ],
       default: "poem",
     },
+
     status: {
       type: String,
       enum: ["draft", "published"],
