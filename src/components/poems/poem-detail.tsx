@@ -186,7 +186,6 @@ export default function PoemDetail() {
         throw new Error("Failed to update readlist")
       }
     } catch (error) {
-      
       toast.error("An error occurred", {
         description: "The poem could not be added to your collection",
       })
@@ -305,28 +304,15 @@ export default function PoemDetail() {
 
     return (
       <div className="space-y-8">
-        {content.map((stanza, index) => {
-          const lines = stanza.split("\n")
-          const verses = []
-
-          // Group lines into pairs (verses)
-          for (let i = 0; i < lines.length; i += 2) {
-            const firstLine = lines[i]
-            const secondLine = lines[i + 1] || ""
-            verses.push({ first: firstLine, second: secondLine })
-          }
-
-          return (
-            <div key={index} className="space-y-6">
-              {verses.map((verse, verseIndex) => (
-                <div key={`verse-${verseIndex}`} className="verse-container">
-                  <div className="leading-relaxed text-sm sm:text-base md:text-lg">{verse.first || "\u00A0"}</div>
-                  <div className="leading-relaxed text-sm sm:text-base md:text-lg">{verse.second || "\u00A0"}</div>
-                </div>
-              ))}
-            </div>
-          )
-        })}
+        {content.map((stanza, index) => (
+          <div key={index} className="poem-stanza">
+            {stanza.split("\n").map((line, lineIndex) => (
+              <div key={lineIndex} className="poem-line leading-relaxed text-sm sm:text-base md:text-lg">
+                {line || "\u00A0"}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     )
   }
@@ -524,6 +510,7 @@ export default function PoemDetail() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
+        style={{ width: "100%" }}
         className="mt-8 text-center text-muted-foreground italic text-sm p-4 bg-muted/30 rounded-lg border border-primary/5"
       >
         "Poetry is not a turning loose of emotion, but an escape from emotion; it is not the expression of personality,
