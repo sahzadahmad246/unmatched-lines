@@ -303,7 +303,7 @@ function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardP
 
                 <div className="mt-3">
                   <Button asChild variant="default" size="sm" className="gap-1 font-serif text-xs w-full">
-                    <Link href={`/poems/${poem.slug?.en || poem._id}`}>
+                    <Link href={`/poems/en/${poem.slug?.en || poem._id}`}>
                       <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> See Full Poem
                     </Link>
                   </Button>

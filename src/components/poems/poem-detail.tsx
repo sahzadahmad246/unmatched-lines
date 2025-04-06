@@ -1,10 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Heart,
   Bookmark,
@@ -16,11 +15,11 @@ import {
   ArrowLeft,
   BookHeart,
   Sparkles,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { motion, AnimatePresence } from "framer-motion"
-import { toast } from "sonner"
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,9 +30,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { VerseDownload } from "../home/verse-download"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/alert-dialog";
+import { VerseDownload } from "../home/verse-download";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { Poem } from "@/types/poem";
+import RelatedPoems from "./related-poems"; // Import new component
+
+interface CoverImage {
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
+}
+
+interface PoemDetailProps {
+  poem: Poem | null;
+  language: "en" | "hi" | "ur";
+}
 
 const poetryStyles = {
   verse: `
@@ -41,111 +55,76 @@ const poetryStyles = {
     line-height: 1.8;
     margin-bottom: 1.5rem;
   `,
-}
-
-interface Poem {
-  _id: string
-  title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
-  category: string
-  content?: {
-    en?: string[]
-    hi?: string[]
-    ur?: string[]
-  }
-  createdAt?: string
-  slug: { en: string; hi?: string; ur?: string }[]
-  readListCount: number
-  tags?: string[]
-}
-
-interface CoverImage {
-  _id: string
-  url: string
-  uploadedBy: { name: string }
-  createdAt: string
-}
+};
 
 const fadeIn = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-}
+};
 
 const slideUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
-}
+};
 
-export default function PoemDetail() {
-  const { slug } = useParams()
-  const router = useRouter()
-  const [poem, setPoem] = useState<Poem | null>(null)
-  const [readList, setReadList] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeLang, setActiveLang] = useState<"en" | "hi" | "ur">("en")
-  const [showShareDialog, setShowShareDialog] = useState(false)
+export default function PoemDetail({ poem, language }: PoemDetailProps) {
+  const router = useRouter();
+  const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [readListCount, setReadListCount] = useState(poem?.readListCount || 0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      setError(null)
+    const fetchUserData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const poemRes = await fetch(`/api/poem?slug=${slug}`, {
-          credentials: "include",
-        })
-        if (!poemRes.ok) {
-          const errorText = await poemRes.text()
-          throw new Error(`Failed to fetch poem: ${poemRes.status} - ${errorText}`)
-        }
-        const poemData = await poemRes.json()
-
-        if (!poemData.poem) throw new Error("Poem not found in response")
-        setPoem(poemData.poem)
-
-        toast.success("Poem unveiled", {
-          description: "Immerse yourself in the verses",
-          icon: <Feather />,
-          position: "top-center",
-          duration: 3000,
-        })
-
         const coverImagesRes = await fetch("/api/cover-images", {
           credentials: "include",
-        })
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
-        const coverImagesData = await coverImagesRes.json()
-        setCoverImages(coverImagesData.coverImages || [])
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
-        const userRes = await fetch("/api/user", { credentials: "include" })
+        const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
-          const userData = await userRes.json()
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+          const userData = await userRes.json();
+          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
         } else if (userRes.status === 401) {
-          setReadList([])
+          setReadList([]);
         } else {
-          const errorText = await userRes.text()
-          throw new Error(`Failed to fetch user data: ${userRes.status} - ${errorText}`)
+          throw new Error(`Failed to fetch user data: ${userRes.status}`);
+        }
+
+        if (poem) {
+          setReadListCount(poem.readListCount);
+          toast.success("Poem unveiled", {
+            description: "Immerse yourself in the verses",
+            icon: <Feather />,
+            position: "top-center",
+            duration: 3000,
+          });
         }
       } catch (error) {
-        setError((error as Error).message || "Failed to load poem details")
-        toast.error("Poem not found", {
-          description: "The verse you seek has vanished into the mist",
+        setError((error as Error).message || "Failed to load additional data");
+        toast.error("Error loading data", {
+          description: "Some features may not work as expected",
           icon: <Feather />,
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    if (slug) fetchData()
-  }, [slug])
+    fetchUserData();
+  }, [poem]);
 
   const handleReadlistToggle = async (poemId: string) => {
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -153,26 +132,23 @@ export default function PoemDetail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
-        setPoem((prev: any) => ({
-          ...prev,
-          readListCount: isInReadlist ? prev.readListCount - 1 : prev.readListCount + 1,
-        }))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadListCount((prev) => (isInReadlist ? prev - 1 : prev + 1));
 
         if (isInReadlist) {
           toast.success("Removed from anthology", {
             description: "This poem has been removed from your collection",
             icon: <BookmarkCheck />,
             position: "bottom-right",
-          })
+          });
         } else {
           toast.success("Added to anthology", {
             description: "This poem now resides in your collection",
             icon: <BookHeart />,
             position: "bottom-right",
-          })
+          });
         }
       } else if (res.status === 401) {
         toast.error("Authentication required", {
@@ -181,46 +157,38 @@ export default function PoemDetail() {
             label: "Sign In",
             onClick: () => router.push("/api/auth/signin"),
           },
-        })
+        });
       } else {
-        throw new Error("Failed to update readlist")
+        throw new Error("Failed to update readlist");
       }
     } catch (error) {
       toast.error("An error occurred", {
         description: "The poem could not be added to your collection",
-      })
+      });
     }
-  }
-
-  const handleTabChange = (lang: "en" | "hi" | "ur") => {
-    setActiveLang(lang)
-    if (poem) {
-      const newSlug = poem.slug[0][lang]
-      router.push(`/poems/${newSlug}`)
-    }
-  }
+  };
 
   const handleSharePoem = () => {
     if (navigator.share && poem) {
       navigator
         .share({
-          title: poem.title?.[activeLang] || "Beautiful Poem",
-          text: `Check out this beautiful poem: ${poem.title?.[activeLang]}`,
+          title: poem.title?.[language] || "Beautiful Poem",
+          text: `Check out this beautiful poem: ${poem.title?.[language]}`,
           url: window.location.href,
         })
         .then(() => {
           toast.success("Shared successfully", {
             description: "You've shared this poem with others",
             icon: <Share2 />,
-          })
+          });
         })
         .catch(() => {
-          setShowShareDialog(true)
-        })
+          setShowShareDialog(true);
+        });
     } else {
-      setShowShareDialog(true)
+      setShowShareDialog(true);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -231,16 +199,8 @@ export default function PoemDetail() {
             scale: [1, 1.1, 1],
           }}
           transition={{
-            rotate: {
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            },
-            scale: {
-              duration: 1.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            },
+            rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
+            scale: { duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
           }}
         >
           <Feather className="h-12 w-12 text-primary/70" />
@@ -260,7 +220,7 @@ export default function PoemDetail() {
           className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
         />
       </div>
-    )
+    );
   }
 
   if (error || !poem) {
@@ -292,14 +252,14 @@ export default function PoemDetail() {
           </Button>
         </motion.div>
       </div>
-    )
+    );
   }
 
-  const isInReadlist = poem._id && readList.includes(poem._id)
+  const isInReadlist = poem._id && readList.includes(poem._id);
 
   const formatPoetryContent = (content: string[] | undefined) => {
     if (!content || !Array.isArray(content) || content.length === 0) {
-      return <div className="text-muted-foreground italic">Content not available</div>
+      return <div className="text-muted-foreground italic">Content not available</div>;
     }
 
     return (
@@ -314,8 +274,22 @@ export default function PoemDetail() {
           </div>
         ))}
       </div>
-    )
-  }
+    );
+  };
+
+  const slugs = poem
+    ? Array.isArray(poem.slug)
+      ? {
+          en: poem.slug.find(s => s.en)?.en || poem.slug[0].en,
+          hi: poem.slug.find(s => s.hi)?.hi || poem.slug[0].en,
+          ur: poem.slug.find(s => s.ur)?.ur || poem.slug[0].en,
+        }
+      : {
+          en: poem.slug.en || "",
+          hi: poem.slug.hi || "",
+          ur: poem.slug.ur || "",
+        }
+    : { en: "", hi: "", ur: "" };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl mb-20">
@@ -338,170 +312,164 @@ export default function PoemDetail() {
               <Badge className="bg-primary/90">{poem.category || "Poetry"}</Badge>
             </motion.div>
             <motion.h1 className="text-2xl sm:text-3xl md:text-4xl font-bold p-6 text-center">
-              {poem.title?.[activeLang] || "Untitled"}
+              {poem.title?.[language] || "Untitled"}
             </motion.h1>
           </CardHeader>
 
           <CardContent className="p-6">
-            <Tabs value={activeLang} onValueChange={(value) => handleTabChange(value as "en" | "hi" | "ur")}>
-              <TabsList className="grid w-full grid-cols-3 mb-8">
-                <TabsTrigger value="en" disabled={!poem.content?.en?.length}>
+            <motion.div className="flex flex-col gap-6">
+              {/* Language Navigation */}
+              <div className="grid w-full grid-cols-3 mb-8">
+                <Link
+                  href={`/poems/en/${slugs.en}`}
+                  className={`text-center py-2 ${language === "en" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                >
                   English
-                </TabsTrigger>
-                <TabsTrigger value="hi" disabled={!poem.content?.hi?.length}>
+                </Link>
+                <Link
+                  href={`/poems/hi/${slugs.hi}`}
+                  className={`text-center py-2 ${language === "hi" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                  style={{ direction: "ltr" }}
+                >
                   Hindi
-                </TabsTrigger>
-                <TabsTrigger value="ur" disabled={!poem.content?.ur?.length}>
+                </Link>
+                <Link
+                  href={`/poems/ur/${slugs.ur}`}
+                  className={`text-center py-2 ${language === "ur" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                  style={{ direction: "rtl" }}
+                >
                   Urdu
-                </TabsTrigger>
-              </TabsList>
+                </Link>
+              </div>
 
-              <motion.div className="flex flex-col gap-6">
-                <AnimatePresence mode="wait">
-                  <TabsContent value="en" className="mt-0">
-                    <motion.div
-                      key="en"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="prose prose-lg dark:prose-invert max-w-none text-center"
-                    >
-                      {formatPoetryContent(poem.content?.en) || "Content not available in English"}
-                    </motion.div>
-                  </TabsContent>
-
-                  <TabsContent value="hi" className="mt-0">
-                    <motion.div
-                      key="hi"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="prose prose-lg dark:prose-invert max-w-none text-center"
-                    >
-                      {formatPoetryContent(poem.content?.hi) || "हिंदी में सामग्री उपलब्ध नहीं है"}
-                    </motion.div>
-                  </TabsContent>
-
-                  <TabsContent value="ur" className="mt-0">
-                    <motion.div
-                      key="ur"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="prose prose-lg dark:prose-invert max-w-none text-center"
-                    >
-                      {formatPoetryContent(poem.content?.ur) || "مواد اردو میں دستیاب نہیں ہے"}
-                    </motion.div>
-                  </TabsContent>
-                </AnimatePresence>
-
-                <Separator className="my-2" />
-
-                <motion.div className="space-y-6">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="h-4 w-4 text-primary/70" />
-                      <span>By {poem.author?.name || "Unknown Author"}</span>
-                    </div>
-
-                    {poem.createdAt && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 text-primary/70" />
-                        <span>{new Date(poem.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    )}
-
-                    <Badge variant="secondary" className="gap-1">
-                      <Heart className="h-3 w-3" />
-                      <span>{poem.readListCount || 0} Readers</span>
-                    </Badge>
+              {/* Poem Content */}
+              <motion.div
+                className="prose prose-lg dark:prose-invert max-w-none text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {formatPoetryContent(poem.content?.[language]) || (
+                  <div className="text-muted-foreground italic">
+                    {language === "en"
+                      ? "Content not available in English"
+                      : language === "hi"
+                      ? "हिंदी में सामग्री उपलब्ध नहीं है"
+                      : "مواد اردو میں دستیاب نہیں ہے"}
                   </div>
+                )}
+              </motion.div>
 
-                  {poem.tags && poem.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {poem.tags.map((tag: string, index: number) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.1 * index }}
-                        >
-                          <Badge variant="outline">{tag}</Badge>
-                        </motion.div>
-                      ))}
+              <Separator className="my-2" />
+
+              <motion.div className="space-y-6">
+                <div className="flex flex-wrap items-center gap-4">
+                  <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground">
+                    <User className="h-4 w-4 text-primary/70" />
+                    By {poem.author?.name || "Unknown Author"}
+                  </h2>
+
+                  {poem.createdAt && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4 text-primary/70" />
+                      <span>{new Date(poem.createdAt).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-3 pt-4">
-                    <VerseDownload
-                      verse={poem.content?.[activeLang]?.[0] || ""}
-                      author={poem.author?.name || "Unknown Author"}
-                      title={poem.title?.[activeLang] || "Untitled"}
-                      imageUrl="/placeholder.svg"
-                      languages={{
-                        en: poem.content?.en,
-                        hi: poem.content?.hi,
-                        ur: poem.content?.ur,
-                      }}
-                    />
+                  <Badge variant="secondary" className="gap-1">
+                    <Heart className="h-3 w-3" />
+                    <span>{readListCount} Readers</span>
+                  </Badge>
+                </div>
 
-                    <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                      <Button variant="outline" size="sm" onClick={handleSharePoem} className="gap-2">
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
-                    </motion.div>
-
-                    <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant={isInReadlist ? "default" : "outline"}
-                            size="sm"
-                            className={`gap-2 ${isInReadlist ? "bg-primary/90" : ""}`}
-                          >
-                            {isInReadlist ? (
-                              <>
-                                <BookmarkCheck className="h-4 w-4" />
-                                In Your Anthology
-                              </>
-                            ) : (
-                              <>
-                                <Bookmark className="h-4 w-4" />
-                                Add to Anthology
-                              </>
-                            )}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="border border-primary/20">
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="text-lg">
-                                {isInReadlist ? "Remove from your anthology?" : "Add to your anthology?"}
-                              </AlertDialogTitle>
-                              <AlertDialogDescription className="text-muted-foreground italic">
-                                {isInReadlist
-                                  ? "This poem will no longer be part of your personal collection."
-                                  : "This poem will be added to your personal collection for later enjoyment."}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="mt-4">
-                              <AlertDialogCancel className="text-sm">Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => poem._id && handleReadlistToggle(poem._id)}
-                                className={`text-sm ${isInReadlist ? "bg-destructive hover:bg-destructive/90" : ""}`}
-                              >
-                                {isInReadlist ? "Remove" : "Add"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </motion.div>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </motion.div>
+                {poem.tags && poem.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <h2 className="text-xl font-semibold text-muted-foreground">Tags</h2>
+                    {poem.tags.map((tag: string, index: number) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.1 * index }}
+                      >
+                        <Badge variant="outline">{tag}</Badge>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
+                )}
+
+                <div className="flex flex-wrap gap-3 pt-4">
+                  <VerseDownload
+                    verse={poem.content?.[language]?.[0] || ""}
+                    author={poem.author?.name || "Unknown Author"}
+                    title={poem.title?.[language] || "Untitled"}
+                    imageUrl="/placeholder.svg"
+                    languages={{
+                      en: poem.content?.en,
+                      hi: poem.content?.hi,
+                      ur: poem.content?.ur,
+                    }}
+                  />
+
+                  <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                    <Button variant="outline" size="sm" onClick={handleSharePoem} className="gap-2">
+                      <Share2 className="h-4 w-4" />
+                      Share
+                    </Button>
+                  </motion.div>
+
+                  <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant={isInReadlist ? "default" : "outline"}
+                          size="sm"
+                          className={`gap-2 ${isInReadlist ? "bg-primary/90" : ""}`}
+                        >
+                          {isInReadlist ? (
+                            <>
+                              <BookmarkCheck className="h-4 w-4" />
+                              In Your Anthology
+                            </>
+                          ) : (
+                            <>
+                              <Bookmark className="h-4 w-4" />
+                              Add to Anthology
+                            </>
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="border border-primary/20">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-lg">
+                              {isInReadlist ? "Remove from your anthology?" : "Add to your anthology?"}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-muted-foreground italic">
+                              {isInReadlist
+                                ? "This poem will no longer be part of your personal collection."
+                                : "This poem will be added to your personal collection for later enjoyment."}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="mt-4">
+                            <AlertDialogCancel className="text-sm">Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => poem._id && handleReadlistToggle(poem._id)}
+                              className={`text-sm ${isInReadlist ? "bg-destructive hover:bg-destructive/90" : ""}`}
+                            >
+                              {isInReadlist ? "Remove" : "Add"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </motion.div>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </motion.div>
+                </div>
+
+                {/* Related Poems Component */}
+                <RelatedPoems currentPoem={poem} language={language} />
               </motion.div>
-            </Tabs>
+            </motion.div>
           </CardContent>
         </Card>
       </motion.div>
@@ -537,12 +505,12 @@ export default function PoemDetail() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href)
+                  navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
                     description: "The poem's link has been copied to your clipboard",
                     icon: <Sparkles />,
-                  })
-                  setShowShareDialog(false)
+                  });
+                  setShowShareDialog(false);
                 }}
                 className="shrink-0"
               >
@@ -556,6 +524,5 @@ export default function PoemDetail() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
-
