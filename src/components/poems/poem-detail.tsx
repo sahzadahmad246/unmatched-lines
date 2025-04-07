@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -34,8 +34,9 @@ import {
 import { VerseDownload } from "../home/verse-download";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Poem } from "@/types/poem";
-import RelatedPoems from "./related-poems"; // Import new component
+import type { Poem } from "@/types/poem";
+import RelatedPoems from "./related-poems";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface CoverImage {
   _id: string;
@@ -48,14 +49,6 @@ interface PoemDetailProps {
   poem: Poem | null;
   language: "en" | "hi" | "ur";
 }
-
-const poetryStyles = {
-  verse: `
-    font-family: 'Georgia', serif;
-    line-height: 1.8;
-    margin-bottom: 1.5rem;
-  `,
-};
 
 const fadeIn = {
   hidden: { opacity: 0 },
@@ -75,6 +68,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [authorData, setAuthorData] = useState<any>(null);
+  const [authorLoading, setAuthorLoading] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -91,7 +87,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
           const userData = await userRes.json();
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
+          setReadList(
+            userData.user.readList.map((poem: any) => poem._id.toString())
+          );
         } else if (userRes.status === 401) {
           setReadList([]);
         } else {
@@ -102,7 +100,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           setReadListCount(poem.readListCount);
           toast.success("Poem unveiled", {
             description: "Immerse yourself in the verses",
-            icon: <Feather />,
+            icon: <Feather className="h-4 w-4" />,
             position: "top-center",
             duration: 3000,
           });
@@ -111,7 +109,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         setError((error as Error).message || "Failed to load additional data");
         toast.error("Error loading data", {
           description: "Some features may not work as expected",
-          icon: <Feather />,
+          icon: <Feather className="h-4 w-4" />,
         });
       } finally {
         setLoading(false);
@@ -121,9 +119,35 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
     fetchUserData();
   }, [poem]);
 
+  useEffect(() => {
+    const fetchAuthorData = async () => {
+      if (poem?.author?._id) {
+        setAuthorLoading(true);
+        try {
+          const res = await fetch(`/api/authors/${poem.author._id}`, {
+            credentials: "include",
+          });
+
+          if (!res.ok) throw new Error("Failed to fetch author");
+
+          const data = await res.json();
+          setAuthorData(data.author);
+        } catch (err) {
+          console.error("Error fetching author:", err);
+        } finally {
+          setAuthorLoading(false);
+        }
+      }
+    };
+
+    fetchAuthorData();
+  }, [poem]);
+
   const handleReadlistToggle = async (poemId: string) => {
     const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const url = isInReadlist
+      ? "/api/user/readlist/remove"
+      : "/api/user/readlist/add";
     const method = isInReadlist ? "DELETE" : "POST";
 
     try {
@@ -134,19 +158,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         credentials: "include",
       });
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadList((prev) =>
+          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
+        );
         setReadListCount((prev) => (isInReadlist ? prev - 1 : prev + 1));
 
         if (isInReadlist) {
           toast.success("Removed from anthology", {
             description: "This poem has been removed from your collection",
-            icon: <BookmarkCheck />,
+            icon: <BookmarkCheck className="h-4 w-4" />,
             position: "bottom-right",
           });
         } else {
           toast.success("Added to anthology", {
             description: "This poem now resides in your collection",
-            icon: <BookHeart />,
+            icon: <BookHeart className="h-4 w-4" />,
             position: "bottom-right",
           });
         }
@@ -179,7 +205,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         .then(() => {
           toast.success("Shared successfully", {
             description: "You've shared this poem with others",
-            icon: <Share2 />,
+            icon: <Share2 className="h-4 w-4" />,
           });
         })
         .catch(() => {
@@ -199,17 +225,25 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
             scale: [1, 1.1, 1],
           }}
           transition={{
-            rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
-            scale: { duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+            rotate: {
+              duration: 2,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "linear",
+            },
+            scale: {
+              duration: 1.5,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "easeInOut",
+            },
           }}
         >
-          <Feather className="h-12 w-12 text-primary/70" />
+          <Feather className="h-10 w-10 sm:h-12 sm:w-12 text-primary/70" />
         </motion.div>
         <motion.h2
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-xl sm:text-2xl font-bold"
+          className="text-lg sm:text-xl font-bold"
         >
           Loading poem...
         </motion.h2>
@@ -225,15 +259,19 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
   if (error || !poem) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 w-full">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-5xl text-primary/70">
-          <Feather className="h-16 w-16" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 sm:gap-6 w-full px-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-4xl sm:text-5xl text-primary/70"
+        >
+          <Feather className="h-12 w-12 sm:h-16 sm:w-16" />
         </motion.div>
         <motion.h2
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold text-center"
         >
           {error || "This poem has faded into the mist"}
         </motion.h2>
@@ -241,13 +279,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-muted-foreground text-center max-w-md"
+          className="text-muted-foreground text-center max-w-md text-sm sm:text-base"
         >
           Like a whisper lost in the wind, we cannot find the verses you seek
         </motion.p>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-          <Button variant="outline" onClick={() => router.push("/library")} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.push("/library")}
+            className="gap-2 text-xs sm:text-sm h-8 sm:h-9"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
             Return to the Library
           </Button>
         </motion.div>
@@ -259,19 +305,32 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
   const formatPoetryContent = (content: string[] | undefined) => {
     if (!content || !Array.isArray(content) || content.length === 0) {
-      return <div className="text-muted-foreground italic">Content not available</div>;
+      return (
+        <div className="text-muted-foreground italic text-xs sm:text-sm">
+          Content not available
+        </div>
+      );
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {content.map((stanza, index) => (
-          <div key={index} className="poem-stanza">
+          <motion.div
+            key={index}
+            className="poem-stanza"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
             {stanza.split("\n").map((line, lineIndex) => (
-              <div key={lineIndex} className="poem-line leading-relaxed text-sm sm:text-base md:text-lg">
+              <div
+                key={lineIndex}
+                className="poem-line leading-relaxed text-xs sm:text-sm md:text-base font-serif"
+              >
                 {line || "\u00A0"}
               </div>
             ))}
-          </div>
+          </motion.div>
         ))}
       </div>
     );
@@ -280,9 +339,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   const slugs = poem
     ? Array.isArray(poem.slug)
       ? {
-          en: poem.slug.find(s => s.en)?.en || poem.slug[0].en,
-          hi: poem.slug.find(s => s.hi)?.hi || poem.slug[0].en,
-          ur: poem.slug.find(s => s.ur)?.ur || poem.slug[0].en,
+          en: poem.slug.find((s) => s.en)?.en || poem.slug[0].en,
+          hi: poem.slug.find((s) => s.hi)?.hi || poem.slug[0].en,
+          ur: poem.slug.find((s) => s.ur)?.ur || poem.slug[0].en,
         }
       : {
           en: poem.slug.en || "",
@@ -292,50 +351,97 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
     : { en: "", hi: "", ur: "" };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl mb-20">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6">
-        <Button variant="ghost" onClick={() => router.push("/library")} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl mb-16 sm:mb-20">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mb-4 sm:mb-6"
+      >
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/library")}
+          className="gap-1.5 h-8 text-xs sm:text-sm"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
           Back to library
         </Button>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <Card className="overflow-hidden border shadow-md">
           <CardHeader className="relative p-0">
-            <motion.div className="h-40 sm:h-60 bg-gradient-to-r from-primary/5 via-primary/20 to-primary/5 relative">
+            <motion.div
+              className="h-32 sm:h-40 md:h-60 bg-gradient-to-r from-primary/5 via-primary/20 to-primary/5 relative"
+              initial={{ opacity: 0.6 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1 }}
+            >
               <div className="absolute inset-0 flex items-center justify-center">
-                <Feather className="h-16 w-16 text-primary/30" />
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                >
+                  <Feather className="h-12 w-12 sm:h-16 sm:w-16 text-primary/30" />
+                </motion.div>
               </div>
             </motion.div>
-            <motion.div className="absolute top-4 right-4">
-              <Badge className="bg-primary/90">{poem.category || "Poetry"}</Badge>
+            <motion.div
+              className="absolute top-3 right-3 sm:top-4 sm:right-4"
+              initial={{ y: -10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Badge className="bg-primary/90 text-[10px] sm:text-xs h-5 sm:h-6">
+                {poem.category || "Poetry"}
+              </Badge>
             </motion.div>
-            <motion.h1 className="text-2xl sm:text-3xl md:text-4xl font-bold p-6 text-center">
+            <motion.h1
+              className="text-xl sm:text-2xl md:text-3xl font-bold p-4 sm:p-6 text-center font-serif"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
               {poem.title?.[language] || "Untitled"}
             </motion.h1>
           </CardHeader>
 
-          <CardContent className="p-6">
-            <motion.div className="flex flex-col gap-6">
+          <CardContent className="p-4 sm:p-6">
+            <motion.div className="flex flex-col gap-4 sm:gap-6">
               {/* Language Navigation */}
-              <div className="grid w-full grid-cols-3 mb-8">
+              <div className="grid w-full grid-cols-3 mb-4 sm:mb-6 rounded-md overflow-hidden border">
                 <Link
                   href={`/poems/en/${slugs.en}`}
-                  className={`text-center py-2 ${language === "en" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                  className={`text-center py-1.5 sm:py-2 text-xs sm:text-sm transition-colors ${
+                    language === "en"
+                      ? "bg-primary/10 font-bold"
+                      : "text-muted-foreground hover:bg-muted/50"
+                  }`}
                 >
                   English
                 </Link>
                 <Link
                   href={`/poems/hi/${slugs.hi}`}
-                  className={`text-center py-2 ${language === "hi" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                  className={`text-center py-1.5 sm:py-2 text-xs sm:text-sm transition-colors ${
+                    language === "hi"
+                      ? "bg-primary/10 font-bold"
+                      : "text-muted-foreground hover:bg-muted/50"
+                  }`}
                   style={{ direction: "ltr" }}
                 >
                   Hindi
                 </Link>
                 <Link
                   href={`/poems/ur/${slugs.ur}`}
-                  className={`text-center py-2 ${language === "ur" ? "bg-primary/10 font-bold" : "text-muted-foreground"}`}
+                  className={`text-center py-1.5 sm:py-2 text-xs sm:text-sm transition-colors ${
+                    language === "ur"
+                      ? "bg-primary/10 font-bold"
+                      : "text-muted-foreground hover:bg-muted/50"
+                  }`}
                   style={{ direction: "rtl" }}
                 >
                   Urdu
@@ -344,13 +450,13 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
               {/* Poem Content */}
               <motion.div
-                className="prose prose-lg dark:prose-invert max-w-none text-center"
+                className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-center font-serif"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 {formatPoetryContent(poem.content?.[language]) || (
-                  <div className="text-muted-foreground italic">
+                  <div className="text-muted-foreground italic text-xs sm:text-sm">
                     {language === "en"
                       ? "Content not available in English"
                       : language === "hi"
@@ -360,45 +466,96 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 )}
               </motion.div>
 
-              <Separator className="my-2" />
+              <Separator className="my-1 sm:my-2" />
 
-              <motion.div className="space-y-6">
-                <div className="flex flex-wrap items-center gap-4">
-                  <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground">
-                    <User className="h-4 w-4 text-primary/70" />
-                    By {poem.author?.name || "Unknown Author"}
-                  </h2>
+              <motion.div className="space-y-4 sm:space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {(poem.author || authorData) && (
+                      <Link
+                        href={`/poets/${authorData?.slug || poem.author._id}`}
+                        className="group"
+                      >
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <Avatar className="h-5 w-5 sm:h-6 sm:w-6 border">
+                            {authorData?.image ? (
+                              <AvatarImage
+                                src={authorData.image}
+                                alt={authorData.name || poem.author.name}
+                              />
+                            ) : (
+                              <AvatarFallback>
+                                <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div>
+                            <p className="text-xs sm:text-sm font-medium leading-none group-hover:text-primary transition-colors">
+                              {authorData?.name ||
+                                poem.author.name ||
+                                "Unknown Author"}
+                            </p>
+                           
+                          </div>
+                        </div>
+                      </Link>
+                    )}
 
-                  {poem.createdAt && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4 text-primary/70" />
-                      <span>{new Date(poem.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
+                    {poem.createdAt && (
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary/70" />
+                        <span>
+                          {new Date(poem.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                  <Badge variant="secondary" className="gap-1">
-                    <Heart className="h-3 w-3" />
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 text-[10px] sm:text-xs h-5 sm:h-6"
+                  >
+                    <Heart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     <span>{readListCount} Readers</span>
                   </Badge>
                 </div>
 
                 {poem.tags && poem.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    <h2 className="text-xl font-semibold text-muted-foreground">Tags</h2>
-                    {poem.tags.map((tag: string, index: number) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.1 * index }}
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
+                    <h2 className="text-sm sm:text-base font-medium text-muted-foreground mr-1">
+                      Tags:
+                    </h2>
+                    {poem.tags
+                      .slice(0, showAllTags ? poem.tags.length : 2)
+                      .map((tag: string, index: number) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.1 * index }}
+                        >
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] sm:text-xs h-5 sm:h-6"
+                          >
+                            {tag}
+                          </Badge>
+                        </motion.div>
+                      ))}
+                    {poem.tags.length > 2 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAllTags(!showAllTags)}
+                        className="h-5 sm:h-6 px-1.5 text-[10px] sm:text-xs text-primary"
                       >
-                        <Badge variant="outline">{tag}</Badge>
-                      </motion.div>
-                    ))}
+                        {showAllTags ? "Less" : `+${poem.tags.length - 2} more`}
+                      </Button>
+                    )}
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-3 pt-4">
+                <div className="flex flex-wrap gap-2 sm:gap-3 pt-2 sm:pt-4">
                   <VerseDownload
                     verse={poem.content?.[language]?.[0] || ""}
                     author={poem.author?.name || "Unknown Author"}
@@ -411,51 +568,85 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     }}
                   />
 
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                    <Button variant="outline" size="sm" onClick={handleSharePoem} className="gap-2">
-                      <Share2 className="h-4 w-4" />
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSharePoem}
+                      className="gap-1.5 text-xs h-8"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
                       Share
                     </Button>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           variant={isInReadlist ? "default" : "outline"}
                           size="sm"
-                          className={`gap-2 ${isInReadlist ? "bg-primary/90" : ""}`}
+                          className={`gap-1.5 text-xs h-8 ${
+                            isInReadlist ? "bg-primary/90" : ""
+                          }`}
                         >
                           {isInReadlist ? (
                             <>
-                              <BookmarkCheck className="h-4 w-4" />
-                              In Your Anthology
+                              <BookmarkCheck className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">
+                                In Your Anthology
+                              </span>
+                              <span className="sm:hidden">Saved</span>
                             </>
                           ) : (
                             <>
-                              <Bookmark className="h-4 w-4" />
-                              Add to Anthology
+                              <Bookmark className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">
+                                Add to Anthology
+                              </span>
+                              <span className="sm:hidden">Save</span>
                             </>
                           )}
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="border border-primary/20">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                      <AlertDialogContent className="border border-primary/20 p-4 sm:p-6">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
                           <AlertDialogHeader>
-                            <AlertDialogTitle className="text-lg">
-                              {isInReadlist ? "Remove from your anthology?" : "Add to your anthology?"}
+                            <AlertDialogTitle className="text-base sm:text-lg">
+                              {isInReadlist
+                                ? "Remove from your anthology?"
+                                : "Add to your anthology?"}
                             </AlertDialogTitle>
-                            <AlertDialogDescription className="text-muted-foreground italic">
+                            <AlertDialogDescription className="text-muted-foreground italic text-xs sm:text-sm">
                               {isInReadlist
                                 ? "This poem will no longer be part of your personal collection."
                                 : "This poem will be added to your personal collection for later enjoyment."}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter className="mt-4">
-                            <AlertDialogCancel className="text-sm">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">
+                              Cancel
+                            </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => poem._id && handleReadlistToggle(poem._id)}
-                              className={`text-sm ${isInReadlist ? "bg-destructive hover:bg-destructive/90" : ""}`}
+                              onClick={() =>
+                                poem._id && handleReadlistToggle(poem._id)
+                              }
+                              className={`text-xs sm:text-sm h-8 sm:h-9 ${
+                                isInReadlist
+                                  ? "bg-destructive hover:bg-destructive/90"
+                                  : ""
+                              }`}
                             >
                               {isInReadlist ? "Remove" : "Add"}
                             </AlertDialogAction>
@@ -467,7 +658,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 </div>
 
                 {/* Related Poems Component */}
-                <RelatedPoems currentPoem={poem} language={language} />
+                <RelatedPoems
+                  currentPoem={poem}
+                  language={language}
+                  hideTitle={true}
+                />
               </motion.div>
             </motion.div>
           </CardContent>
@@ -479,19 +674,24 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
         style={{ width: "100%" }}
-        className="mt-8 text-center text-muted-foreground italic text-sm p-4 bg-muted/30 rounded-lg border border-primary/5"
+        className="mt-6 sm:mt-8 text-center text-muted-foreground italic text-xs sm:text-sm p-3 sm:p-4 bg-muted/30 rounded-lg border border-primary/5"
       >
-        "Poetry is not a turning loose of emotion, but an escape from emotion; it is not the expression of personality,
-        but an escape from personality."
-        <div className="mt-1 font-medium text-xs">— T.S. Eliot</div>
+        "Poetry is not a turning loose of emotion, but an escape from emotion;
+        it is not the expression of personality, but an escape from
+        personality."
+        <div className="mt-1 font-medium text-[10px] sm:text-xs">
+          — T.S. Eliot
+        </div>
       </motion.div>
 
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <AlertDialogContent className="border border-primary/20">
+        <AlertDialogContent className="border border-primary/20 p-4 sm:p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-lg">Share this poem</AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground italic">
+              <AlertDialogTitle className="text-base sm:text-lg">
+                Share this poem
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground italic text-xs sm:text-sm">
                 Copy the link below to share this beautiful poem with others
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -499,26 +699,32 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
               <Input
                 type="text"
                 readOnly
-                value={typeof window !== "undefined" ? window.location.href : ""}
-                className="bg-muted/50"
+                value={
+                  typeof window !== "undefined" ? window.location.href : ""
+                }
+                className="bg-muted/50 text-xs sm:text-sm h-8 sm:h-9"
               />
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
-                    description: "The poem's link has been copied to your clipboard",
-                    icon: <Sparkles />,
+                    description:
+                      "The poem's link has been copied to your clipboard",
+                    icon: <Sparkles className="h-3.5 w-3.5" />,
                   });
                   setShowShareDialog(false);
                 }}
-                className="shrink-0"
+                className="shrink-0 text-xs sm:text-sm h-8 sm:h-9"
               >
                 Copy
               </Button>
             </div>
-            <AlertDialogFooter className="mt-6">
-              <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogFooter className="mt-4 sm:mt-6">
+              <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">
+                Close
+              </AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>

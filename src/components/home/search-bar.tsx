@@ -184,8 +184,8 @@ export function SearchBar({ className = "", fullWidth = false, isMobile = false 
                           <Link
                             href={
                               result.type === "poem"
-                                ? `/poems/${result.slug || result._id}`
-                                : `/poets/${result.slug || result._id}`
+                                ? `/poems/en/${result.slug || result._id}`
+                                : `/poets/en/${result.slug || result._id}`
                             }
                             className="flex items-start gap-3"
                             onClick={() => setIsSearchOpen(false)}

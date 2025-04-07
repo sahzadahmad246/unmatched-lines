@@ -1,3 +1,4 @@
+// src/app/api/authors/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -5,6 +6,23 @@ import dbConnect from "@/lib/mongodb";
 import Author from "@/models/Author";
 import User from "@/models/User";
 import cloudinary from "@/lib/cloudinary";
+
+async function generateUniqueSlug(name: string): Promise<string> {
+  const baseSlug = name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  
+  // Check if base slug is unique
+  let slug = baseSlug;
+  let counter = 1;
+  while (await Author.findOne({ slug })) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+  return slug;
+}
 
 export async function GET(request: NextRequest) {
   await dbConnect();
@@ -47,7 +65,7 @@ export async function POST(request: Request) {
     const name = formData.get("name") as string;
     const dob = formData.get("dob") as string;
     const city = formData.get("city") as string;
-    const bio = formData.get("bio") as string;  // Added bio
+    const bio = formData.get("bio") as string;
     const image = formData.get("image") as File | null;
 
     let imageUrl = "";
@@ -69,12 +87,12 @@ export async function POST(request: Request) {
       name,
       dob: dob ? new Date(dob) : undefined,
       city,
-      bio,  // Added bio
+      bio,
       image: imageUrl || "",
     });
 
-    const baseSlug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    author.slug = `${baseSlug}-${author._id.toString().slice(-6)}`;
+    // Generate unique slug
+    author.slug = await generateUniqueSlug(name);
     
     await author.save();
 

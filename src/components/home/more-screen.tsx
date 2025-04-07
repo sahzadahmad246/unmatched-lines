@@ -47,8 +47,8 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
   }
 
   const menuItems = [
-    { href: "/sher", icon: Feather, label: "Sher", description: "Explore beautiful couplets" },
-    { href: "/ghazal", icon: Music, label: "Ghazal", description: "Lyrical poetry expressions" },
+    { href: "/poems/sher", icon: Feather, label: "Sher", description: "Explore beautiful couplets" },
+    { href: "/poems/ghazal", icon: Music, label: "Ghazal", description: "Lyrical poetry expressions" },
     { href: "/library", icon: BookAIcon, label: "Library", description: "Your poetry collection" },
     { href: "/poets", icon: Book, label: "Poets", description: "Discover renowned poets" },
     { href: "/settings", icon: Settings, label: "Settings", description: "Customize your experience" },

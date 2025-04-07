@@ -66,6 +66,7 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
   const [poet, setPoet] = useState<any>(null);
   const [poems, setPoems] = useState<Poem[]>([]);
   const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +76,14 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
   const [showFullBio, setShowFullBio] = useState(false);
   const [profileImageOpen, setProfileImageOpen] = useState(false);
 
+  const PREVIEW_LIMIT = 3; // Show only 3 poems per category as a preview
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [poetRes, poemRes, userRes, coverImagesRes] = await Promise.all([
           fetch(`/api/authors/${slug}`, { credentials: "include" }),
-          fetch("/api/poem", { credentials: "include" }),
+          fetch(`/api/poem`, { credentials: "include" }),
           fetch("/api/user", { credentials: "include" }),
           fetch("/api/cover-images", { credentials: "include" }),
         ]);
@@ -91,12 +94,18 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
 
         if (!poemRes.ok) throw new Error(`Failed to fetch poems`);
         const poemData = await poemRes.json();
-        const filteredPoems = poemData.poems.filter(
+        const poetPoems = poemData.poems.filter(
           (poem: any) =>
             poem.author?._id.toString() === poetData.author._id.toString()
         );
-        setPoems(filteredPoems);
-        setFilteredPoems(filteredPoems);
+        setPoems(poetPoems);
+        setFilteredPoems(poetPoems);
+
+        // Extract unique categories from poet's poems
+        const uniqueCategories = Array.from(
+          new Set(poetPoems.map((poem: Poem) => poem.category?.toLowerCase()))
+        ).filter((cat): cat is string => !!cat);
+        setCategories(uniqueCategories);
 
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -125,18 +134,26 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredPoems(poems);
+      setFilteredPoems(
+        activeTab === "all"
+          ? poems
+          : poems.filter((p) => p.category?.toLowerCase() === activeTab)
+      );
     } else {
       const query = searchQuery.toLowerCase();
-      const results = poems.filter(
-        (poem) =>
-          poem.title.en.toLowerCase().includes(query) ||
-          poem.excerpt?.toLowerCase().includes(query) ||
-          poem.category?.toLowerCase().includes(query)
-      );
+      const results = poems
+        .filter((poem) =>
+          activeTab === "all" ? true : poem.category?.toLowerCase() === activeTab
+        )
+        .filter(
+          (poem) =>
+            poem.title.en.toLowerCase().includes(query) ||
+            poem.excerpt?.toLowerCase().includes(query) ||
+            poem.category?.toLowerCase().includes(query)
+        );
       setFilteredPoems(results);
     }
-  }, [searchQuery, poems]);
+  }, [searchQuery, poems, activeTab]);
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
@@ -314,42 +331,25 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
                 )}
                 <Separator className="my-4" />
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <Button
-                    variant="ghost"
-                    className="bg-muted/50 p-3 rounded-md h-auto flex flex-col hover:bg-muted"
-                    onClick={() =>
-                      router.push(`/search?q=${encodeURIComponent(poet.name)}`)
-                    }
-                  >
-                    <p className="text-xl font-bold text-primary">
-                      {poet.ghazalCount || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Ghazals</p>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="bg-muted/50 p-3 rounded-md h-auto flex flex-col hover:bg-muted"
-                    onClick={() =>
-                      router.push(`/search?q=${encodeURIComponent(poet.name)}`)
-                    }
-                  >
-                    <p className="text-xl font-bold text-primary">
-                      {poet.sherCount || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Shers</p>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="bg-muted/50 p-3 rounded-md h-auto flex flex-col hover:bg-muted"
-                    onClick={() =>
-                      router.push(`/search?q=${encodeURIComponent(poet.name)}`)
-                    }
-                  >
-                    <p className="text-xl font-bold text-primary">
-                      {poet.otherCount || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Other</p>
-                  </Button>
+                  {categories.map((category) => (
+                    <Button
+                      key={category}
+                      variant="ghost"
+                      className="bg-muted/50 p-3 rounded-md h-auto flex flex-col hover:bg-muted"
+                      onClick={() => router.push(`/poets/${slug}/${category}`)}
+                    >
+                      <p className="text-xl font-bold text-primary">
+                        {
+                          poems.filter(
+                            (p) => p.category?.toLowerCase() === category
+                          ).length
+                        }
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {category}
+                      </p>
+                    </Button>
+                  ))}
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1 mt-4">
                   <p>
@@ -411,27 +411,21 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
               </div>
 
               <Tabs
-                defaultValue="all"
+                value={activeTab}
                 onValueChange={setActiveTab}
                 className="w-full"
               >
-                <TabsList className="mb-6 grid grid-cols-2 sm:grid-cols-5 h-11">
+                <TabsList className="mb-6 grid grid-cols-2 sm:grid-flow-col h-11">
                   <TabsTrigger value="all">All Works</TabsTrigger>
-                  {poems.some((p) => p.category?.toLowerCase() === "ghazal") && (
-                    <TabsTrigger value="ghazal">Ghazals</TabsTrigger>
-                  )}
-                  {poems.some((p) => p.category?.toLowerCase() === "sher") && (
-                    <TabsTrigger value="sher">Shers</TabsTrigger>
-                  )}
-                  {poems.some((p) => p.category?.toLowerCase() === "nazm") && (
-                    <TabsTrigger value="nazm">Nazms</TabsTrigger>
-                  )}
-                  {poems.some(
-                    (p) =>
-                      p.category?.toLowerCase() !== "ghazal" &&
-                      p.category?.toLowerCase() !== "sher" &&
-                      p.category?.toLowerCase() !== "nazm"
-                  ) && <TabsTrigger value="other">Other</TabsTrigger>}
+                  {categories.map((category) => (
+                    <TabsTrigger
+                      key={category}
+                      value={category}
+                      className="capitalize"
+                    >
+                      {category}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
 
                 <TabsContent value="all">
@@ -465,165 +459,54 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
                   )}
                 </TabsContent>
 
-                <TabsContent value="ghazal">
-                  {filteredPoems.filter(
-                    (p) => p.category?.toLowerCase() === "ghazal"
-                  ).length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredPoems
-                        .filter((p) => p.category?.toLowerCase() === "ghazal")
-                        .map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled";
-                          const englishSlug = poem.slug?.en || poem._id;
-                          const isInReadlist = readList.includes(poem._id);
-                          return (
-                            <motion.div
-                              key={poem._id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                delay: 0.05 * index,
-                                duration: 0.3,
-                              }}
-                            >
-                              <PoemListItem
-                                poem={poem}
-                                coverImage={getCoverImage()}
-                                englishSlug={englishSlug}
-                                isInReadlist={isInReadlist}
-                                poemTitle={poemTitle}
-                                handleReadlistToggle={handleReadlistToggle}
-                              />
-                            </motion.div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <EmptyState category="ghazals" query={searchQuery} />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="sher">
-                  {filteredPoems.filter(
-                    (p) => p.category?.toLowerCase() === "sher"
-                  ).length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredPoems
-                        .filter((p) => p.category?.toLowerCase() === "sher")
-                        .map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled";
-                          const englishSlug = poem.slug?.en || poem._id;
-                          const isInReadlist = readList.includes(poem._id);
-                          return (
-                            <motion.div
-                              key={poem._id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                delay: 0.05 * index,
-                                duration: 0.3,
-                              }}
-                            >
-                              <PoemListItem
-                                poem={poem}
-                                coverImage={getCoverImage()}
-                                englishSlug={englishSlug}
-                                isInReadlist={isInReadlist}
-                                poemTitle={poemTitle}
-                                handleReadlistToggle={handleReadlistToggle}
-                              />
-                            </motion.div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <EmptyState category="shers" query={searchQuery} />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="nazm">
-                  {filteredPoems.filter(
-                    (p) => p.category?.toLowerCase() === "nazm"
-                  ).length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredPoems
-                        .filter((p) => p.category?.toLowerCase() === "nazm")
-                        .map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled";
-                          const englishSlug = poem.slug?.en || poem._id;
-                          const isInReadlist = readList.includes(poem._id);
-                          return (
-                            <motion.div
-                              key={poem._id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                delay: 0.05 * index,
-                                duration: 0.3,
-                              }}
-                            >
-                              <PoemListItem
-                                poem={poem}
-                                coverImage={getCoverImage()}
-                                englishSlug={englishSlug}
-                                isInReadlist={isInReadlist}
-                                poemTitle={poemTitle}
-                                handleReadlistToggle={handleReadlistToggle}
-                              />
-                            </motion.div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <EmptyState category="nazms" query={searchQuery} />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="other">
-                  {filteredPoems.filter(
-                    (p) =>
-                      p.category?.toLowerCase() !== "ghazal" &&
-                      p.category?.toLowerCase() !== "sher" &&
-                      p.category?.toLowerCase() !== "nazm"
-                  ).length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredPoems
-                        .filter(
-                          (p) =>
-                            p.category?.toLowerCase() !== "ghazal" &&
-                            p.category?.toLowerCase() !== "sher" &&
-                            p.category?.toLowerCase() !== "nazm"
-                        )
-                        .map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled";
-                          const englishSlug = poem.slug?.en || poem._id;
-                          const isInReadlist = readList.includes(poem._id);
-                          return (
-                            <motion.div
-                              key={poem._id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                delay: 0.05 * index,
-                                duration: 0.3,
-                              }}
-                            >
-                              <PoemListItem
-                                poem={poem}
-                                coverImage={getCoverImage()}
-                                englishSlug={englishSlug}
-                                isInReadlist={isInReadlist}
-                                poemTitle={poemTitle}
-                                handleReadlistToggle={handleReadlistToggle}
-                              />
-                            </motion.div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <EmptyState category="other works" query={searchQuery} />
-                  )}
-                </TabsContent>
+                {categories.map((category) => (
+                  <TabsContent key={category} value={category}>
+                    {filteredPoems.filter(
+                      (p) => p.category?.toLowerCase() === category
+                    ).length > 0 ? (
+                      <div className="space-y-4">
+                        {filteredPoems
+                          .filter((p) => p.category?.toLowerCase() === category)
+                          .slice(0, PREVIEW_LIMIT)
+                          .map((poem, index) => {
+                            const poemTitle = poem.title?.en || "Untitled";
+                            const englishSlug = poem.slug?.en || poem._id;
+                            const isInReadlist = readList.includes(poem._id);
+                            return (
+                              <motion.div
+                                key={poem._id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{
+                                  delay: 0.05 * index,
+                                  duration: 0.3,
+                                }}
+                              >
+                                <PoemListItem
+                                  poem={poem}
+                                  coverImage={getCoverImage()}
+                                  englishSlug={englishSlug}
+                                  isInReadlist={isInReadlist}
+                                  poemTitle={poemTitle}
+                                  handleReadlistToggle={handleReadlistToggle}
+                                />
+                              </motion.div>
+                            );
+                          })}
+                        <div className="mt-4 text-center">
+                          <Button
+                            variant="outline"
+                            onClick={() => router.push(`/poets/${slug}/${category}`)}
+                          >
+                            See All {category.charAt(0).toUpperCase() + category.slice(1)}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <EmptyState category={`${category}s`} query={searchQuery} />
+                    )}
+                  </TabsContent>
+                ))}
               </Tabs>
             </CardContent>
           </Card>

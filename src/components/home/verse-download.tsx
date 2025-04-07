@@ -280,10 +280,7 @@ export function VerseDownload({ verse, author, title = "Verse", languages }: Ver
           <span className="sm:hidden">Download</span>
         </Button>
 
-        <Button variant="outline" size="sm" onClick={shareVerse} className="gap-2 font-serif text-xs sm:text-sm w-full">
-          <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">Share</span>
-        </Button>
+        
       </div>
 
       <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>

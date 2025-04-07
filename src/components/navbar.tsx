@@ -36,8 +36,8 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/poets", icon: <Book className="h-4 w-4" />, label: "Poets" },
-    { href: "/sher", icon: <Feather className="h-4 w-4" />, label: "Sher" },
-    { href: "/ghazal", icon: <Music className="h-4 w-4" />, label: "Ghazal" },
+    { href: "/poems/sher", icon: <Feather className="h-4 w-4" />, label: "Sher" },
+    { href: "/poems/ghazal", icon: <Music className="h-4 w-4" />, label: "Ghazal" },
     {
       href: "/library",
       icon: <BookAIcon className="h-4 w-4" />,

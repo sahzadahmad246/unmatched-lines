@@ -21,23 +21,42 @@ export async function GET() {
           ur: poem.slug.ur || "",
         };
 
+    const lastModified = poem.updatedAt ? poem.updatedAt.toISOString() : new Date().toISOString();
+    const priority = poem.status === "published" ? 0.8 : 0.6;
+
     return [
-      `${baseUrl}/poems/en/${slugs.en}`,
-      `${baseUrl}/poems/hi/${slugs.hi}`,
-      `${baseUrl}/poems/ur/${slugs.ur}`,
+      {
+        url: `${baseUrl}/poems/en/${slugs.en}`,
+        lastModified,
+        priority,
+      },
+      {
+        url: `${baseUrl}/poems/hi/${slugs.hi}`,
+        lastModified,
+        priority,
+      },
+      {
+        url: `${baseUrl}/poems/ur/${slugs.ur}`,
+        lastModified,
+        priority,
+      },
     ];
   });
 
-  const allUrls = [baseUrl, ...sitemapEntries];
+  const allUrls = [
+    { url: baseUrl, lastModified: new Date().toISOString(), priority: 1.0 },
+    ...sitemapEntries,
+  ];
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
 ${allUrls
   .map(
-    (url) => `<url>
+    ({ url, lastModified, priority }) => `<url>
   <loc>${url}</loc>
+  <lastmod>${lastModified}</lastmod>
   <changefreq>weekly</changefreq>
-  <priority>0.8</priority>
+  <priority>${priority}</priority>
 </url>`
   )
   .join("\n")}

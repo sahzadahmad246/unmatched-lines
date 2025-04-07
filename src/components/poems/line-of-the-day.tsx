@@ -132,7 +132,7 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
                       size="sm"
                       className="gap-2 font-serif text-xs sm:text-sm text-black border"
                     >
-                      <Link href={`/poems/${poemOfTheDay.slug?.en || poemOfTheDay._id}`}>
+                      <Link href={`/poems/en/${poemOfTheDay.slug?.en || poemOfTheDay._id}`}>
                         <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span>Read Full Poem</span>
                       </Link>

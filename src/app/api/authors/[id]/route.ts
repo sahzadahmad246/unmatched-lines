@@ -1,3 +1,4 @@
+// src/app/api/authors/[id]/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -10,6 +11,22 @@ import mongoose from "mongoose";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+async function generateUniqueSlug(name: string, existingId?: string): Promise<string> {
+  const baseSlug = name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  
+  let slug = baseSlug;
+  let counter = 1;
+  while (await Author.findOne({ slug, _id: { $ne: existingId } })) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+  return slug;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -61,7 +78,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const name = formData.get("name") as string;
     const dob = formData.get("dob") as string;
     const city = formData.get("city") as string;
-    const bio = formData.get("bio") as string;  // Added bio
+    const bio = formData.get("bio") as string;
     const image = formData.get("image") as File | null;
 
     const author = await Author.findById(id);
@@ -86,8 +103,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     let slug = author.slug;
     if (name && name !== author.name) {
-      const baseSlug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-      slug = `${baseSlug}-${id.slice(-6)}`;
+      slug = await generateUniqueSlug(name, id); // Pass id to exclude current author
     }
 
     const updatedAuthor = await Author.findByIdAndUpdate(
@@ -97,7 +113,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         slug,
         dob: dob ? new Date(dob) : author.dob,
         city,
-        bio,  // Added bio to update
+        bio,
         image: imageUrl,
       },
       { new: true, runValidators: true }
@@ -110,7 +126,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE remains unchanged
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {

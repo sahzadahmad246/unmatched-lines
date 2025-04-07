@@ -9,6 +9,88 @@ import cloudinary from "@/lib/cloudinary";
 import User from "@/models/User";
 import mongoose from "mongoose";
 
+export async function GET(request: NextRequest) {
+  await dbConnect();
+
+  try {
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug");
+    const category = url.searchParams.get("category");
+    const authorSlug = url.searchParams.get("authorSlug");
+
+    // Fetch a single poem by slug
+    if (slug) {
+      const poem = await Poem.findOne({
+        $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
+      }).populate("author", "name");
+
+      if (!poem) {
+        return NextResponse.json({ error: "Poem not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ poem });
+    }
+
+    // Fetch poems by category and author
+    if (category && authorSlug) {
+      const author = await Author.findOne({ slug: authorSlug });
+      if (!author) {
+        return NextResponse.json({ error: "Author not found" }, { status: 404 });
+      }
+
+      const poems = await Poem.find({
+        category: category.toLowerCase(),
+        author: author._id,
+        status: "published",
+      })
+        .populate("author", "name")
+        .sort({ createdAt: -1 });
+
+      if (!poems.length) {
+        return NextResponse.json(
+          { error: `No ${category} poems found for author: ${author.name}` },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ poems, author: { name: author.name, slug: author.slug } });
+    }
+
+    // Fetch poems by category only
+    if (category) {
+      const poems = await Poem.find({
+        category: category.toLowerCase(),
+        status: "published",
+      })
+        .populate("author", "name")
+        .sort({ createdAt: -1 });
+
+      if (!poems.length) {
+        return NextResponse.json({ error: `No poems found for category: ${category}` }, { status: 404 });
+      }
+
+      return NextResponse.json({ poems });
+    }
+
+    // Default: fetch all published poems
+    const poems = await Poem.find({ status: "published" })
+      .populate("author", "name")
+      .sort({ createdAt: -1 });
+
+    return NextResponse.json({ poems });
+  } catch (error) {
+    console.error("Error fetching poems:", error);
+    return NextResponse.json(
+      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -25,14 +107,23 @@ export async function POST(request: NextRequest) {
     const contentEn = formData.getAll("contentEn[]") as string[];
     const contentHi = formData.getAll("contentHi[]") as string[];
     const contentUr = formData.getAll("contentUr[]") as string[];
-    const slugEn = formData.get("slugEn") as string;
-    const slugHi = formData.get("slugHi") as string;
-    const slugUr = formData.get("slugUr") as string;
     const category = formData.get("category") as string;
     const status = formData.get("status") as string;
     const tags = formData.get("tags") as string;
     const coverImage = formData.get("coverImage") as File | null;
     const authorId = formData.get("authorId") as string;
+
+    // Generate slugs from English title
+    const baseSlug = titleEn
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+    
+    const slugEn = `${baseSlug}-en`;
+    const slugHi = `${baseSlug}-hi`;
+    const slugUr = `${baseSlug}-ur`;
 
     // Log incoming data for debugging
     console.log("FormData received:", {
@@ -48,9 +139,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Author ID is required" }, { status: 400 });
     }
 
-    if (!titleEn || !titleHi || !titleUr || !slugEn || !slugHi || !slugUr) {
+    if (!titleEn || !titleHi || !titleUr) {
       return NextResponse.json(
-        { error: "Title and slug are required for all languages" },
+        { error: "Title is required for all languages" },
         { status: 400 }
       );
     }
@@ -160,39 +251,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  await dbConnect();
-
-  try {
-    const url = new URL(request.url);
-    const slug = url.searchParams.get("slug");
-
-    if (slug) {
-      const poem = await Poem.findOne({
-        $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
-      }).populate("author", "name");
-
-      if (!poem) {
-        return NextResponse.json({ error: "Poem not found" }, { status: 404 });
-      }
-
-      return NextResponse.json({ poem });
-    }
-
-    const poems = await Poem.find({ status: "published" })
-      .populate("author", "name")
-      .sort({ createdAt: -1 });
-
-    return NextResponse.json({ poems });
-  } catch (error) {
-    console.error("Error fetching poems:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -214,13 +272,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const contentEn = formData.getAll("contentEn[]") as string[];
     const contentHi = formData.getAll("contentHi[]") as string[];
     const contentUr = formData.getAll("contentUr[]") as string[];
-    const slugEn = formData.get("slugEn") as string;
-    const slugHi = formData.get("slugHi") as string;
-    const slugUr = formData.get("slugUr") as string;
     const category = formData.get("category") as string;
     const status = formData.get("status") as string;
     const tags = formData.get("tags") as string;
     const coverImage = formData.get("coverImage") as File | null;
+
+    // Generate slugs from English title
+    const baseSlug = titleEn
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+    
+    const slugEn = `${baseSlug}-en`;
+    const slugHi = `${baseSlug}-hi`;
+    const slugUr = `${baseSlug}-ur`;
 
     const poem = await Poem.findById(id);
     if (!poem) {
@@ -232,9 +299,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (!titleEn || !titleHi || !titleUr || !slugEn || !slugHi || !slugUr) {
+    if (!titleEn || !titleHi || !titleUr) {
       return NextResponse.json(
-        { error: "Title and slug are required for all languages" },
+        { error: "Title is required for all languages" },
         { status: 400 }
       );
     }
