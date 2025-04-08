@@ -80,7 +80,7 @@ export function PoemListItem({
             )}
           </div>
           <div className="flex justify-between items-center mt-2">
-            <Link href={`/poems/${englishSlug}`} className="inline-flex">
+            <Link href={`/poems/en/${englishSlug}`} className="inline-flex">
               <Button variant="default" size="sm" className="gap-1 font-serif text-xs">
                 <BookOpen className="h-3 w-3" /> Read Poem
               </Button>
