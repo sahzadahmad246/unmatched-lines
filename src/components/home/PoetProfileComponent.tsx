@@ -121,9 +121,16 @@ const customStyles = `
   }
   
   .poet-sidebar {
-    position: sticky;
-    top: 1rem;
+    position: relative;
     height: fit-content;
+  }
+
+  @media (min-width: 768px) {
+    .poet-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: fit-content;
+    }
   }
   
   .poem-content {

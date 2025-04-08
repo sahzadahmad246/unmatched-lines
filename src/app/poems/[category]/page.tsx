@@ -55,7 +55,7 @@ export async function generateMetadata({
     keywords: [
       displayCategory,
       "poetry",
-      `${displayCategory} poems`,
+      `${displayCategory}`,
       "English poetry",
       "Hindi poetry",
       "Urdu poetry",
