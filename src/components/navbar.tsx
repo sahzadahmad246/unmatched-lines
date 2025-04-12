@@ -11,7 +11,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User, Book, Feather, Music, BookAIcon } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Book,
+  Feather,
+  Music,
+  BookAIcon,
+  FileUser,
+} from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -35,14 +43,23 @@ export default function Navbar() {
   const isActive = (path: string) => pathname === path;
 
   const navLinks = [
-    { href: "/poets", icon: <Book className="h-4 w-4" />, label: "Poets" },
-    { href: "/poems/sher", icon: <Feather className="h-4 w-4" />, label: "Sher" },
-    { href: "/poems/ghazal", icon: <Music className="h-4 w-4" />, label: "Ghazal" },
     {
       href: "/library",
       icon: <BookAIcon className="h-4 w-4" />,
       label: "Library",
     },
+    { href: "/poets", icon: <FileUser className="h-4 w-4" />, label: "Poets" },
+    {
+      href: "/poems/sher",
+      icon: <Feather className="h-4 w-4" />,
+      label: "Sher",
+    },
+    {
+      href: "/poems/ghazal",
+      icon: <Music className="h-4 w-4" />,
+      label: "Ghazal",
+    },
+    { href: "/poems/nazm", icon: <Book className="h-4 w-4" />, label: "Nazm" },
   ];
 
   const handleSignOut = () => {

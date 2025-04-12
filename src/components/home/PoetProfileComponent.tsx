@@ -18,7 +18,6 @@ import {
   ChevronUp,
   X,
 } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -51,11 +50,26 @@ interface CoverImage {
   url: string
 }
 
-interface PoetProfileProps {
+interface Poet {
+  _id: string
+  name: string
+  bio?: string
+  image?: string
+  dob?: string
+  city?: string
+  ghazalCount?: number
+  sherCount?: number
+  otherCount?: number
+  createdAt: string
+  updatedAt: string
   slug: string
 }
 
-// Custom scrollbar styles
+interface PoetProfileProps {
+  slug: string
+  poet: Poet
+}
+
 const customStyles = `
   .tabs-scrollable::-webkit-scrollbar {
     height: 4px;
@@ -138,9 +152,8 @@ const customStyles = `
   }
 `
 
-export function PoetProfileComponent({ slug }: PoetProfileProps) {
+export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
   const router = useRouter()
-  const [poet, setPoet] = useState<any>(null)
   const [poems, setPoems] = useState<Poem[]>([])
   const [filteredPoems, setFilteredPoems] = useState<Poem[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -158,26 +171,20 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [poetRes, poemRes, userRes, coverImagesRes] = await Promise.all([
-          fetch(`/api/authors/${slug}`, { credentials: "include" }),
+        const [poemRes, userRes, coverImagesRes] = await Promise.all([
           fetch(`/api/poem`, { credentials: "include" }),
           fetch("/api/user", { credentials: "include" }),
           fetch("/api/cover-images", { credentials: "include" }),
         ])
 
-        if (!poetRes.ok) throw new Error(`Failed to fetch poet data`)
-        const poetData = await poetRes.json()
-        setPoet(poetData.author)
-
         if (!poemRes.ok) throw new Error(`Failed to fetch poems`)
         const poemData = await poemRes.json()
         const poetPoems = poemData.poems.filter(
-          (poem: any) => poem.author?._id.toString() === poetData.author._id.toString(),
+          (poem: Poem) => poem.author?._id.toString() === poet._id.toString(),
         )
         setPoems(poetPoems)
         setFilteredPoems(poetPoems)
 
-        // Extract unique categories from poet's poems
         const uniqueCategories = Array.from(
           new Set(poetPoems.map((poem: Poem) => poem.category?.toLowerCase())),
         ).filter((cat): cat is string => !!cat)
@@ -193,18 +200,14 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
           setCoverImages(coverImagesData.coverImages || [])
         }
       } catch (err) {
-        setError("Failed to load profile data")
+        setError("Failed to load poems")
       } finally {
         setLoading(false)
       }
     }
 
-    if (slug) fetchData()
-    else {
-      setError("No profile identifier provided")
-      setLoading(false)
-    }
-  }, [slug])
+    fetchData()
+  }, [poet._id])
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -283,11 +286,11 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
     )
   }
 
-  if (error || !poet) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
         <div className="text-4xl">😕</div>
-        <h2 className="text-2xl font-bold">{error || "Profile not found"}</h2>
+        <h2 className="text-2xl font-bold">{error}</h2>
         <Link href="/poets">
           <Button className="mt-4">Back to Profiles</Button>
         </Link>
@@ -418,8 +421,7 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
               </CardContent>
             </Card>
             <div className="mt-4 p-4 text-center text-muted-foreground italic text-sm bg-muted/30 rounded-lg border border-primary/5">
-              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in
-              tranquility."
+              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in tranquility."
               <div className="mt-1 font-medium text-xs">— William Wordsworth</div>
             </div>
           </motion.div>
@@ -445,6 +447,7 @@ export function PoetProfileComponent({ slug }: PoetProfileProps) {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-8"
+                      aria-label="Search poems by title or category"
                     />
                   </div>
                 </div>

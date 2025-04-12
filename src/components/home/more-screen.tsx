@@ -16,6 +16,7 @@ import {
   Book,
   Sparkles,
   BookHeart,
+  FileUser
 } from "lucide-react"
 import {
   AlertDialog,
@@ -49,8 +50,9 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
   const menuItems = [
     { href: "/poems/sher", icon: Feather, label: "Sher", description: "Explore beautiful couplets" },
     { href: "/poems/ghazal", icon: Music, label: "Ghazal", description: "Lyrical poetry expressions" },
+    { href: "/poems/nazm", icon: Book, label: "Ghazal", description: "Explore soulful Nazms" },
     { href: "/library", icon: BookAIcon, label: "Library", description: "Your poetry collection" },
-    { href: "/poets", icon: Book, label: "Poets", description: "Discover renowned poets" },
+    { href: "/poets", icon: FileUser, label: "Poets", description: "Discover renowned poets" },
     { href: "/settings", icon: Settings, label: "Settings", description: "Customize your experience" },
     { href: "/help", icon: HelpCircle, label: "Help & Support", description: "Get assistance" },
     { href: "/about", icon: Info, label: "About Us", description: "Our poetic journey" },
@@ -161,34 +163,7 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
         </div>
       </motion.div>
 
-      {/* Reading Stats for signed-in users */}
-      {session && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="px-6 py-4 border-t border-b"
-        >
-          <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-            <BookHeart className="h-4 w-4 text-primary" />
-            Your Poetry Journey
-          </h4>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold">12</div>
-              <div className="text-xs text-muted-foreground">Poems Read</div>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold">5</div>
-              <div className="text-xs text-muted-foreground">Favorites</div>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold">3</div>
-              <div className="text-xs text-muted-foreground">Collections</div>
-            </div>
-          </div>
-        </motion.div>
-      )}
+     
 
       {/* Sign Out Button */}
       {session && (

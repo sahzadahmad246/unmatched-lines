@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import HomePage from "@/components/home/home";
+import Home from "@/components/home/home"; // Adjust path as needed
 
-// Static metadata for build time
 export const metadata: Metadata = {
   title: "Unmatched Lines | Home of Poetry and Literature",
-  description: "Welcome to Unmatched Lines, your home for exploring poems and poets. Dive into ghazals, shers, nazms, and multilingual poetry collections.",
+  description:
+    "Welcome to Unmatched Lines, your home for exploring poems and poets. Dive into ghazals, shers, nazms, and multilingual poetry collections.",
   keywords: [
     "poetry",
     "poems",
@@ -18,7 +18,8 @@ export const metadata: Metadata = {
   ].join(", "),
   openGraph: {
     title: "Unmatched Lines | Home of Poetry and Literature",
-    description: "Welcome to Unmatched Lines, your home for exploring poems and poets. Dive into ghazals, shers, nazms, and multilingual poetry collections.",
+    description:
+      "Welcome to Unmatched Lines, your home for exploring poems and poets. Dive into ghazals, shers, nazms, and multilingual poetry collections.",
     url: "https://unmatched-lines.vercel.app",
     siteName: "Unmatched Lines",
     type: "website",
@@ -35,7 +36,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Unmatched Lines | Home of Poetry and Literature",
-    description: "Welcome to Unmatched Lines, your home for exploring poems and poets.",
+    description:
+      "Welcome to Unmatched Lines, your home for exploring poems and poets.",
     images: ["/default-home-image.jpg"],
   },
   robots: {
@@ -43,12 +45,20 @@ export const metadata: Metadata = {
     follow: true,
   },
   metadataBase: new URL("https://unmatched-lines.vercel.app"),
+  alternates: {
+    canonical: "https://unmatched-lines.vercel.app", // Added canonical URL
+    languages: {
+      "en-US": "https://unmatched-lines.vercel.app", // Hreflang for English
+      // Add hi-IN, ur-PK if other language pages exist, e.g.:
+      // "hi-IN": "https://unmatched-lines.vercel.app/hi",
+      // "ur-PK": "https://unmatched-lines.vercel.app/ur",
+    },
+  },
+  icons: {
+    apple: "/apple-touch-icon.png", // Ensure this file exists in /public
+  },
 };
 
-export default function Home() {
-  return (
-    <>
-      <HomePage />
-    </>
-  );
+export default function Page() {
+  return <Home />;
 }

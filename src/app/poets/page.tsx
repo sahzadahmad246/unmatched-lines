@@ -1,225 +1,183 @@
-"use client"
+import type { Metadata } from "next";
+import PoetList from "@/components/poets/PoetList";
+import { Poet } from "@/components/poets/PoetList";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Loader2, AlertTriangle, Search, Filter } from 'lucide-react'
-import { motion, AnimatePresence } from "framer-motion"
-import { PoetCard } from "@/components/home/poet-card"
-import { LoadingComponent } from "@/components/utils/LoadingComponent"
-import { useMediaQuery } from "@/components/home/use-media-query"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer"
-import { Checkbox } from "@/components/ui/checkbox"
-
-interface Poet {
-  _id: string
-  name: string
-  slug: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount: number
-  sherCount: number
+async function fetchPoets(): Promise<Poet[] | null> {
+  try {
+    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/authors`, {
+      cache: "force-cache",
+    });
+    if (!res.ok) throw new Error("Failed to fetch poets");
+    const data = await res.json();
+    return data.authors || null;
+  } catch (error) {
+    
+    return null;
+  }
 }
 
-export default function Poets() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [authors, setAuthors] = useState<Poet[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [selectedCities, setSelectedCities] = useState<string[]>([])
-  const [availableCities, setAvailableCities] = useState<string[]>([])
-  
-  const isMobile = useMediaQuery("(max-width: 768px)")
-
-  useEffect(() => {
-    const fetchAuthors = async () => {
-      try {
-        const res = await fetch("/api/authors", { credentials: "include" })
-        if (!res.ok) throw new Error("Failed to fetch authors")
-        const data = await res.json()
-        
-        // Type assertion to ensure we're working with the correct type
-        const authorsData = data.authors as Poet[] || []
-        setAuthors(authorsData)
-        
-        // Extract unique cities for filtering
-        const cities = [...new Set(authorsData.map(author => author.city).filter(Boolean))]
-        setAvailableCities(cities as string[])
-      } catch (err) {
-        setError("Failed to load poets")
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchAuthors()
-  }, [])
-
-  const toggleCity = (city: string) => {
-    setSelectedCities(prev =>
-      prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
-    )
+async function fetchCoverImages(): Promise<{ url: string }[]> {
+  try {
+    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/cover-images`, {
+      cache: "force-cache",
+    });
+    if (!res.ok) throw new Error("Failed to fetch cover images");
+    const data = await res.json();
+    return data.coverImages || [];
+  } catch (error) {
+   
+    return [];
   }
+}
 
-  // Filter authors based on search term and selected cities
-  const filteredAuthors = authors.filter(author => {
-    const matchesSearch = author.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCity = selectedCities.length === 0 || (author.city && selectedCities.includes(author.city))
-    return matchesSearch && matchesCity
-  })
+export async function generateMetadata(): Promise<Metadata> {
+  const coverImages = await fetchCoverImages();
+  const baseUrl =
+    process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
 
-  if (loading) {
+  const title = "Poets";
+  const description =
+    "Explore renowned poets and their works in English, Hindi, and Urdu at Unmatched Lines. Discover ghazals, shers, and more.";
+  const coverImageUrl =
+    coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
+
+  return {
+    title,
+    description,
+    keywords: [
+      "poets",
+      "poetry",
+      "ghazal poets",
+      "sher poets",
+      "English poets",
+      "Hindi poets",
+      "Urdu poets",
+      "Unmatched Lines",
+    ],
+    alternates: {
+      canonical: `${baseUrl}/poets`,
+      languages: {
+        "en-US": `${baseUrl}/poets`,
+        "hi-IN": `${baseUrl}/poets`,
+        "ur-PK": `${baseUrl}/poets`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/poets`,
+      siteName: "Unmatched Lines",
+      images: [
+        {
+          url: coverImageUrl,
+          width: 1200,
+          height: 630,
+          alt: "Poets Collection",
+        },
+      ],
+      locale: "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [
+        {
+          url: coverImageUrl,
+          alt: "Poets Collection",
+        },
+      ],
+      site: "@UnmatchedLines",
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-snippet": -1,
+        "max-image-preview": "large",
+        "max-video-preview": -1,
+      },
+    },
+    viewport: "width=device-width, initial-scale=1",
+  };
+}
+
+export default async function PoetsPage() {
+  const poets = await fetchPoets();
+
+  if (!poets || poets.length === 0) {
     return (
-      <LoadingComponent/>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[50vh]">
-        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold text-destructive">{error}</h2>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => window.location.reload()}
-        >
-          Try Again
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8 mb-16 border  ">
-      {/* Sticky search bar for mobile */}
-      {isMobile && (
-        <div className="sticky top-0 z-10 bg-background pt-4 pb-4 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search poets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 w-full"
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-              />
-            </div>
-            <Button variant="outline" size="icon" onClick={() => setFilterOpen(true)}>
-              <Filter className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4"
-      >
-        <div>
-          <h1 className="text-3xl font-bold">Explore Poets</h1>
-          <p className="text-muted-foreground mt-1">
-            Discover renowned poets and their beautiful works
-          </p>
-        </div>
-
-        {/* Desktop search */}
-        {!isMobile && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            className={`relative max-w-sm w-full transition-all ${
-              isSearchFocused ? "ring-2 ring-primary ring-offset-2" : ""
-            }`}
-          >
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Search poets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 w-full"
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-            />
-          </motion.div>
-        )}
-      </motion.div>
-
-      {/* Filter drawer for mobile */}
-      <Drawer open={filterOpen} onOpenChange={setFilterOpen}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Filter Poets</DrawerTitle>
-            <DrawerDescription>Filter poets by city</DrawerDescription>
-          </DrawerHeader>
-          <div className="px-4 py-2">
-            <div className="space-y-4">
-              {availableCities.map((city) => (
-                <div key={city} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`city-${city}`}
-                    checked={selectedCities.includes(city)}
-                    onCheckedChange={() => toggleCity(city)}
-                  />
-                  <label
-                    htmlFor={`city-${city}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {city}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-          <DrawerFooter>
-            <Button onClick={() => setFilterOpen(false)}>Apply Filters</Button>
-            <DrawerClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-
-      {/* Results count */}
-      <div className="mb-4">
-        <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium">{filteredAuthors.length}</span> poets
-          {selectedCities.length > 0 && (
-            <span> from {selectedCities.join(", ")}</span>
-          )}
-          {searchTerm && <span> matching "{searchTerm}"</span>}
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h1 className="text-2xl font-bold">No Poets Found</h1>
+        <p className="text-muted-foreground">
+          Please check back later for our collection of poets.
         </p>
       </div>
+    );
+  }
 
-      <AnimatePresence>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filteredAuthors.map((author, index) => (
-            <PoetCard 
-              key={author._id}
-              poet={author}
-              variant="compact"
-              index={index}
-            />
-          ))}
-        </div>
-      </AnimatePresence>
-    </div>
-  )
+  const baseUrl =
+    process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Poets",
+    description:
+      "A collection of renowned poets featured on Unmatched Lines, showcasing ghazals, shers, and more in English, Hindi, and Urdu.",
+    url: `${baseUrl}/poets`,
+    publisher: {
+      "@type": "Organization",
+      name: "Unmatched Lines",
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/logo.png`,
+      },
+    },
+    mainEntity: poets.map((poet) => ({
+      "@type": "Person",
+      name: poet.name,
+      url: `${baseUrl}/poets/${encodeURIComponent(poet.slug)}`,
+      image: poet.image || null,
+      birthDate: poet.dob || null,
+      address: poet.city
+        ? { "@type": "PostalAddress", addressLocality: poet.city }
+        : null,
+      description: `Poet with ${poet.ghazalCount} ghazals and ${poet.sherCount} shers on Unmatched Lines.`,
+    })),
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: `${baseUrl}/`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Poets",
+          item: `${baseUrl}/poets`,
+        },
+      ],
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+      <PoetList poets={poets} />
+    </>
+  );
 }
+
+export const revalidate = 86400; // Revalidate every 24 hours

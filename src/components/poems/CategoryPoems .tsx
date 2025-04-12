@@ -5,9 +5,10 @@ import Link from "next/link"
 import type { Poem } from "@/types/poem"
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Feather, User, BookOpen, Quote, ArrowRight } from "lucide-react"
+import { Feather, User, Quote, ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface CoverImage {
   _id: string
@@ -49,7 +50,6 @@ const staggerContainer = {
   },
 }
 
-// Custom styles for better responsiveness
 const customStyles = `
   @media (max-width: 640px) {
     .poem-grid {
@@ -59,10 +59,6 @@ const customStyles = `
     .header-title {
       font-size: 1.5rem;
       line-height: 2rem;
-    }
-    
-    .book-icon-container {
-      transform: translateY(-50%);
     }
   }
   
@@ -87,12 +83,18 @@ const customStyles = `
   .poem-card-content {
     flex-grow: 1;
   }
+
+  .urdu-text {
+    direction: rtl;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', sans-serif;
+  }
 `
 
 export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
   const [coverImages, setCoverImages] = useState<CoverImage[]>([])
   const [loading, setLoading] = useState(true)
   const [authorDataMap, setAuthorDataMap] = useState<Record<string, Author>>({})
+  const [language, setLanguage] = useState<"en" | "hi" | "ur">("en")
   const displayCategory = category.charAt(0).toUpperCase() + category.slice(1)
   const isSherCategory = category.toLowerCase() === "sher"
 
@@ -169,8 +171,8 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
               scale: [1, 1.1, 1],
             }}
             transition={{
-              rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
-              scale: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+              rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
             }}
           >
             <Feather className="h-12 w-12 text-primary/70" />
@@ -181,23 +183,21 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
     )
   }
 
-  const getEnglishSlug = (slug: Poem["slug"]): string => {
-    if (Array.isArray(slug)) {
-      return slug.find((s) => s.en)?.en || slug[0]?.en || ""
-    }
-    return slug?.en || ""
-  }
-
-  const formatPoetryContent = (content: string[] | undefined) => {
+  const formatPoetryContent = (content: string[] | undefined, lang: "en" | "hi" | "ur"): React.ReactNode => {
     if (!content || !Array.isArray(content) || content.length === 0) {
       return <div className="text-muted-foreground italic text-xs">Content not available</div>
     }
 
-    // For sher, we want to display the full content (typically just one verse/two lines)
+    const lines = content[0].split("\n").filter(Boolean)
+
+    if (lines.length === 0) {
+      return <div className="text-muted-foreground italic text-xs">Content not available</div>
+    }
+
     if (isSherCategory) {
       return (
-        <div className="space-y-1">
-          {content[0].split("\n").map((line, lineIndex) => (
+        <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lines.map((line, lineIndex) => (
             <div key={lineIndex} className="poem-line leading-relaxed text-sm font-serif">
               {line || "\u00A0"}
             </div>
@@ -206,10 +206,9 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
       )
     }
 
-    // For other categories, display the first verse
     return (
-      <div className="space-y-1">
-        {content[0].split("\n").map((line, lineIndex) => (
+      <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+        {lines.slice(0, 2).map((line, lineIndex) => (
           <div key={lineIndex} className="poem-line leading-relaxed text-xs sm:text-sm font-serif line-clamp-1">
             {line || "\u00A0"}
           </div>
@@ -222,7 +221,6 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
     <>
       <style>{customStyles}</style>
       <div className="container mx-auto py-8 px-4">
-        {/* Category Header */}
         <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="mb-12">
           <Card className="overflow-hidden border shadow-lg bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
             <CardHeader className="relative p-0">
@@ -249,7 +247,6 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                 </div>
               </motion.div>
               <div className="relative bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 py-8">
-                
                 <motion.div className="flex flex-col items-center gap-2">
                   <h1 className="text-2xl md:text-4xl font-bold text-center font-serif mt-4 header-title">
                     {displayCategory} Poems
@@ -266,7 +263,14 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           </Card>
         </motion.div>
 
-        {/* Poem List */}
+        <Tabs defaultValue="en" onValueChange={(value) => setLanguage(value as "en" | "hi" | "ur")} className="mb-8">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+            <TabsTrigger value="en">English</TabsTrigger>
+            <TabsTrigger value="hi">Hindi</TabsTrigger>
+            <TabsTrigger value="ur">Urdu</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {poems.length === 0 ? (
           <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="text-center py-12">
             <Quote className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -274,20 +278,28 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           </motion.div>
         ) : (
           <motion.div className="grid gap-6 poem-grid" variants={staggerContainer} initial="hidden" animate="visible">
-            {poems.map((poem, index) => {
+            {poems.map((poem) => {
               const authorData = poem.author._id ? authorDataMap[poem.author._id] : null
+              // Handle array or object for slug, title, content
+              const poemSlug = Array.isArray(poem.slug) ? poem.slug[0] : poem.slug
+              const poemTitle = Array.isArray(poem.title) ? poem.title[0] : poem.title
+              const poemContent = poem.content && Array.isArray(poem.content) && poem.content[0] ? poem.content[0] : poem.content
+
+              const currentSlug = poemSlug ? poemSlug[language] || poemSlug.en || poem._id : poem._id
+              const currentTitle = poemTitle ? poemTitle[language] || poemTitle.en || "Untitled" : "Untitled"
+              const currentContent = poemContent ? poemContent[language] || poemContent.en || [] : []
+              const poemLanguage = poemContent && poemContent[language] ? language : "en"
 
               return (
                 <motion.article key={poem._id} variants={slideUp} className="h-full">
-                  <Link href={`/poems/en/${getEnglishSlug(poem.slug)}`} className="block h-full">
+                  <Link href={`/poems/${poemLanguage}/${currentSlug}`} className="block h-full">
                     <Card className="border shadow-sm hover:shadow-xl transition-all duration-300 h-full bg-white dark:bg-slate-900 overflow-hidden group poem-card">
                       <CardHeader className={`p-4 ${isSherCategory ? "pb-0" : "pb-2"}`}>
                         {!isSherCategory && (
-                          <h2 className="text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4">
-                            {poem.title.en || "Untitled"}
+                          <h2 className={`text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4 ${language === "ur" ? "urdu-text" : ""}`}>
+                            {currentTitle}
                           </h2>
                         )}
-
                         <div className="flex items-center gap-2 mt-1">
                           <Avatar className="h-6 w-6 border border-primary/20">
                             {authorData?.image ? (
@@ -299,7 +311,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                             )}
                           </Avatar>
                           <p className="text-gray-600 dark:text-gray-400 text-xs">
-                            {poem.author.name || "Unknown Author"}
+                            {authorData?.name || poem.author.name || "Unknown Author"}
                           </p>
                         </div>
                       </CardHeader>
@@ -308,7 +320,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                         <div
                           className={`${isSherCategory ? "mt-2" : "mt-0"} font-serif text-gray-800 dark:text-gray-200 border-l-2 border-primary/30 pl-3 py-1`}
                         >
-                          {formatPoetryContent(poem.content?.en)}
+                          {formatPoetryContent(currentContent, poemLanguage)}
                         </div>
                       </CardContent>
 
@@ -316,7 +328,6 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                         <Badge variant="outline" className="text-xs bg-primary/5 hover:bg-primary/10 transition-colors">
                           {poem.category || "Uncategorized"}
                         </Badge>
-
                         <motion.div
                           className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
                           whileHover={{ x: 3 }}
