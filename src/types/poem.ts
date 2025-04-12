@@ -12,4 +12,5 @@ export interface Poem {
   slug: { en: string; hi?: string; ur?: string }[] | { en: string; hi?: string; ur?: string }
   readListCount: number
   tags?: string[]
+  categories?: string[]
 }

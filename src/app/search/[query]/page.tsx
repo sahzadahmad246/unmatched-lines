@@ -102,7 +102,7 @@ export async function generateMetadata({
         "max-video-preview": -1,
       },
     },
-    viewport: "width=device-width, initial-scale=1",
+  
     verification: {
       google: "your-google-verification-code",
     },

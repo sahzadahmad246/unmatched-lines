@@ -55,10 +55,7 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }))
 }
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-}
+
 
 export async function generateMetadata({
   params,

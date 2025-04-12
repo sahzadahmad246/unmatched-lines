@@ -101,7 +101,7 @@ export async function generateMetadata(): Promise<Metadata> {
         "max-video-preview": -1,
       },
     },
-    viewport: "width=device-width, initial-scale=1",
+  
   };
 }
 

@@ -1,19 +1,19 @@
-import type { Metadata } from "next"
-import { notFound } from "next/navigation"
-import CategoryPoems from "@/components/poems/CategoryPoems "
-import { Poem } from "@/types/poem"
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import CategoryPoems from "@/components/poems/CategoryPoems ";
+import { Poem } from "@/types/poem";
 
 async function fetchPoemsByCategory(category: string): Promise<Poem[] | null> {
   try {
     const res = await fetch(`${process.env.NEXTAUTH_URL}/api/poem?category=${encodeURIComponent(category)}`, {
       cache: "force-cache",
-    })
-    if (!res.ok) throw new Error(`Failed to fetch poems: ${res.status}`)
-    const data = await res.json()
-    return data.poems || null
+    });
+    if (!res.ok) throw new Error(`Failed to fetch poems: ${res.status}`);
+    const data = await res.json();
+    return data.poems || null;
   } catch (error) {
-    console.error("Error fetching poems:", error)
-    return null
+    console.error("Error fetching poems:", error);
+    return null;
   }
 }
 
@@ -22,44 +22,52 @@ async function fetchCoverImages(): Promise<{ url: string }[]> {
     const res = await fetch(`${process.env.NEXTAUTH_URL}/api/cover-images`, {
       credentials: "include",
       cache: "force-cache",
-    })
-    if (!res.ok) throw new Error("Failed to fetch cover images")
-    const data = await res.json()
-    return data.coverImages || []
+    });
+    if (!res.ok) throw new Error("Failed to fetch cover images");
+    const data = await res.json();
+    return data.coverImages || [];
   } catch (error) {
-    console.error("Error fetching cover images:", error)
-    return []
+    console.error("Error fetching cover images:", error);
+    return [];
   }
 }
 
 async function fetchCategories(): Promise<string[]> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/categories`, {
+    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/poem`, {
       cache: "force-cache",
-    })
-    if (!res.ok) throw new Error("Failed to fetch categories")
-    const data = await res.json()
-    return data.categories || ["ghazal", "sher", "nazm"]
+    });
+    if (!res.ok) throw new Error(`Failed to fetch poems: ${res.status}`);
+    const data = await res.json();
+    const poems: Poem[] = data.poems || [];
+    const categories: string[] = [
+      ...new Set(
+        poems
+          .filter((poem): poem is Poem => typeof poem.category === "string" && poem.category.trim().length > 0)
+          .map((poem) => poem.category.toLowerCase())
+      ),
+    ] as string[];
+    return categories.length > 0 ? categories : ["ghazal", "sher", "nazm"];
   } catch (error) {
-    console.error("Error fetching categories:", error)
-    return ["ghazal", "sher", "nazm"]
+    console.error("Error fetching categories via poems:", error);
+    return ["ghazal", "sher", "nazm"];
   }
 }
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ category: string }>
+  params: Promise<{ category: string }>;
 }): Promise<Metadata> {
-  const resolvedParams = await params
-  const category = decodeURIComponent(resolvedParams.category)
-  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1)
-  const coverImages = await fetchCoverImages()
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app"
+  const resolvedParams = await params;
+  const category = decodeURIComponent(resolvedParams.category);
+  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+  const coverImages = await fetchCoverImages();
+  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
 
-  const title = `${displayCategory}`
-  const description = `Discover a curated collection of ${displayCategory} poems in English, Hindi, and Urdu at Unmatched Lines. Explore heartfelt shayari and poetry.`
-  const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg"
+  const title = `${displayCategory}`;
+  const description = `Discover a curated collection of ${displayCategory} poems in English, Hindi, and Urdu at Unmatched Lines. Explore heartfelt shayari and poetry.`;
+  const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
 
   return {
     title,
@@ -121,29 +129,28 @@ export async function generateMetadata({
         "max-video-preview": -1,
       },
     },
-    viewport: "width=device-width, initial-scale=1",
     verification: {
-      google: "your-google-verification-code", // Replace with your code
+      google: "your-google-verification-code",
     },
-  }
+  };
 }
 
 export async function generateStaticParams() {
-  const categories = await fetchCategories()
-  return categories.map((category) => ({ category: encodeURIComponent(category) }))
+  const categories = await fetchCategories();
+  return categories.map((category) => ({ category: encodeURIComponent(category) }));
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
-  const resolvedParams = await params
-  const category = decodeURIComponent(resolvedParams.category)
-  const poems = await fetchPoemsByCategory(category)
+  const resolvedParams = await params;
+  const category = decodeURIComponent(resolvedParams.category);
+  const poems = await fetchPoemsByCategory(category);
 
   if (!poems || poems.length === 0) {
-    notFound()
+    notFound();
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app"
-  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1)
+  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -160,7 +167,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
       },
     },
     mainEntity: poems.map((poem) => {
-      const poemSlug = Array.isArray(poem.slug) ? poem.slug[0] : poem.slug
+      const poemSlug = Array.isArray(poem.slug) ? poem.slug[0] : poem.slug;
       return {
         "@type": "CreativeWork",
         name: poem.title?.en || "Untitled Poem",
@@ -172,7 +179,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
         },
         inLanguage: ["en", poem.title?.hi ? "hi" : null, poem.title?.ur ? "ur" : null].filter(Boolean),
         keywords: [poem.category, displayCategory, "poetry", "shayari"],
-      }
+      };
     }),
     breadcrumb: {
       "@type": "BreadcrumbList",
@@ -191,7 +198,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
         },
       ],
     },
-  }
+  };
 
   return (
     <>
@@ -203,7 +210,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
       />
       <CategoryPoems poems={poems} category={category} />
     </>
-  )
+  );
 }
 
-export const revalidate = 86400 // Revalidate every 24 hours
+export const revalidate = 86400;
