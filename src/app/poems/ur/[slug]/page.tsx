@@ -49,7 +49,7 @@ export async function generateMetadata({
   const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
   const slugs = getSlugs(poem, resolvedParams.slug);
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   return {
     title: `${title} از ${author} | اردو شاعری`,

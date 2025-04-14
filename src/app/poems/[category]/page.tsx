@@ -63,7 +63,7 @@ export async function generateMetadata({
   const category = decodeURIComponent(resolvedParams.category);
   const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
   const coverImages = await fetchCoverImages();
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const title = `${displayCategory}`;
   const description = `Discover a curated collection of ${displayCategory} poems in English, Hindi, and Urdu at Unmatched Lines. Explore heartfelt shayari and poetry.`;
@@ -149,7 +149,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
     notFound();
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
   const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
 
   const structuredData = {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Home from "@/components/home/home"; // Adjust path as needed
+import Home from "@/components/home/home";
 
 export const metadata: Metadata = {
   title: "Unmatched Lines | Home of Poetry and Literature",
@@ -20,15 +20,15 @@ export const metadata: Metadata = {
     title: "Unmatched Lines | Home of Poetry and Literature",
     description:
       "Welcome to Unmatched Lines, your home for exploring poems and poets. Dive into ghazals, shers, nazms, and multilingual poetry collections.",
-    url: "https://unmatched-lines.vercel.app",
+    url: "https://unmatchedlines.com",
     siteName: "Unmatched Lines",
     type: "website",
     locale: "en_US",
     images: [
       {
-        url: "/default-home-image.jpg",
-        width: 800,
-        height: 400,
+        url: "/images/image1.jpg", // Static image
+        width: 1200,
+        height: 630,
         alt: "Unmatched Lines Homepage",
       },
     ],
@@ -38,24 +38,17 @@ export const metadata: Metadata = {
     title: "Unmatched Lines | Home of Poetry and Literature",
     description:
       "Welcome to Unmatched Lines, your home for exploring poems and poets.",
-    images: ["/default-home-image.jpg"],
+    images: ["/images/image1.jpg"], // Static image
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  metadataBase: new URL("https://unmatched-lines.vercel.app"),
   alternates: {
-    canonical: "https://unmatched-lines.vercel.app", // Added canonical URL
+    canonical: "https://unmatchedlines.com",
     languages: {
-      "en-US": "https://unmatched-lines.vercel.app", // Hreflang for English
-      // Add hi-IN, ur-PK if other language pages exist, e.g.:
-      // "hi-IN": "https://unmatched-lines.vercel.app/hi",
-      // "ur-PK": "https://unmatched-lines.vercel.app/ur",
+      "en-US": "https://unmatchedlines.com",
     },
   },
   icons: {
-    apple: "/apple-touch-icon.png", // Ensure this file exists in /public
+    icon: "/icon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 

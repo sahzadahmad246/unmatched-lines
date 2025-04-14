@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: `${userName}'s Profile | Unmatched Lines`,
       description: `Manage ${userName}'s poetry collection and saved verses on Unmatched Lines.`,
-      url: "https://unmatched-lines.vercel.app/profile",
+      url: "https://www.unmatchedlines.com/profile",
       siteName: "Unmatched Lines",
       type: "profile",
       locale: "en_US",
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
       index: true,
       follow: true,
     },
-    metadataBase: new URL("https://unmatched-lines.vercel.app"),
+    metadataBase: new URL("https://www.unmatchedlines.com"),
   };
 }
 

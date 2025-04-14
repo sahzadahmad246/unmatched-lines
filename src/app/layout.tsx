@@ -1,11 +1,8 @@
-// app/layout.tsx
 import type React from "react";
 import { Providers } from "./providers";
 import "./globals.css";
 import type { Metadata } from "next";
-
 import { Toaster } from "sonner";
-
 import ClientLayout from "./client-layout";
 
 export const metadata: Metadata = {
@@ -22,10 +19,18 @@ export const metadata: Metadata = {
     title: "Unmatched Lines - Poetry Collection",
     description:
       "Explore a diverse collection of beautiful poetry from famous poets across languages and cultures.",
-    url: "https://unmatched-lines.vercel.app",
+    url: "https://unmatchedlines.com",
     siteName: "Unmatched Lines",
     type: "website",
     locale: "en_US",
+    images: [
+      {
+        url: "/images/image1.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Unmatched Lines Poetry Collection",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -33,6 +38,7 @@ export const metadata: Metadata = {
     description:
       "Discover poetry from renowned poets in multiple languages at Unmatched Lines.",
     creator: "@shahzadahmad246",
+    images: ["/images/image1.jpg"],
   },
   robots: {
     index: true,
@@ -43,7 +49,11 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  metadataBase: new URL("https://unmatched-lines.vercel.app"),
+  metadataBase: new URL("https://unmatchedlines.com"),
+  icons: {
+    icon: "/icon.ico", // Updated to new name
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

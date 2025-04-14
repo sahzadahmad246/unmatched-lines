@@ -66,12 +66,12 @@ export async function generateMetadata({
       "Unmatched Lines",
     ],
     alternates: {
-      canonical: `https://unmatched-lines.vercel.app/search/${encodeURIComponent(resolvedParams.query)}`,
+      canonical: `https://unmatchedlines.com/search/${encodeURIComponent(resolvedParams.query)}`,
     },
     openGraph: {
       title: `Top Poem for ${formattedQuery}`,
       description: `Discover a curated selection of ${formattedQuery} poems and shayari in English, Hindi, and Urdu on Unmatched Lines.`,
-      url: `https://unmatched-lines.vercel.app/search/${encodeURIComponent(resolvedParams.query)}`,
+      url: `https://unmatchedlines.com/search/${encodeURIComponent(resolvedParams.query)}`,
       siteName: "Unmatched Lines",
       type: "website",
       locale: "en_US",
@@ -163,19 +163,19 @@ export default async function SearchQueryPage({
     "@type": "CollectionPage",
     name: `Top Poem for ${query}`,
     description: `A curated collection of ${query} poems and shayari in English, Hindi, and Urdu on Unmatched Lines.`,
-    url: `https://unmatched-lines.vercel.app/search/${encodeURIComponent(resolvedParams.query)}`,
+    url: `https://unmatchedlines.com/search/${encodeURIComponent(resolvedParams.query)}`,
     publisher: {
       "@type": "Organization",
       name: "Unmatched Lines",
       logo: {
         "@type": "ImageObject",
-        url: "https://unmatched-lines.vercel.app/logo.png",
+        url: "https://unmatchedlines.com/logo.png",
       },
     },
     mainEntity: safePoems.map((poem) => ({
       "@type": "CreativeWork",
       name: poem.title?.en || "Untitled Poem",
-      url: `https://unmatched-lines.vercel.app/poems/en/${poem.slug.en}`,
+      url: `https://unmatchedlines.com/poems/en/${poem.slug.en}`,
       description: poem.excerpt || "A beautiful poem from Unmatched Lines.",
       author: {
         "@type": "Person",
@@ -191,13 +191,13 @@ export default async function SearchQueryPage({
           "@type": "ListItem",
           position: 1,
           name: "Home",
-          item: "https://unmatched-lines.vercel.app/",
+          item: "https://unmatchedlines.com/",
         },
         {
           "@type": "ListItem",
           position: 2,
           name: `Search: ${query}`,
-          item: `https://unmatched-lines.vercel.app/search/${encodeURIComponent(resolvedParams.query)}`,
+          item: `https://unmatchedlines.com/search/${encodeURIComponent(resolvedParams.query)}`,
         },
       ],
     },

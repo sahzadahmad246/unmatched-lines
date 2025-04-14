@@ -81,7 +81,7 @@ export async function generateMetadata({
   const title = `${displayCategory} by ${author.name} | Unmatched Lines`;
   const description = `Explore a collection of ${displayCategory} poems by ${author.name} in English, Hindi, and Urdu at Unmatched Lines.`;
   const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   return {
     title,

@@ -33,7 +33,7 @@ async function fetchCoverImages(): Promise<{ url: string }[]> {
 export async function generateMetadata(): Promise<Metadata> {
   const coverImages = await fetchCoverImages();
   const baseUrl =
-    process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+    process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const title = "Poets";
   const description =
@@ -120,7 +120,7 @@ export default async function PoetsPage() {
   }
 
   const baseUrl =
-    process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+    process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const structuredData = {
     "@context": "https://schema.org",

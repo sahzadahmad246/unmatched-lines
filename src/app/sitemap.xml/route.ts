@@ -4,7 +4,7 @@ import Poem from "@/models/Poem";
 export async function GET() {
   await dbConnect();
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatchedlines.com";
 
   const poems = await Poem.find({ status: "published" }).lean();
 

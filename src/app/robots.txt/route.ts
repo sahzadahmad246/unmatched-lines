@@ -3,7 +3,7 @@ export async function GET() {
 User-agent: *
 Allow: /
 
-Sitemap: https://unmatched-lines.vercel.app/sitemap.xml
+Sitemap: https://www.unmatchedlines.com/sitemap.xml
 `;
 
   return new Response(content, {

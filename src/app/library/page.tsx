@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Poetry Library | Explore Poems and Poets",
     description: "Discover our collection of poems and poets in our multilingual poetry library.",
-    url: "https://unmatched-lines.vercel.app/library",
+    url: "https://unmatchedlines.com/library",
     siteName: "Your Site Name",
     type: "website",
     locale: "en_US",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  metadataBase: new URL("https://unmatched-lines.vercel.app"),
+  metadataBase: new URL("https://unmatchedlines.com/library"),
 };
 
 export default function LibraryPage() {

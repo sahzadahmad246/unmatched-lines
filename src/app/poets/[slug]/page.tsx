@@ -63,7 +63,7 @@ export async function generateMetadata({
   const resolvedParams = await params
   const slug = decodeURIComponent(resolvedParams.slug)
   const poet = await fetchPoet(slug)
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app"
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com"
 
   const poetName = poet?.name || slug
     .split('-')
@@ -150,7 +150,7 @@ export default async function PoetProfile({ params }: PoetProfileProps) {
     notFound()
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://unmatched-lines.vercel.app"
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com"
 
   const structuredData = {
     "@context": "https://schema.org",
