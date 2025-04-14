@@ -54,6 +54,9 @@ export const metadata: Metadata = {
     icon: "/icon.ico", // Updated to new name
     apple: "/apple-touch-icon.png",
   },
+  other: {
+    'google-site-verification': 'd808bb201a32231a'
+  }
 };
 
 export default function RootLayout({
