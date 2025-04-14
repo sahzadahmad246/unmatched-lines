@@ -64,7 +64,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="google-site-verification" content="d808bb201a32231a" />
+        <meta
+          name="google-site-verification"
+          content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
+        />
       </head>
       <body>
         <Providers>
