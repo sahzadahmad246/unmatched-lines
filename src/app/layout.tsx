@@ -4,6 +4,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import ClientLayout from "./client-layout";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: {
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
   },
   metadataBase: new URL("https://unmatchedlines.com"),
   icons: {
-    icon: "/icon.ico", // Updated to new name
+    icon: "/icon.ico",
     apple: "/apple-touch-icon.png",
   },
 };
@@ -68,8 +69,37 @@ export default function RootLayout({
           name="google-site-verification"
           content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
         />
+        {/* Google Analytics */}
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-DH09B07MV0"
+        />
+        <Script
+          id="gtag-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-DH09B07MV0');
+            `,
+          }}
+        />
       </head>
       <body>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-DH09B07MV0"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-DH09B07MV0');
+          `}
+        </Script>
         <Providers>
           <ClientLayout>{children}</ClientLayout>
           <Toaster position="top-right" />
