@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { motion } from "framer-motion"
+import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   HelpCircle,
@@ -17,12 +17,17 @@ import {
   Search,
   Users,
   Bookmark,
-} from "lucide-react"
-import { Separator } from "@/components/ui/separator"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export function HelpAndSupport() {
   const container = {
@@ -33,12 +38,12 @@ export function HelpAndSupport() {
         staggerChildren: 0.1,
       },
     },
-  }
+  };
 
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
-  }
+  };
 
   return (
     <div className="relative overflow-hidden">
@@ -61,7 +66,9 @@ export function HelpAndSupport() {
           <div className="bg-primary/10 p-2 rounded-full">
             <HelpCircle className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="font-bold text-xl font-serif text-center">Help & Support</h3>
+          <h3 className="font-bold text-xl font-serif text-center">
+            Help & Support
+          </h3>
         </motion.div>
 
         {/* Search bar */}
@@ -89,7 +96,9 @@ export function HelpAndSupport() {
                   <div className="bg-primary/10 p-1.5 rounded-full">
                     <Info className="h-4 w-4 text-primary" />
                   </div>
-                  <h4 className="font-medium text-base font-serif text-primary">Resources</h4>
+                  <h4 className="font-medium text-base font-serif text-primary">
+                    Resources
+                  </h4>
                 </motion.div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -108,20 +117,13 @@ export function HelpAndSupport() {
                       icon: <Mail className="h-4 w-4" />,
                       description: "Get in touch with our team",
                     },
-                    {
-                      href: "/faq",
-                      label: "FAQ",
-                      icon: <MessageSquare className="h-4 w-4" />,
-                      description: "Frequently asked questions",
-                    },
-                    {
-                      href: "/blog",
-                      label: "Blog",
-                      icon: <FileText className="h-4 w-4" />,
-                      description: "Articles and poetry insights",
-                    },
                   ].map((link, index) => (
-                    <motion.li key={link.href} variants={item} whileHover={{ x: 5 }} className="group">
+                    <motion.li
+                      key={link.href}
+                      variants={item}
+                      whileHover={{ x: 5 }}
+                      className="group"
+                    >
                       <Link
                         href={link.href}
                         className="flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 transition-colors"
@@ -134,7 +136,9 @@ export function HelpAndSupport() {
                             {link.label}
                             <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
                           </div>
-                          <div className="text-xs text-muted-foreground">{link.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {link.description}
+                          </div>
                         </div>
                       </Link>
                     </motion.li>
@@ -145,14 +149,21 @@ export function HelpAndSupport() {
           </motion.div>
 
           {/* Legal Section */}
-          <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
+          <motion.div
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="space-y-4"
+          >
             <Card className="border-primary/10 bg-background/80 backdrop-blur-sm shadow-sm overflow-hidden">
               <CardHeader className="pb-3">
                 <motion.div className="flex items-center gap-2" variants={item}>
                   <div className="bg-primary/10 p-1.5 rounded-full">
                     <ShieldCheck className="h-4 w-4 text-primary" />
                   </div>
-                  <h4 className="font-medium text-base font-serif text-primary">Legal</h4>
+                  <h4 className="font-medium text-base font-serif text-primary">
+                    Legal
+                  </h4>
                 </motion.div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -160,31 +171,24 @@ export function HelpAndSupport() {
                 <motion.ul className="space-y-3" variants={container}>
                   {[
                     {
-                      href: "/terms",
+                      href: "/terms-of-service",
                       label: "Terms of Service",
                       icon: <FileText className="h-4 w-4" />,
                       description: "Rules for using our platform",
                     },
                     {
-                      href: "/privacy",
+                      href: "/privacy-policy",
                       label: "Privacy Policy",
                       icon: <Lock className="h-4 w-4" />,
                       description: "How we handle your data",
                     },
-                    {
-                      href: "/cookies",
-                      label: "Cookie Policy",
-                      icon: <Cookie className="h-4 w-4" />,
-                      description: "Information about cookies",
-                    },
-                    {
-                      href: "/copyright",
-                      label: "Copyright",
-                      icon: <Copyright className="h-4 w-4" />,
-                      description: "Intellectual property rights",
-                    },
                   ].map((link, index) => (
-                    <motion.li key={link.href} variants={item} whileHover={{ x: 5 }} className="group">
+                    <motion.li
+                      key={link.href}
+                      variants={item}
+                      whileHover={{ x: 5 }}
+                      className="group"
+                    >
                       <Link
                         href={link.href}
                         className="flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 transition-colors"
@@ -197,7 +201,9 @@ export function HelpAndSupport() {
                             {link.label}
                             <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
                           </div>
-                          <div className="text-xs text-muted-foreground">{link.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {link.description}
+                          </div>
                         </div>
                       </Link>
                     </motion.li>
@@ -220,7 +226,9 @@ export function HelpAndSupport() {
                 <div className="bg-primary/10 p-1.5 rounded-full">
                   <MessageSquare className="h-4 w-4 text-primary" />
                 </div>
-                <h4 className="font-medium text-base font-serif text-primary">Frequently Asked Questions</h4>
+                <h4 className="font-medium text-base font-serif text-primary">
+                  Frequently Asked Questions
+                </h4>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -254,11 +262,17 @@ export function HelpAndSupport() {
                       "You can support our platform by subscribing to our newsletter, sharing poems with friends, and engaging with the community. We also welcome donations to help maintain and improve the site.",
                   },
                 ].map((faq, index) => (
-                  <AccordionItem key={index} value={`item-${index + 1}`} className="border-primary/10">
+                  <AccordionItem
+                    key={index}
+                    value={`item-${index + 1}`}
+                    className="border-primary/10"
+                  >
                     <AccordionTrigger className="text-sm font-medium py-4 hover:text-primary transition-colors">
                       {faq.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-sm text-muted-foreground pb-4">{faq.answer}</AccordionContent>
+                    <AccordionContent className="text-sm text-muted-foreground pb-4">
+                      {faq.answer}
+                    </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
@@ -275,44 +289,24 @@ export function HelpAndSupport() {
           <Card className="border-primary/10 bg-background/80 backdrop-blur-sm shadow-sm w-full sm:w-1/3">
             <CardContent className="p-4 flex flex-col items-center text-center">
               <div className="bg-primary/10 p-2 rounded-full mb-3 mt-2">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <h5 className="font-medium text-sm mb-1">Community Forum</h5>
-              <p className="text-xs text-muted-foreground mb-3">Join discussions with fellow poetry enthusiasts</p>
-              <Button variant="outline" size="sm" className="w-full mt-auto">
-                Visit Forum
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/10 bg-background/80 backdrop-blur-sm shadow-sm w-full sm:w-1/3">
-            <CardContent className="p-4 flex flex-col items-center text-center">
-              <div className="bg-primary/10 p-2 rounded-full mb-3 mt-2">
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <h5 className="font-medium text-sm mb-1">Contact Support</h5>
-              <p className="text-xs text-muted-foreground mb-3">Get help from our dedicated support team</p>
-              <Button variant="outline" size="sm" className="w-full mt-auto">
-                Email Us
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/10 bg-background/80 backdrop-blur-sm shadow-sm w-full sm:w-1/3">
-            <CardContent className="p-4 flex flex-col items-center text-center">
-              <div className="bg-primary/10 p-2 rounded-full mb-3 mt-2">
-                <Bookmark className="h-5 w-5 text-primary" />
-              </div>
-              <h5 className="font-medium text-sm mb-1">Resources</h5>
-              <p className="text-xs text-muted-foreground mb-3">Explore our guides and documentation</p>
-              <Button variant="outline" size="sm" className="w-full mt-auto">
-                View Resources
-              </Button>
+              <p className="text-xs text-muted-foreground mb-3">
+                Get help from our dedicated support team
+              </p>
+              <a
+                href="mailto:contact@unmatchedlines.com"
+                className="w-full mt-auto"
+              >
+                <Button variant="outline" size="sm" className="w-full">
+                  Email Us
+                </Button>
+              </a>
             </CardContent>
           </Card>
         </motion.div>
       </motion.div>
     </div>
-  )
+  );
 }
-

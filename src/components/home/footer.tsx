@@ -245,8 +245,7 @@ function DesktopFooter() {
               {[
                 { href: "/about", label: "About Us" },
                 { href: "/contact", label: "Contact" },
-                { href: "/faq", label: "FAQ" },
-                { href: "/blog", label: "Blog" },
+                
               ].map((link, index) => (
                 <motion.li
                   key={link.href}
@@ -278,10 +277,9 @@ function DesktopFooter() {
             <h3 className="font-bold mb-5 text-base font-serif">Legal</h3>
             <ul className="space-y-3.5">
               {[
-                { href: "/terms", label: "Terms of Service" },
-                { href: "/privacy", label: "Privacy Policy" },
-                { href: "/cookies", label: "Cookie Policy" },
-                { href: "/copyright", label: "Copyright" },
+                { href: "/terms-of-service", label: "Terms of Service" },
+                { href: "/privacy-policy", label: "Privacy Policy" },
+                
               ].map((link, index) => (
                 <motion.li
                   key={link.href}

@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useSession, signIn, signOut } from "next-auth/react"
-import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { useSession, signIn, signOut } from "next-auth/react";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Feather,
   LogOut,
@@ -16,8 +16,8 @@ import {
   Book,
   Sparkles,
   BookHeart,
-  FileUser
-} from "lucide-react"
+  FileUser,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,40 +28,75 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { motion } from "framer-motion"
+} from "@/components/ui/alert-dialog";
+import { motion } from "framer-motion";
 
 // Define the props type for MoreScreen
 interface MoreScreenProps {
-  onClose: () => void
+  onClose: () => void;
 }
 
 export function MoreScreen({ onClose }: MoreScreenProps) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   const handleSignOut = () => {
-    signOut()
-  }
+    signOut();
+  };
 
   const handleSignIn = () => {
-    signIn("google")
-  }
+    signIn("google");
+  };
 
   const menuItems = [
-    { href: "/poems/sher", icon: Feather, label: "Sher", description: "Explore beautiful couplets" },
-    { href: "/poems/ghazal", icon: Music, label: "Ghazal", description: "Lyrical poetry expressions" },
-    { href: "/poems/nazm", icon: Book, label: "Ghazal", description: "Explore soulful Nazms" },
-    { href: "/library", icon: BookAIcon, label: "Library", description: "Your poetry collection" },
-    { href: "/poets", icon: FileUser, label: "Poets", description: "Discover renowned poets" },
-    { href: "/settings", icon: Settings, label: "Settings", description: "Customize your experience" },
-    { href: "/help", icon: HelpCircle, label: "Help & Support", description: "Get assistance" },
-    { href: "/about", icon: Info, label: "About Us", description: "Our poetic journey" },
-  ]
+    {
+      href: "/poems/sher",
+      icon: Feather,
+      label: "Sher",
+      description: "Explore beautiful couplets",
+    },
+    {
+      href: "/poems/ghazal",
+      icon: Music,
+      label: "Ghazal",
+      description: "Lyrical poetry expressions",
+    },
+    {
+      href: "/poems/nazm",
+      icon: Book,
+      label: "Ghazal",
+      description: "Explore soulful Nazms",
+    },
+    {
+      href: "/library",
+      icon: BookAIcon,
+      label: "Library",
+      description: "Your poetry collection",
+    },
+    {
+      href: "/poets",
+      icon: FileUser,
+      label: "Poets",
+      description: "Discover renowned poets",
+    },
+
+    {
+      href: "/help",
+      icon: HelpCircle,
+      label: "Help & Support",
+      description: "Get assistance",
+    },
+    {
+      href: "/about",
+      icon: Info,
+      label: "About Us",
+      description: "Our poetic journey",
+    },
+  ];
 
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-  }
+  };
 
   const staggerItems = {
     hidden: { opacity: 0 },
@@ -71,7 +106,7 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
         staggerChildren: 0.1,
       },
     },
-  }
+  };
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-background to-background/95">
@@ -90,11 +125,15 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
           <div className="flex items-center gap-4 relative z-10">
             <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-md ring-2 ring-background/50">
               <AvatarImage src={session.user?.image || ""} alt="Profile" />
-              <AvatarFallback className="bg-primary/20">{session.user?.name?.charAt(0) || "U"}</AvatarFallback>
+              <AvatarFallback className="bg-primary/20">
+                {session.user?.name?.charAt(0) || "U"}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <h3 className="font-medium text-lg">{session.user?.name}</h3>
-              <p className="text-sm text-muted-foreground">{session.user?.email}</p>
+              <p className="text-sm text-muted-foreground">
+                {session.user?.email}
+              </p>
               <Link
                 href="/profile"
                 onClick={onClose}
@@ -135,7 +174,12 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
       </motion.div>
 
       {/* Menu Items */}
-      <motion.div initial="hidden" animate="visible" variants={staggerItems} className="flex-1 overflow-auto py-4 px-2">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={staggerItems}
+        className="flex-1 overflow-auto py-4 px-2"
+      >
         <div className="space-y-1">
           {menuItems.map((item, index) => (
             <motion.div
@@ -155,15 +199,15 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
                 </div>
                 <div className="flex-1">
                   <span className="font-medium block">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {item.description}
+                  </span>
                 </div>
               </Link>
             </motion.div>
           ))}
         </div>
       </motion.div>
-
-     
 
       {/* Sign Out Button */}
       {session && (
@@ -175,21 +219,30 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
         >
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full flex items-center gap-2 border-primary/20 hover:bg-primary/5">
+              <Button
+                variant="outline"
+                className="w-full flex items-center gap-2 border-primary/20 hover:bg-primary/5"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="border border-primary/20 shadow-lg">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-lg font-serif">Sign out?</AlertDialogTitle>
+                <AlertDialogTitle className="text-lg font-serif">
+                  Sign out?
+                </AlertDialogTitle>
                 <AlertDialogDescription className="italic text-sm font-serif">
-                  Your anthology will await your return, preserved just as you left it.
+                  Your anthology will await your return, preserved just as you
+                  left it.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel className="text-sm">Stay</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSignOut} className="text-sm bg-primary hover:bg-primary/90">
+                <AlertDialogAction
+                  onClick={handleSignOut}
+                  className="text-sm bg-primary hover:bg-primary/90"
+                >
                   Sign out
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -198,6 +251,5 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
         </motion.div>
       )}
     </div>
-  )
+  );
 }
-
