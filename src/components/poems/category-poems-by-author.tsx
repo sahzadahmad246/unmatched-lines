@@ -117,7 +117,7 @@ export default function CategoryPoemsByAuthor({
         const data = await res.json();
         setCoverImages(data.coverImages || []);
       } catch (error) {
-        console.error("Error fetching cover images:", error);
+       
         setCoverImages([]);
       } finally {
         setLoading(false);
@@ -138,7 +138,7 @@ export default function CategoryPoemsByAuthor({
           const data = await res.json();
           setAuthorData(data.author);
         } catch (error) {
-          console.error("Error fetching author data:", error);
+          
         }
       } else if (author?.slug) {
         try {
@@ -149,7 +149,7 @@ export default function CategoryPoemsByAuthor({
           const data = await res.json();
           setAuthorData(data.author);
         } catch (error) {
-          console.error("Error fetching author data:", error);
+         
         }
       }
     };

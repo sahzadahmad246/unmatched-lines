@@ -1,4 +1,3 @@
-// src/app/api/poem/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const slug = url.searchParams.get("slug");
-    const category = url.searchParams.get("category");
+    const category = url.searchParams.get("category")?.toLowerCase();
     const authorSlug = url.searchParams.get("authorSlug");
 
     // Fetch a single poem by slug
@@ -56,22 +55,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ poems, author: { name: author.name, slug: author.slug } });
     }
 
-    // Fetch poems by category only
-    if (category) {
-      const poems = await Poem.find({
-        category: category.toLowerCase(),
-        status: "published",
-      })
-        .populate("author", "name")
-        .sort({ createdAt: -1 });
-
-      if (!poems.length) {
-        return NextResponse.json({ error: `No poems found for category: ${category}` }, { status: 404 });
-      }
-
-      return NextResponse.json({ poems });
-    }
-
     // Default: fetch all published poems
     const poems = await Poem.find({ status: "published" })
       .populate("author", "name")
@@ -79,9 +62,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ poems });
   } catch (error) {
-    console.error("Error fetching poems:", error);
+    
     return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -125,14 +111,7 @@ export async function POST(request: NextRequest) {
     const slugHi = `${baseSlug}-hi`;
     const slugUr = `${baseSlug}-ur`;
 
-    // Log incoming data for debugging
-    console.log("FormData received:", {
-      titleEn, titleHi, titleUr,
-      contentEn, contentHi, contentUr,
-      slugEn, slugHi, slugUr,
-      category, status, tags, authorId,
-      coverImage: coverImage ? "File present" : "No file",
-    });
+    
 
     // Validation
     if (!authorId) {
@@ -213,7 +192,7 @@ export async function POST(request: NextRequest) {
       coverImage: coverImageUrl || "",
     };
 
-    console.log("Poem data to save:", JSON.stringify(poemData, null, 2));
+   
 
     const newPoem = await Poem.create(poemData);
 
@@ -240,7 +219,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error adding poem:", error);
+   
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -375,7 +354,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
-    console.error("Error updating poem:", error);
+    
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -428,7 +407,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {
-    console.error("Error deleting poem:", error);
+  
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
     return NextResponse.json({ poem });
   } catch (error) {
-    console.error("Error fetching poem:", error);
+   
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -133,7 +133,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
-    console.error("Error updating poem:", error);
+   
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -184,7 +184,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {
-    console.error("Error deleting poem:", error);
+   
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

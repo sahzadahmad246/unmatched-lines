@@ -50,16 +50,16 @@ export default function Navbar() {
     },
     { href: "/poets", icon: <FileUser className="h-4 w-4" />, label: "Poets" },
     {
-      href: "/poems/sher",
+      href: "/sher",
       icon: <Feather className="h-4 w-4" />,
       label: "Sher",
     },
     {
-      href: "/poems/ghazal",
+      href: "/ghazal",
       icon: <Music className="h-4 w-4" />,
       label: "Ghazal",
     },
-    { href: "/poems/nazm", icon: <Book className="h-4 w-4" />, label: "Nazm" },
+    { href: "/nazm", icon: <Book className="h-4 w-4" />, label: "Nazm" },
   ];
 
   const handleSignOut = () => {

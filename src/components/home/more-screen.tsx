@@ -49,19 +49,19 @@ export function MoreScreen({ onClose }: MoreScreenProps) {
 
   const menuItems = [
     {
-      href: "/poems/sher",
+      href: "/sher",
       icon: Feather,
       label: "Sher",
       description: "Explore beautiful couplets",
     },
     {
-      href: "/poems/ghazal",
+      href: "/ghazal",
       icon: Music,
       label: "Ghazal",
       description: "Lyrical poetry expressions",
     },
     {
-      href: "/poems/nazm",
+      href: "/nazm",
       icon: Book,
       label: "Ghazal",
       description: "Explore soulful Nazms",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PoetList from "@/components/poets/PoetList";
+import { PoetList } from "@/components/poets/PoetList";
 import { Poet } from "@/components/poets/PoetList";
 
 async function fetchPoets(): Promise<Poet[] | null> {

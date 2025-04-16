@@ -1,151 +1,126 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
-import Image from "next/image";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { Footer } from "./footer";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { LoadingComponent } from "../utils/LoadingComponent";
-import {
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Feather,
-  ArrowRight,
-  Quote,
-  Sparkles,
-  BookHeart,
-} from "lucide-react";
-import { SearchBar } from "./search-bar";
-import { FeaturedCollection } from "./featured-collection";
-import { LineOfTheDay } from "../poems/line-of-the-day";
-import { TopFivePicks } from "./TopFivePicks";
+import { useState, useEffect, useRef } from "react"
+import { useSession } from "next-auth/react"
+import Link from "next/link"
+import Image from "next/image"
+import { motion } from "framer-motion"
+import { toast } from "sonner"
+import { Footer } from "@/components/home/footer"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { LoadingComponent } from "@/components/utils/LoadingComponent"
+import { BookHeart, Feather, Quote, Sparkles } from "lucide-react"
+import { SearchBar } from "@/components/home/search-bar"
+import { FeaturedCollection } from "@/components/home/featured-collection"
+import { LineOfTheDay } from "@/components/poems/line-of-the-day"
+import { TopFivePicks } from "@/components/home/TopFivePicks"
+import { PoetList } from "../poets/PoetList"
 
 // Interfaces
 interface Poet {
-  _id: string;
-  name: string;
-  slug: string;
-  image?: string;
-  dob?: string;
-  city?: string;
-  ghazalCount: number;
-  sherCount: number;
+  _id: string
+  name: string
+  slug: string
+  image?: string
+  dob?: string
+  city?: string
+  ghazalCount: number
+  sherCount: number
 }
 
 interface Poem {
-  _id: string;
-  title: { en: string; hi?: string; ur?: string };
-  author: { name: string; _id: string };
-  category: "ghazal" | "sher";
-  excerpt?: string;
-  slug?: { en: string };
+  _id: string
+  title: { en: string; hi?: string; ur?: string }
+  author: { name: string; _id: string }
+  category: "ghazal" | "sher"
+  excerpt?: string
+  slug?: { en: string }
   content?: {
-    en?: string[] | string;
-    hi?: string[] | string;
-    ur?: string[] | string;
-  };
-  readListCount?: number;
+    en?: string[] | string
+    hi?: string[] | string
+    ur?: string[] | string
+  }
+  readListCount?: number
 }
 
 interface CoverImage {
-  _id: string;
-  url: string;
-  uploadedBy: { name: string };
-  createdAt: string;
+  _id: string
+  url: string
+  uploadedBy: { name: string }
+  createdAt: string
 }
 
 export default function Home() {
-  const { data: session } = useSession();
-  const [poets, setPoets] = useState<Poet[]>([]);
-  const [ghazals, setGhazals] = useState<Poem[]>([]);
-  const [shers, setShers] = useState<Poem[]>([]);
-  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
-  const [readList, setReadList] = useState<string[]>([]);
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: session } = useSession()
+  const [poets, setPoets] = useState<Poet[]>([])
+  const [ghazals, setGhazals] = useState<Poem[]>([])
+  const [shers, setShers] = useState<Poem[]>([])
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null)
+  const [readList, setReadList] = useState<string[]>([])
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const poetsScrollRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const hasInitializedRef = useRef(false);
+  const heroRef = useRef<HTMLDivElement>(null)
+  const hasInitializedRef = useRef(false)
 
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
+    if (hasInitializedRef.current) return
+    hasInitializedRef.current = true
 
     const fetchData = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
 
-        const poetsRes = await fetch("/api/authors", { credentials: "include" });
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
-        const poetsData = await poetsRes.json();
-        setPoets(poetsData.authors || []);
+        const poetsRes = await fetch("/api/authors", { credentials: "include" })
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
+        const poetsData = await poetsRes.json()
+        setPoets(poetsData.authors || [])
 
-        const poemsRes = await fetch("/api/poem", { credentials: "include" });
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
-        const poemsData = await poemsRes.json();
-        const poems = poemsData.poems || [];
+        const poemsRes = await fetch("/api/poem", { credentials: "include" })
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems")
+        const poemsData = await poemsRes.json()
+        const poems = poemsData.poems || []
 
-        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6));
-        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6));
+        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
+        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
 
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length);
-          setFeaturedPoem(poems[randomIndex]);
+          const randomIndex = Math.floor(Math.random() * poems.length)
+          setFeaturedPoem(poems[randomIndex])
         }
 
-        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
-        const coverImagesData = await coverImagesRes.json();
-        setCoverImages(coverImagesData.coverImages || []);
+        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" })
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
+        const coverImagesData = await coverImagesRes.json()
+        setCoverImages(coverImagesData.coverImages || [])
 
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" });
+          const userRes = await fetch("/api/user", { credentials: "include" })
           if (userRes.ok) {
-            const userData = await userRes.json();
-            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
+            const userData = await userRes.json()
+            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
           }
         }
       } catch (err) {
-        setError("Failed to load data");
+        setError("Failed to load data")
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        });
+        })
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchData();
-  }, [session]);
+    fetchData()
+  }, [session])
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920";
-    const randomIndex = Math.floor(Math.random() * coverImages.length);
-    return coverImages[randomIndex].url;
-  };
-
-  const scrollPoets = (direction: "left" | "right") => {
-    if (poetsScrollRef.current) {
-      const scrollAmount = 150;
-      const scrollPosition =
-        direction === "left"
-          ? poetsScrollRef.current.scrollLeft - scrollAmount
-          : poetsScrollRef.current.scrollLeft + scrollAmount;
-
-      poetsScrollRef.current.scrollTo({
-        left: scrollPosition,
-        behavior: "smooth",
-      });
-    }
-  };
+    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920"
+    const randomIndex = Math.floor(Math.random() * coverImages.length)
+    return coverImages[randomIndex].url
+  }
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     if (!session) {
@@ -155,13 +130,13 @@ export default function Home() {
           label: "Sign In",
           onClick: () => (window.location.href = "/api/auth/signin"),
         },
-      });
-      return;
+      })
+      return
     }
 
-    const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
-    const method = isInReadlist ? "DELETE" : "POST";
+    const isInReadlist = readList.includes(poemId)
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
+    const method = isInReadlist ? "DELETE" : "POST"
 
     try {
       const res = await fetch(url, {
@@ -169,15 +144,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      });
+      })
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
 
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
-          });
+          })
         } else {
           toast.custom(
             (t) => (
@@ -194,19 +169,19 @@ export default function Home() {
                 </div>
               </motion.div>
             ),
-            { duration: 3000 }
-          );
+            { duration: 3000 },
+          )
         }
       }
     } catch (error) {
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
-      });
+      })
     }
-  };
+  }
 
   if (loading) {
-    return <LoadingComponent />;
+    return <LoadingComponent />
   }
 
   if (error) {
@@ -223,7 +198,7 @@ export default function Home() {
           </Button>
         </motion.div>
       </div>
-    );
+    )
   }
 
   return (
@@ -235,7 +210,7 @@ export default function Home() {
       >
         <div className="absolute inset-0 z-0">
           <Image
-            src={getRandomCoverImage()}
+            src={getRandomCoverImage() || "/placeholder.svg"}
             alt="Poetry background"
             fill
             priority
@@ -289,7 +264,7 @@ export default function Home() {
 
               <div className="flex flex-wrap justify-center gap-3 mt-6">
                 <Button asChild variant="default" size="sm" className="text-xs sm:text-sm font-serif">
-                  <Link href="/poems">Explore Poems</Link>
+                  <Link href="/library">Explore Poems</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="text-xs sm:text-sm font-serif">
                   <Link href="/poets">Discover Poets</Link>
@@ -306,71 +281,17 @@ export default function Home() {
       {/* Top Five Picks Section */}
       <TopFivePicks poems={[...ghazals, ...shers]} coverImages={coverImages} />
 
-      {/* Poets Section */}
-      <section className="py-10 sm:py-16">
+      {/* Featured Poets Section - Using the new PoetList component */}
+      <section className="py-10 sm:py-16 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif">Featured Poets</h2>
-            <Button variant="link" asChild className="font-serif text-xs sm:text-sm">
-              <Link href="/poets" className="flex items-center gap-1">
-                See All <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div
-              ref={poetsScrollRef}
-              className="flex overflow-x-auto pb-6 space-x-3 sm:space-x-4 scrollbar-hide snap-x"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
-              {poets.map((poet, index) => (
-                <motion.div
-                  key={poet._id}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="min-w-[120px] sm:min-w-[150px] md:min-w-[200px] snap-start"
-                  whileHover={{ y: -5 }}
-                >
-                  <Card className="h-full flex flex-col overflow-hidden transition-all hover:shadow-lg">
-                    <div className="relative aspect-square overflow-hidden">
-                      <Image
-                        src={poet.image || "/placeholder.svg?height=150&width=150"}
-                        alt={poet.name}
-                        fill
-                        className="object-cover transition-transform hover:scale-105 duration-300"
-                      />
-                    </div>
-                    <CardContent className="flex-grow p-2 text-center">
-                      <h3 className="font-medium text-xs sm:text-sm line-clamp-1">{poet.name}</h3>
-                    </CardContent>
-                    <CardFooter className="p-2 pt-0">
-                      <Button asChild size="sm" className="w-full text-xs">
-                        <Link href={`/poets/${poet.slug}`}>View Profile</Link>
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scrollPoets("left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full sm:flex hidden"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scrollPoets("right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full sm:flex hidden"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <PoetList
+            poets={poets}
+            variant="carousel"
+            title="Featured Poets"
+            showViewAll={true}
+            viewAllHref="/poets"
+            featuredPoets={true}
+          />
         </div>
       </section>
 
@@ -441,5 +362,5 @@ export default function Home() {
 
       <Footer />
     </div>
-  );
+  )
 }
