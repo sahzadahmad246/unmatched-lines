@@ -1,10 +1,17 @@
-"use client"
+"use client";
 
-import { useSession, signOut } from "next-auth/react"
-import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { LogOut, Settings, Users, ChevronLeft, Upload, BarChart3 } from "lucide-react"
+import { useSession, signOut } from "next-auth/react";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  LogOut,
+  Settings,
+  Users,
+  ChevronLeft,
+  Upload,
+  BarChart3,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,34 +22,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { motion } from "framer-motion"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/alert-dialog";
+import { motion } from "framer-motion";
+import { Separator } from "@/components/ui/separator";
 
 // Define the props type for AdminMoreScreen
 interface AdminMoreScreenProps {
-  onClose: () => void
+  onClose: () => void;
 }
 
 export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   const handleSignOut = () => {
-    signOut()
-  }
+    signOut();
+  };
 
   const adminMenuItems = [
-    { href: "/admin/add-author", icon: Users, label: "Add Author", description: "Create new poet profiles" },
-    { href: "/admin/manage-authors", icon: Users, label: "Manage Authors", description: "Edit or delete poets" },
-    { href: "/admin/upload-images", icon: Upload, label: "Upload Images", description: "Add cover images" },
-    { href: "/admin/analytics", icon: BarChart3, label: "Analytics", description: "View site statistics" },
-    { href: "/admin/settings", icon: Settings, label: "Settings", description: "Configure admin options" },
-  ]
+    {
+      href: "/admin/add-author",
+      icon: Users,
+      label: "Add Author",
+      description: "Create new poet profiles",
+    },
+    {
+      href: "/admin/manage-authors",
+      icon: Users,
+      label: "Manage Authors",
+      description: "Edit or delete poets",
+    },
+    {
+      href: "/admin/upload-images",
+      icon: Upload,
+      label: "Upload Images",
+      description: "Add cover images",
+    },
+   
+  ];
 
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-  }
+  };
 
   const staggerItems = {
     hidden: { opacity: 0 },
@@ -52,7 +73,7 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
         staggerChildren: 0.1,
       },
     },
-  }
+  };
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-background to-background/95">
@@ -71,13 +92,19 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
           <div className="flex items-center gap-4 relative z-10">
             <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-md ring-2 ring-background/50">
               <AvatarImage src={session.user?.image || ""} alt="Profile" />
-              <AvatarFallback className="bg-primary/20">{session.user?.name?.charAt(0) || "A"}</AvatarFallback>
+              <AvatarFallback className="bg-primary/20">
+                {session.user?.name?.charAt(0) || "A"}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <h3 className="font-medium text-lg">{session.user?.name}</h3>
-              <p className="text-sm text-muted-foreground">{session.user?.email}</p>
+              <p className="text-sm text-muted-foreground">
+                {session.user?.email}
+              </p>
               <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">Admin</span>
+                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">
+                  Admin
+                </span>
               </div>
             </div>
           </div>
@@ -95,7 +122,12 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
       </motion.div>
 
       {/* Menu Items */}
-      <motion.div initial="hidden" animate="visible" variants={staggerItems} className="flex-1 overflow-auto py-4 px-2">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={staggerItems}
+        className="flex-1 overflow-auto py-4 px-2"
+      >
         <div className="space-y-1">
           {adminMenuItems.map((item, index) => (
             <motion.div
@@ -115,7 +147,9 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
                 </div>
                 <div className="flex-1">
                   <span className="font-medium block">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {item.description}
+                  </span>
                 </div>
               </Link>
             </motion.div>
@@ -124,7 +158,11 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
 
         <Separator className="my-4" />
 
-        <motion.div variants={fadeIn} whileHover={{ x: 5 }} whileTap={{ scale: 0.98 }}>
+        <motion.div
+          variants={fadeIn}
+          whileHover={{ x: 5 }}
+          whileTap={{ scale: 0.98 }}
+        >
           <Link
             href="/"
             onClick={onClose}
@@ -135,7 +173,9 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
             </div>
             <div className="flex-1">
               <span className="font-medium block">Back to Site</span>
-              <span className="text-xs text-muted-foreground">Return to the main website</span>
+              <span className="text-xs text-muted-foreground">
+                Return to the main website
+              </span>
             </div>
           </Link>
         </motion.div>
@@ -151,21 +191,31 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
         >
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full flex items-center gap-2 border-primary/20 hover:bg-primary/5">
+              <Button
+                variant="outline"
+                className="w-full flex items-center gap-2 border-primary/20 hover:bg-primary/5"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="border border-primary/20 shadow-lg">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-lg font-serif">Sign out?</AlertDialogTitle>
+                <AlertDialogTitle className="text-lg font-serif">
+                  Sign out?
+                </AlertDialogTitle>
                 <AlertDialogDescription className="italic text-sm font-serif">
                   Are you sure you want to sign out of the admin panel?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel className="text-sm">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSignOut} className="text-sm bg-primary hover:bg-primary/90">
+                <AlertDialogCancel className="text-sm">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleSignOut}
+                  className="text-sm bg-primary hover:bg-primary/90"
+                >
                   Sign out
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -174,6 +224,5 @@ export function AdminMoreScreen({ onClose }: AdminMoreScreenProps) {
         </motion.div>
       )}
     </div>
-  )
+  );
 }
-

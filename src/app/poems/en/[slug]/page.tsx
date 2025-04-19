@@ -5,9 +5,12 @@ import { getSlugs } from "@/utils/helpers";
 
 async function fetchPoem(slug: string): Promise<Poem | null> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/poem?slug=${slug}`, {
-      cache: "force-cache",
-    });
+    const res = await fetch(
+      `${process.env.NEXTAUTH_URL}/api/poem?slug=${slug}`,
+      {
+        cache: "force-cache",
+      }
+    );
     if (!res.ok) throw new Error(`Failed to fetch poem: ${res.status}`);
     const data = await res.json();
     return data.poem || null;
@@ -46,7 +49,10 @@ export async function generateMetadata({
   const description = poem?.content?.en
     ? `${poem.content.en[0]?.slice(0, 150)}... - A poem by ${author}`
     : `Explore this poem by ${author} in English.`;
-  const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
+  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
+  const coverImageUrl =
+    poem?.coverImage ||
+    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
   const slugs = getSlugs(poem, resolvedParams.slug);
 
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
@@ -63,18 +69,25 @@ export async function generateMetadata({
       ...(poem?.tags || []),
     ].join(", "),
     alternates: {
-      canonical: `${baseUrl}/poems/en/${slugs.en}`, // Fixed: Moved to alternates
+      canonical: `${baseUrl}/poems/en/${slugs.en}`,
       languages: {
-        "en": `/poems/en/${slugs.en}`,
-        "hi": `/poems/hi/${slugs.hi}`,
-        "ur": `/poems/ur/${slugs.ur}`,
+        en: `/poems/en/${slugs.en}`,
+        hi: `/poems/hi/${slugs.hi}`,
+        ur: `/poems/ur/${slugs.ur}`,
       },
     },
     openGraph: {
       title: `${title} by ${author} | English`,
       description,
       url: `${baseUrl}/poems/en/${slugs.en}`,
-      images: [{ url: coverImageUrl }],
+      images: [
+        {
+          url: coverImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} by ${author}`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -85,8 +98,68 @@ export async function generateMetadata({
   };
 }
 
-export default async function PoemPage({ params }: { params: Promise<{ slug: string }> }) {
+// Generate structured data for SEO
+function generateStructuredData(
+  poem: Poem | null,
+  language: string,
+  baseUrl: string,
+  slugs: Record<string, string>,
+  coverImageUrl: string
+) {
+  if (!poem) {
+    return null;
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: poem.title?.en || "Untitled Poem",
+    author: {
+      "@type": "Person",
+      name: poem.author?.name || "Unknown Author",
+    },
+    description:
+      poem.title?.en || `A poem by ${poem.author?.name || "Unknown Author"}`,
+    inLanguage: language,
+    url: `${baseUrl}/poems/${language}/${slugs[language]}`,
+    image: coverImageUrl,
+    keywords: poem.tags?.join(", ") || poem.category || "poetry",
+    datePublished: poem.createdAt || undefined,
+    genre: poem.category || "Poetry",
+  };
+}
+
+export default async function PoemPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const resolvedParams = await params;
   const poem = await fetchPoem(resolvedParams.slug);
-  return <PoemDetail poem={poem} language="en" />;
+  const coverImages = await fetchCoverImages();
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const slugs = getSlugs(poem, resolvedParams.slug);
+  const coverImageUrl =
+    poem?.coverImage ||
+    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+
+  const structuredData = generateStructuredData(
+    poem,
+    "en",
+    baseUrl,
+    slugs,
+    coverImageUrl
+  );
+
+  return (
+    <>
+      {structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      )}
+      <PoemDetail poem={poem} language="en" />
+    </>
+  );
 }

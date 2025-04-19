@@ -69,6 +69,10 @@ export default function RootLayout({
           name="google-site-verification"
           content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
         />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/urdu-web-fonts@1.0.3/Fajer-Noori-Nastalique/css/fajer-noori-nastalique.min.css"
+        />
         {/* Google Analytics */}
         <Script
           async

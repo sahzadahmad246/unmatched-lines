@@ -46,7 +46,9 @@ export async function generateMetadata({
   const description = poem?.content?.ur
     ? `${poem.content.ur[0]?.slice(0, 150)}... - ${author} کا شعر`
     : `${author} کا یہ شعر اردو میں پڑھیں۔`;
-  const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
+  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
+  const coverImageUrl =
+    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
   const slugs = getSlugs(poem, resolvedParams.slug);
 
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
@@ -63,18 +65,25 @@ export async function generateMetadata({
       ...(poem?.tags || []),
     ].join(", "),
     alternates: {
-      canonical: `${baseUrl}/poems/ur/${slugs.ur}`, // Fixed: Moved to alternates
+      canonical: `${baseUrl}/poems/ur/${slugs.ur}`,
       languages: {
-        "en": `/poems/en/${slugs.en}`,
-        "hi": `/poems/hi/${slugs.hi}`,
-        "ur": `/poems/ur/${slugs.ur}`,
+        en: `/poems/en/${slugs.en}`,
+        hi: `/poems/hi/${slugs.hi}`,
+        ur: `/poems/ur/${slugs.ur}`,
       },
     },
     openGraph: {
       title: `${title} از ${author} | اردو`,
       description,
       url: `${baseUrl}/poems/ur/${slugs.ur}`,
-      images: [{ url: coverImageUrl }],
+      images: [
+        {
+          url: coverImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} از ${author}`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -85,8 +94,92 @@ export async function generateMetadata({
   };
 }
 
-export default async function PoemPage({ params }: { params: Promise<{ slug: string }> }) {
+// Generate structured data for SEO
+function generateStructuredData(
+  poem: Poem | null,
+  language: string,
+  baseUrl: string,
+  slugs: Record<string, string>,
+  coverImageUrl: string
+) {
+  if (!poem) {
+    return null;
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: poem.title?.ur || "بے عنوان شعر",
+    author: {
+      "@type": "Person",
+      name: poem.author?.name || "نامعلوم مصنف",
+    },
+    description:
+      poem.content?.ur?.[0]?.slice(0, 150) || `${poem.author?.name || "نامعلوم مصنف"} کا شعر`,
+    inLanguage: "ur",
+    url: `${baseUrl}/poems/ur/${slugs.ur}`,
+    image: coverImageUrl,
+    keywords: poem.tags?.join(", ") || poem.category || "شاعری",
+    datePublished: poem.createdAt || undefined,
+    genre: poem.category || "شاعری",
+  };
+}
+
+// Generate breadcrumb structured data
+function generateBreadcrumbData(
+  poem: Poem | null,
+  language: string,
+  baseUrl: string,
+  slugs: Record<string, string>
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ہوم", item: baseUrl },
+      { "@type": "ListItem", position: 2, name: "اشعار", item: `${baseUrl}/poems` },
+      { "@type": "ListItem", position: 3, name: "اردو", item: `${baseUrl}/poems/ur` },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: poem?.title?.ur || "شعر",
+        item: `${baseUrl}/poems/ur/${slugs.ur}`,
+      },
+    ],
+  };
+}
+
+export default async function PoemPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const resolvedParams = await params;
   const poem = await fetchPoem(resolvedParams.slug);
-  return <PoemDetail poem={poem} language="ur" />;
+  const coverImages = await fetchCoverImages();
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const slugs = getSlugs(poem, resolvedParams.slug);
+  const coverImageUrl =
+    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+
+  const structuredData = generateStructuredData(poem, "ur", baseUrl, slugs, coverImageUrl);
+  const breadcrumbData = generateBreadcrumbData(poem, "ur", baseUrl, slugs);
+
+  return (
+    <>
+      {structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      )}
+      {breadcrumbData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        />
+      )}
+      <PoemDetail poem={poem} language="ur" />
+    </>
+  );
 }

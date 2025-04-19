@@ -234,22 +234,6 @@ export function AdminSidebar() {
         <SidebarFooter className="border-t">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/admin/settings")}
-                tooltip="Settings"
-              >
-                <Link
-                  href="/admin/settings"
-                  onClick={() => isMobile && setOpenMobile(false)}
-                >
-                  <Settings className="h-5 w-5" />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Back to Site">
                 <Link href="/" onClick={() => isMobile && setOpenMobile(false)}>
                   <ChevronLeft className="h-5 w-5" />

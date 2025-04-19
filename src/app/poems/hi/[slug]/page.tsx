@@ -46,7 +46,9 @@ export async function generateMetadata({
   const description = poem?.content?.hi
     ? `${poem.content.hi[0]?.slice(0, 150)}... - ${author} की कविता`
     : `${author} की यह कविता हिंदी में पढ़ें।`;
-  const coverImageUrl = coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg";
+  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
+  const coverImageUrl =
+    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
   const slugs = getSlugs(poem, resolvedParams.slug);
 
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
@@ -63,18 +65,25 @@ export async function generateMetadata({
       ...(poem?.tags || []),
     ].join(", "),
     alternates: {
-      canonical: `${baseUrl}/poems/hi/${slugs.hi}`, // Fixed: Moved to alternates
+      canonical: `${baseUrl}/poems/hi/${slugs.hi}`,
       languages: {
-        "en": `/poems/en/${slugs.en}`,
-        "hi": `/poems/hi/${slugs.hi}`,
-        "ur": `/poems/ur/${slugs.ur}`,
+        en: `/poems/en/${slugs.en}`,
+        hi: `/poems/hi/${slugs.hi}`,
+        ur: `/poems/ur/${slugs.ur}`,
       },
     },
     openGraph: {
       title: `${title} द्वारा ${author} | हिंदी`,
       description,
       url: `${baseUrl}/poems/hi/${slugs.hi}`,
-      images: [{ url: coverImageUrl }],
+      images: [
+        {
+          url: coverImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} द्वारा ${author}`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -85,8 +94,92 @@ export async function generateMetadata({
   };
 }
 
-export default async function PoemPage({ params }: { params: Promise<{ slug: string }> }) {
+// Generate structured data for SEO
+function generateStructuredData(
+  poem: Poem | null,
+  language: string,
+  baseUrl: string,
+  slugs: Record<string, string>,
+  coverImageUrl: string
+) {
+  if (!poem) {
+    return null;
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: poem.title?.hi || "शीर्षक रहित कविता",
+    author: {
+      "@type": "Person",
+      name: poem.author?.name || "अज्ञात लेखक",
+    },
+    description:
+      poem.content?.hi?.[0]?.slice(0, 150) || ` ${poem.author?.name || "अज्ञात लेखक"} की कविता`,
+    inLanguage: "hi",
+    url: `${baseUrl}/poems/hi/${slugs.hi}`,
+    image: coverImageUrl,
+    keywords: poem.tags?.join(", ") || poem.category || "कविता",
+    datePublished: poem.createdAt || undefined,
+    genre: poem.category || "कविता",
+  };
+}
+
+// Generate breadcrumb structured data
+function generateBreadcrumbData(
+  poem: Poem | null,
+  language: string,
+  baseUrl: string,
+  slugs: Record<string, string>
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "होम", item: baseUrl },
+      { "@type": "ListItem", position: 2, name: "कविताएँ", item: `${baseUrl}/poems` },
+      { "@type": "ListItem", position: 3, name: "हिंदी", item: `${baseUrl}/poems/hi` },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: poem?.title?.hi || "कविता",
+        item: `${baseUrl}/poems/hi/${slugs.hi}`,
+      },
+    ],
+  };
+}
+
+export default async function PoemPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const resolvedParams = await params;
   const poem = await fetchPoem(resolvedParams.slug);
-  return <PoemDetail poem={poem} language="hi" />;
+  const coverImages = await fetchCoverImages();
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const slugs = getSlugs(poem, resolvedParams.slug);
+  const coverImageUrl =
+    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+
+  const structuredData = generateStructuredData(poem, "hi", baseUrl, slugs, coverImageUrl);
+  const breadcrumbData = generateBreadcrumbData(poem, "hi", baseUrl, slugs);
+
+  return (
+    <>
+      {structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      )}
+      {breadcrumbData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        />
+      )}
+      <PoemDetail poem={poem} language="hi" />
+    </>
+  );
 }

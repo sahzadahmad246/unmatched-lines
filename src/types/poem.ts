@@ -13,4 +13,5 @@ export interface Poem {
   readListCount: number
   tags?: string[]
   categories?: string[]
+  coverImage?: string;
 }
