@@ -1,6 +1,6 @@
 // app/api/search/route.ts
-import type { NextRequest } from "next/server"; // Use NextRequest instead of NextApiRequest
-import { NextResponse } from "next/server"; // Use NextResponse instead of NextApiResponse
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import Poem from "@/models/Poem";
 import Author from "@/models/Author";
@@ -13,7 +13,12 @@ interface LeanPoem {
   slug: { en: string; hi: string; ur: string };
   category: string;
   coverImage: string;
-  content: { en: string[]; hi: string[]; ur: string[] };
+  content: {
+    en: { verse: string; meaning: string }[];
+    hi: { verse: string; meaning: string }[];
+    ur: { verse: string; meaning: string }[];
+  };
+  author: { _id: mongoose.Types.ObjectId; name: string; image: string };
 }
 
 interface LeanAuthor {
@@ -30,10 +35,16 @@ interface SearchResult {
   type: "poem" | "poet";
   title?: { en: string; hi: string; ur: string };
   name?: string;
-  slug?: string;
+  slug?: { en: string; hi: string; ur: string } | string;
   category?: string;
   image?: string;
   excerpt?: string;
+  content?: {
+    en?: { verse: string; meaning: string }[];
+    hi?: { verse: string; meaning: string }[];
+    ur?: { verse: string; meaning: string }[];
+  };
+  author?: { _id: string; name: string; image?: string };
 }
 
 // Named export for GET method
@@ -44,7 +55,10 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q");
 
   if (!q || q.trim().length < 2) {
-    return NextResponse.json({ message: "Query must be at least 2 characters" }, { status: 400 });
+    return NextResponse.json(
+      { message: "Query must be at least 2 characters" },
+      { status: 400 }
+    );
   }
 
   const searchQuery = q.trim();
@@ -56,15 +70,16 @@ export async function GET(req: NextRequest) {
         { "title.en": { $regex: searchQuery, $options: "i" } },
         { "title.hi": { $regex: searchQuery, $options: "i" } },
         { "title.ur": { $regex: searchQuery, $options: "i" } },
-        { "content.en": { $regex: searchQuery, $options: "i" } },
-        { "content.hi": { $regex: searchQuery, $options: "i" } },
-        { "content.ur": { $regex: searchQuery, $options: "i" } },
+        { "content.en.verse": { $regex: searchQuery, $options: "i" } },
+        { "content.hi.verse": { $regex: searchQuery, $options: "i" } },
+        { "content.ur.verse": { $regex: searchQuery, $options: "i" } },
         { tags: { $regex: searchQuery, $options: "i" } },
       ],
       status: "published",
     })
       .limit(10)
-      .select("title slug category coverImage content")
+      .select("title slug category coverImage content author")
+      .populate("author", "name image") // Include image in populate
       .lean()) as unknown as LeanPoem[];
 
     // Search Authors with explicit typing
@@ -83,10 +98,18 @@ export async function GET(req: NextRequest) {
       _id: poem._id.toString(),
       type: "poem" as const,
       title: poem.title,
-      slug: poem.slug.en, // Use English slug for frontend
+      slug: poem.slug, // Return full slug object for language support
       category: poem.category,
       image: poem.coverImage,
-      excerpt: poem.content.en[0]?.substring(0, 100), // First line as excerpt
+      excerpt: poem.content.en[0]?.verse.substring(0, 100), // First verse as excerpt
+      content: poem.content,
+      author: poem.author
+        ? {
+            _id: poem.author._id.toString(),
+            name: poem.author.name,
+            image: poem.author.image,
+          }
+        : undefined,
     }));
 
     const formattedAuthorResults = authorResults.map((author) => ({
@@ -99,13 +122,17 @@ export async function GET(req: NextRequest) {
     }));
 
     // Combine and sort results
-    const results: SearchResult[] = [...formattedPoemResults, ...formattedAuthorResults].sort((a, b) =>
-      a.type.localeCompare(b.type)
-    );
+    const results: SearchResult[] = [
+      ...formattedPoemResults,
+      ...formattedAuthorResults,
+    ].sort((a, b) => a.type.localeCompare(b.type));
 
     return NextResponse.json({ results }, { status: 200 });
   } catch (error) {
     console.error("Search API error:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

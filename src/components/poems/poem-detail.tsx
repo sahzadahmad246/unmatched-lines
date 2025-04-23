@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Heart,
   BookmarkCheck,
@@ -18,11 +18,11 @@ import {
   Eye,
   ChevronDown,
   Quote,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { motion } from "framer-motion"
-import { toast } from "sonner"
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,26 +33,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { VerseDownload } from "../home/verse-download"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
-import type { Poem } from "@/types/poem"
-import RelatedPoems from "./related-poems"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import Image from "next/image"
+} from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { VerseDownload } from "../home/verse-download";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import type { Poem } from "@/types/poem";
+import RelatedPoems from "./related-poems";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 
 interface CoverImage {
-  _id: string
-  url: string
-  uploadedBy: { name: string }
-  createdAt: string
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
 }
 
 interface PoemDetailProps {
-  poem: Poem | null
-  language: "en" | "hi" | "ur"
+  poem: Poem | null;
+  language: "en" | "hi" | "ur";
 }
 
 // Custom styles adapted from CategoryPoems
@@ -69,6 +69,15 @@ const customStyles = `
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  /* Apply consistent font styling */
+  .poem-text, .faq-text, .tag-text, .summary-text, .didyouknow-text {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .urdu-text.poem-text, .urdu-text.faq-text, .urdu-text.tag-text, .urdu-text.summary-text, .urdu-text.didyouknow-text {
+    font-family: 'Fajer Noori Nastalique', sans-serif;
   }
 
   @media (max-width: 640px) {
@@ -95,116 +104,120 @@ const customStyles = `
       justify-content: center;
     }
   }
-`
+`;
 
 export default function PoemDetail({ poem, language }: PoemDetailProps) {
-  const router = useRouter()
-  const [readList, setReadList] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [readListCount, setReadListCount] = useState(poem?.readListCount || 0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showShareDialog, setShowShareDialog] = useState(false)
-  const [authorData, setAuthorData] = useState<any>(null)
-  const [authorLoading, setAuthorLoading] = useState(false)
-  const [showAllTags, setShowAllTags] = useState(false)
-  const [selectedCoverImage, setSelectedCoverImage] = useState<string>("/placeholder.svg")
-  const [scrollProgress, setScrollProgress] = useState(0)
-  const [showMeaningDialog, setShowMeaningDialog] = useState(false)
+  const router = useRouter();
+  const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [readListCount, setReadListCount] = useState(poem?.readListCount || 0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [authorData, setAuthorData] = useState<any>(null);
+  const [authorLoading, setAuthorLoading] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
+  const [selectedCoverImage, setSelectedCoverImage] = useState<string>("/placeholder.svg");
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showMeaningDialog, setShowMeaningDialog] = useState(false);
   const [currentMeaning, setCurrentMeaning] = useState({
     verse: "",
     meaning: "",
-  })
+  });
+
+  // Add these state variables
+  const [showFullSummary, setShowFullSummary] = useState(false);
+  const [showFullDidYouKnow, setShowFullDidYouKnow] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
       try {
         const coverImagesRes = await fetch("/api/cover-images", {
           credentials: "include",
-        })
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
-        const coverImagesData = await coverImagesRes.json()
-        setCoverImages(coverImagesData.coverImages || [])
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
-        const userRes = await fetch("/api/user", { credentials: "include" })
+        const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
-          const userData = await userRes.json()
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+          const userData = await userRes.json();
+          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
         } else if (userRes.status === 401) {
-          setReadList([])
+          setReadList([]);
         } else {
-          throw new Error(`Failed to fetch user data: ${userRes.status}`)
+          throw new Error(`Failed to fetch user data: ${userRes.status}`);
         }
 
         if (poem) {
-          setReadListCount(poem.readListCount)
+          setReadListCount(poem.readListCount);
           if (poem.coverImage && poem.coverImage.trim() !== "") {
-            setSelectedCoverImage(poem.coverImage)
+            setSelectedCoverImage(poem.coverImage);
           } else if (coverImagesData.coverImages?.length > 0) {
-            const randomIndex = Math.floor(Math.random() * coverImagesData.coverImages.length)
-            setSelectedCoverImage(coverImagesData.coverImages[randomIndex]?.url || "/placeholder.svg")
+            const randomIndex = Math.floor(Math.random() * coverImagesData.coverImages.length);
+            setSelectedCoverImage(coverImagesData.coverImages[randomIndex]?.url || "/placeholder.svg");
           }
           toast.success("Poem unveiled", {
             description: "Immerse yourself in the verses",
             icon: <Feather className="h-4 w-4" />,
             position: "top-center",
             duration: 3000,
-          })
+          });
         }
       } catch (error) {
-        setError((error as Error).message || "Failed to load additional data")
+        setError((error as Error).message || "Failed to load additional data");
         toast.error("Error loading data", {
           description: "Some features may not work as expected",
           icon: <Feather className="h-4 w-4" />,
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchUserData()
-  }, [poem])
+    fetchUserData();
+  }, [poem]);
 
   useEffect(() => {
     const fetchAuthorData = async () => {
       if (poem?.author?._id) {
-        setAuthorLoading(true)
+        setAuthorLoading(true);
         try {
           const res = await fetch(`/api/authors/${poem.author._id}`, {
             credentials: "include",
-          })
-          if (!res.ok) throw new Error("Failed to fetch author")
-          const data = await res.json()
-          setAuthorData(data.author)
+          });
+          if (!res.ok) throw new Error("Failed to fetch author");
+          const data = await res.json();
+          setAuthorData(data.author);
         } catch (err) {
-          console.error("Error fetching author:", err)
+          console.error("Error fetching author:", err);
         } finally {
-          setAuthorLoading(false)
+          setAuthorLoading(false);
         }
       }
-    }
+    };
 
-    fetchAuthorData()
-  }, [poem])
+    fetchAuthorData();
+  }, [poem]);
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollTop = window.scrollY
-      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight
-      const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0
-      setScrollProgress(scrollPercent)
-    }
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      setScrollProgress(scrollPercent);
+    };
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleReadlistToggle = async (poemId: string) => {
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -212,23 +225,23 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
-        setReadListCount((prev) => (isInReadlist ? prev - 1 : prev + 1))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadListCount((prev) => (isInReadlist ? prev - 1 : prev + 1));
 
         if (isInReadlist) {
           toast.success("Removed from anthology", {
             description: "This poem has been removed from your collection",
             icon: <BookmarkCheck className="h-4 w-4" />,
             position: "bottom-right",
-          })
+          });
         } else {
           toast.success("Added to anthology", {
             description: "This poem now resides in your collection",
             icon: <BookHeart className="h-4 w-4" />,
             position: "bottom-right",
-          })
+          });
         }
       } else if (res.status === 401) {
         toast.error("Authentication required", {
@@ -237,16 +250,16 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
             label: "Sign In",
             onClick: () => router.push("/api/auth/signin"),
           },
-        })
+        });
       } else {
-        throw new Error("Failed to update readlist")
+        throw new Error("Failed to update readlist");
       }
     } catch (error) {
       toast.error("An error occurred", {
         description: "The poem could not be added to your collection",
-      })
+      });
     }
-  }
+  };
 
   const handleSharePoem = () => {
     if (navigator.share && poem) {
@@ -260,42 +273,52 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           toast.success("Shared successfully", {
             description: "You've shared this poem with others",
             icon: <Share2 className="h-4 w-4" />,
-          })
+          });
         })
         .catch(() => {
-          setShowShareDialog(true)
-        })
+          setShowShareDialog(true);
+        });
     } else {
-      setShowShareDialog(true)
+      setShowShareDialog(true);
     }
-  }
+  };
 
   const handleCopyAll = () => {
     if (poem?.content?.[language]) {
       const text = poem.content[language]
         .map((item) => `${item.verse}\n${item.meaning ? `Meaning: ${item.meaning}` : ""}`)
-        .join("\n\n")
-      navigator.clipboard.writeText(text)
+        .join("\n\n");
+      navigator.clipboard.writeText(text);
       toast.success("Poem copied", {
         description: "The entire poem and meanings have been copied to your clipboard",
         icon: <Copy className="h-4 w-4" />,
-      })
+      });
     }
-  }
+  };
 
   const handleCopyVerse = (verse: string, meaning: string) => {
-    const text = meaning ? `${verse}\nMeaning: ${meaning}` : verse
-    navigator.clipboard.writeText(text)
+    const text = meaning ? `${verse}\nMeaning: ${meaning}` : verse;
+    navigator.clipboard.writeText(text);
     toast.success("Verse copied", {
       description: "The verse and meaning have been copied to your clipboard",
       icon: <Copy className="h-4 w-4" />,
-    })
-  }
+    });
+  };
 
   const handleShowMeaning = (verse: string, meaning: string) => {
-    setCurrentMeaning({ verse, meaning })
-    setShowMeaningDialog(true)
-  }
+    setCurrentMeaning({ verse, meaning });
+    setShowMeaningDialog(true);
+  };
+
+  // Add these helper functions
+  const truncateText = (text: string, maxLength: number) => {
+    if (!text || text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const summaryMaxLength = isMobile ? 150 : 300;
+  const didYouKnowMaxLength = isMobile ? 150 : 300;
 
   if (loading) {
     return (
@@ -332,7 +355,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           className="h-0.5 bg-gradient-to-r from-transparent via-black to-transparent"
         />
       </div>
-    )
+    );
   }
 
   if (error || !poem) {
@@ -360,8 +383,8 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           {language === "en"
             ? "Like a whisper lost in the wind, we cannot find the verses you seek"
             : language === "hi"
-              ? "हवा में खोई फुसफुसाहट की तरह, हमें आपके द्वारा खोजी गई छंद नहीं मिल रही हैं"
-              : "ہوا میں کھوئی ہوئی سرگوشی کی طرح، ہمیں آپ کی تلاش کردہ آیات نہیں مل رہی ہیں"}
+            ? "हवा में खोई फुसफुसाहट की तरह, हमें आपके द्वारा खोजी गई छंद नहीं मिल रही हैं"
+            : "ہوا میں کھوئی ہوئی سرگوشی کی طرح، ہمیں آپ کی تلاش کردہ آیات نہیں مل رہی ہیں"}
         </motion.p>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
           <Button variant="outline" onClick={() => router.back()} className="gap-1.5 text-xs sm:text-sm h-8 sm:h-9">
@@ -370,15 +393,15 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           </Button>
         </motion.div>
       </div>
-    )
+    );
   }
 
-  const isInReadlist = poem._id && readList.includes(poem._id)
-  const isSherCategory = poem.category?.toLowerCase() === "sher"
+  const isInReadlist = poem._id && readList.includes(poem._id);
+  const isSherCategory = poem.category?.toLowerCase() === "sher";
 
   const formatPoetryContent = (
     content: { verse: string; meaning: string; _id?: string }[] | undefined,
-    language: "en" | "hi" | "ur",
+    language: "en" | "hi" | "ur"
   ) => {
     if (!content || !Array.isArray(content) || content.length === 0) {
       return (
@@ -386,17 +409,17 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           {language === "en"
             ? "Content not available in English"
             : language === "hi"
-              ? "हिंदी में सामग्री उपलब्ध नहीं है"
-              : "مواد اردو میں دستیاب نہیں ہے"}
+            ? "हिंदी में सामग्री उपलब्ध नहीं है"
+            : "مواد اردو میں دستیاب نہیں ہے"}
         </div>
-      )
+      );
     }
 
     return (
       <div className="poem-content">
         {content.map((item, index) => {
-          const verse = item.verse?.trim() || ""
-          const meaning = item.meaning?.trim() || ""
+          const verse = item.verse?.trim() || "";
+          const meaning = item.meaning?.trim() || "";
           if (!verse) {
             return (
               <motion.div
@@ -408,15 +431,19 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
               >
                 Verse not available
               </motion.div>
-            )
+            );
           }
 
-          const lines = verse.split("\n").filter((line) => line.trim() !== "")
+          // Fix the extra empty space issue by properly handling newlines
+          const lines = verse
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line !== "");
 
           return (
             <motion.div
               key={index}
-              className={`space-y-1 ${language === "ur" ? "urdu-text" : ""}`}
+              className={`space-y-1 ${language === "ur" ? "urdu-text poem-text" : "poem-text"}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -458,11 +485,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 </Button>
               </div>
             </motion.div>
-          )
+          );
         })}
       </div>
-    )
-  }
+    );
+  };
 
   const slugs = poem
     ? {
@@ -470,7 +497,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         hi: poem.slug.hi || "",
         ur: poem.slug.ur || "",
       }
-    : { en: "", hi: "", ur: "" }
+    : { en: "", hi: "", ur: "" };
 
   return (
     <>
@@ -618,7 +645,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 {poem.summary?.[language] && (
                   <motion.div
                     className={`text-sm sm:text-base ${
-                      language === "ur" ? "urdu-text" : "font-serif"
+                      language === "ur" ? "urdu-text summary-text" : "summary-text"
                     } bg-gray-50 p-4 rounded-lg border border-gray-200`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -630,10 +657,24 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="h-4 w-4 text-primary/70" />
                       <h3 className="font-semibold">
-                        {language === "en" ? "About" : language === "hi" ? "परिचय" : "تعارف"}
+                        {language === "en" ? "About" : language == "hi" ? "परिचय" : "تعارف"}
                       </h3>
                     </div>
-                    <p>{poem.summary[language]}</p>
+                    <p>
+                      {showFullSummary || poem.summary[language].length <= summaryMaxLength
+                        ? poem.summary[language]
+                        : truncateText(poem.summary[language], summaryMaxLength)}
+                    </p>
+                    {poem.summary[language].length > summaryMaxLength && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowFullSummary(!showFullSummary)}
+                        className="mt-2 h-7 px-2 text-xs hover:bg-gray-100"
+                      >
+                        {showFullSummary ? "Show Less" : "See More"}
+                      </Button>
+                    )}
                   </motion.div>
                 )}
 
@@ -689,7 +730,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                       variant="outline"
                       size="sm"
                       onClick={handleSharePoem}
-                      className="gap-1.5 text-xs h-8"
+                      className="gap-1.5 text-xs h-8 bg-white shadow-sm"
                       aria-label="Share poem"
                     >
                       <Share2 className="h-3.5 w-3.5" />
@@ -697,18 +738,19 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </Button>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.2 }}>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="p-1 h-8"
+                          className="gap-1.5 text-xs h-8 bg-white shadow-sm"
                           aria-label={isInReadlist ? "Remove from anthology" : "Add to anthology"}
                         >
                           <Heart
-                            className={`h-5 w-5 ${isInReadlist ? "fill-red-500 text-red-500" : "text-gray-500"}`}
+                            className={`h-3.5 w-3.5 ${isInReadlist ? "fill-red-500 text-red-500" : "text-gray-500"}`}
                           />
+                          <span>{readListCount}</span>
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent className="border border-gray-200 p-4 sm:p-6">
@@ -739,14 +781,17 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </AlertDialog>
                   </motion.div>
 
-                  <Badge variant="outline" className="gap-1 text-xs h-6 bg-white shadow-sm">
-                    <Eye className="h-3 w-3" />
-                    <span>{poem.viewsCount || 0}</span>
-                  </Badge>
-                  <Badge variant="outline" className="gap-1 text-xs h-6 bg-white shadow-sm">
-                    <Heart className="h-3 w-3" />
-                    <span>{readListCount}</span>
-                  </Badge>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs h-8 bg-white shadow-sm"
+                      aria-label="View count"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>{poem.viewsCount || 0}</span>
+                    </Button>
+                  </motion.div>
                 </div>
 
                 <Separator className="my-2" />
@@ -775,14 +820,17 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.1 * index }}
                           >
-                            <Badge
+                            <Button
                               variant="outline"
                               className={`text-[10px] sm:text-xs h-6 sm:h-7 px-2.5 py-1 bg-gray-50 border-gray-200 hover:bg-gray-100 transition-colors ${
-                                language === "ur" ? "urdu-text" : ""
+                                language === "ur" ? "urdu-text tag-text" : "tag-text"
                               }`}
+                              onClick={() => {
+                                router.push(`/search?q=${encodeURIComponent(tag)}&type=poems`);
+                              }}
                             >
                               {tag}
-                            </Badge>
+                            </Button>
                           </motion.div>
                         ))}
                         {poem.tags.length > 6 && (
@@ -813,18 +861,30 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                           {language === "en"
                             ? "Did You Know?"
                             : language === "hi"
-                              ? "क्या आप जानते हैं?"
-                              : "کیا آپ جانتے ہیں؟"}
+                            ? "क्या आप जानते हैं?"
+                            : "کیا آپ جانتے ہیں؟"}
                         </h3>
                       </div>
                       <p
-                        className={`${language === "ur" ? "urdu-text" : "font-serif"}`}
+                        className={`${language === "ur" ? "urdu-text didyouknow-text" : "didyouknow-text"}`}
                         style={{
                           direction: language === "ur" ? "rtl" : "ltr",
                         }}
                       >
-                        {poem.didYouKnow[language]}
+                        {showFullDidYouKnow || poem.didYouKnow[language].length <= didYouKnowMaxLength
+                          ? poem.didYouKnow[language]
+                          : truncateText(poem.didYouKnow[language], didYouKnowMaxLength)}
                       </p>
+                      {poem.didYouKnow[language].length > didYouKnowMaxLength && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowFullDidYouKnow(!showFullDidYouKnow)}
+                          className="mt-2 h-7 px-2 text-xs hover:bg-gray-100"
+                        >
+                          {showFullDidYouKnow ? "Show Less" : "See More"}
+                        </Button>
+                      )}
                     </motion.div>
                   )}
 
@@ -846,7 +906,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                         {poem.faqs.map((faq, index) => (
                           <AccordionItem key={index} value={`faq-${index}`} className="border-b border-gray-200">
                             <AccordionTrigger
-                              className={`text-sm ${language === "ur" ? "urdu-text text-right" : ""}`}
+                              className={`text-sm ${language === "ur" ? "urdu-text faq-text text-right" : "faq-text"}`}
                               style={{
                                 direction: language === "ur" ? "rtl" : "ltr",
                               }}
@@ -854,7 +914,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                               {faq.question[language] || faq.question.en}
                             </AccordionTrigger>
                             <AccordionContent
-                              className={`text-sm ${language === "ur" ? "urdu-text" : ""}`}
+                              className={`text-sm ${language === "ur" ? "urdu-text faq-text" : "faq-text"}`}
                               style={{
                                 direction: language === "ur" ? "rtl" : "ltr",
                               }}
@@ -916,12 +976,12 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href)
+                  navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
                     description: "The poem's link has been copied to your clipboard",
                     icon: <Copy className="h-3.5 w-3.5" />,
-                  })
-                  setShowShareDialog(false)
+                  });
+                  setShowShareDialog(false);
                 }}
                 className="shrink-0 text-xs sm:text-sm h-8 sm:h-9"
               >
@@ -969,7 +1029,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                       {language === "en" ? "Meaning" : language === "hi" ? "अर्थ" : "معنی"}:
                     </h4>
                     <p
-                      className={`text-sm ${language === "ur" ? "urdu-text" : "font-serif"} bg-gray-50/70 p-3 rounded-md`}
+                      className={`text-sm ${
+                        language === "ur" ? "urdu-text" : "font-serif"
+                      } bg-gray-50/70 p-3 rounded-md`}
                       style={{
                         direction: language === "ur" ? "rtl" : "ltr",
                         textAlign: language === "ur" ? "right" : "left",
@@ -988,5 +1050,5 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }
