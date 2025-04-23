@@ -5,9 +5,12 @@ import { getSlugs } from "@/utils/helpers";
 
 async function fetchPoem(slug: string): Promise<Poem | null> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/poem?slug=${slug}`, {
-      cache: "force-cache",
-    });
+    const res = await fetch(
+      `${process.env.NEXTAUTH_URL}/api/poem?slug=${slug}`,
+      {
+        cache: "force-cache",
+      }
+    );
     if (!res.ok) throw new Error(`Failed to fetch poem: ${res.status}`);
     const data = await res.json();
     return data.poem || null;
@@ -43,12 +46,14 @@ export async function generateMetadata({
 
   const title = poem?.title?.hi || "कविता नहीं मिली";
   const author = poem?.author?.name || "अज्ञात लेखक";
-  const description = poem?.content?.hi
-    ? `${poem.content.hi[0]?.slice(0, 150)}... - ${author} की कविता`
+  const description = poem?.summary?.hi
+    ? poem.summary.hi.slice(0, 150)
+    : poem?.content?.hi?.[0]?.verse
+    ? `${poem.content.hi[0].verse.slice(0, 150)}... - ${author} की कविता`
     : `${author} की यह कविता हिंदी में पढ़ें।`;
-  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
   const coverImageUrl =
-    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+    poem?.coverImage ||
+    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
   const slugs = getSlugs(poem, resolvedParams.slug);
 
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
@@ -94,7 +99,6 @@ export async function generateMetadata({
   };
 }
 
-// Generate structured data for SEO
 function generateStructuredData(
   poem: Poem | null,
   language: string,
@@ -115,7 +119,9 @@ function generateStructuredData(
       name: poem.author?.name || "अज्ञात लेखक",
     },
     description:
-      poem.content?.hi?.[0]?.slice(0, 150) || ` ${poem.author?.name || "अज्ञात लेखक"} की कविता`,
+      poem.summary?.hi ||
+      poem.content?.hi?.[0]?.verse ||
+      `${poem.author?.name || "अज्ञात लेखक"} की कविता`,
     inLanguage: "hi",
     url: `${baseUrl}/poems/hi/${slugs.hi}`,
     image: coverImageUrl,
@@ -125,7 +131,6 @@ function generateStructuredData(
   };
 }
 
-// Generate breadcrumb structured data
 function generateBreadcrumbData(
   poem: Poem | null,
   language: string,
@@ -137,8 +142,18 @@ function generateBreadcrumbData(
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "होम", item: baseUrl },
-      { "@type": "ListItem", position: 2, name: "कविताएँ", item: `${baseUrl}/poems` },
-      { "@type": "ListItem", position: 3, name: "हिंदी", item: `${baseUrl}/poems/hi` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "कविताएँ",
+        item: `${baseUrl}/poems`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: "हिंदी",
+        item: `${baseUrl}/poems/hi`,
+      },
       {
         "@type": "ListItem",
         position: 4,
@@ -160,11 +175,18 @@ export default async function PoemPage({
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
   const slugs = getSlugs(poem, resolvedParams.slug);
   const coverImageUrl =
-    poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+    poem?.coverImage ||
+    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
 
-  const structuredData = generateStructuredData(poem, "hi", baseUrl, slugs, coverImageUrl);
+  const structuredData = generateStructuredData(
+    poem,
+    "hi",
+    baseUrl,
+    slugs,
+    coverImageUrl
+  );
   const breadcrumbData = generateBreadcrumbData(poem, "hi", baseUrl, slugs);
-
+  console.log(poem);
   return (
     <>
       {structuredData && (

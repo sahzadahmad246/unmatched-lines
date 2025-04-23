@@ -82,8 +82,6 @@ export async function GET(request: NextRequest) {
     // Fetch poets directly from the database instead of using API
     let poetEntries: SitemapEntry[] = [];
     try {
-      // Assuming you have an Author model or can create one
-      // If you don't have this model defined, you'll need to define it or import it
       const Author = mongoose.models.Author || 
         mongoose.model('Author', new mongoose.Schema({
           name: String,
@@ -115,7 +113,7 @@ export async function GET(request: NextRequest) {
       
       categoryEntries = categories
         .map((category: string) => ({
-          url: category ? `${baseUrl}/category/${category}` : "",
+          url: category ? `${baseUrl}/${category}` : "", // Fixed: Removed /category/
           lastModified: new Date().toISOString(),
           changeFreq: "daily",
           priority: 0.6,

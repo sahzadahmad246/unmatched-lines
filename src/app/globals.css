@@ -214,16 +214,18 @@
   direction: rtl;
   text-align: center;
   line-height: 1.8; /* Improves readability for Nastaliq */
-  font-size: 0.95rem; /* Slightly smaller for dense glyphs */
+  font-size: 2.1rem; /* Slightly smaller for dense glyphs */
 }
 
 /* Override prose for Urdu */
 .prose.urdu-text {
   font-family: 'Fajer Noori Nastalique', sans-serif;
+  font-size: 1.1rem;
 }
 
 /* Poem lines */
 .poem-line.urdu-text {
   font-family: 'Fajer Noori Nastalique', sans-serif;
-  white-space: pre; /* Preserves spaces for alignment */
+  white-space: pre; 
+  font-size: 1.1rem;
 }

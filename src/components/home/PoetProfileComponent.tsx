@@ -28,27 +28,7 @@ import { PoemListItem } from "@/components/poems/poem-list-item"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
-interface Poem {
-  _id: string
-  title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
-  category: string
-  excerpt?: string
-  slug?: { en: string }
-  content?: {
-    en?: string[] | string
-    hi?: string[] | string
-    ur?: string[] | string
-  }
-  readListCount?: number
-  tags?: string[]
-}
-
-interface CoverImage {
-  _id: string
-  url: string
-}
+import type { Poem, CoverImage } from "@/types/poem"
 
 interface Poet {
   _id: string
@@ -179,15 +159,27 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
         if (!poemRes.ok) throw new Error(`Failed to fetch poems`)
         const poemData = await poemRes.json()
-        const poetPoems = poemData.poems.filter(
-          (poem: Poem) => poem.author?._id.toString() === poet._id.toString(),
-        )
+        const poetPoems = poemData.poems
+          .filter((poem: Poem) => poem.author?._id.toString() === poet._id.toString())
+          .map((poem: Poem) => ({
+            ...poem,
+            viewsCount: poem.viewsCount ?? 0, // Default for required field
+            readListCount: poem.readListCount ?? 0, // Default for required field
+            category: poem.category ?? "Uncategorized", // Ensure required field
+            summary: poem.summary ?? { en: "" }, // Default for optional field
+            didYouKnow: poem.didYouKnow ?? { en: "" }, // Default for optional field
+            faqs: poem.faqs ?? [], // Default for optional field
+            createdAt: poem.createdAt ?? new Date().toISOString(), // Default for optional field
+            tags: poem.tags ?? [], // Default for optional field
+            categories: poem.categories ?? [], // Default for optional field
+            coverImage: poem.coverImage ?? "/placeholder.svg", // Default for optional field
+          }))
         setPoems(poetPoems)
         setFilteredPoems(poetPoems)
 
-        const uniqueCategories = Array.from(
-          new Set(poetPoems.map((poem: Poem) => poem.category?.toLowerCase())),
-        ).filter((cat): cat is string => !!cat)
+        const uniqueCategories = Array.from(new Set(poetPoems.map((poem: Poem) => poem.category.toLowerCase()))).filter(
+          (cat): cat is string => !!cat,
+        )
         setCategories(uniqueCategories)
 
         if (userRes.ok) {
@@ -211,16 +203,16 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category?.toLowerCase() === activeTab))
+      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category.toLowerCase() === activeTab))
     } else {
       const query = searchQuery.toLowerCase()
       const results = poems
-        .filter((poem) => (activeTab === "all" ? true : poem.category?.toLowerCase() === activeTab))
+        .filter((poem) => (activeTab === "all" ? true : poem.category.toLowerCase() === activeTab))
         .filter(
           (poem) =>
             poem.title.en.toLowerCase().includes(query) ||
-            poem.excerpt?.toLowerCase().includes(query) ||
-            poem.category?.toLowerCase().includes(query),
+            poem.summary?.en.toLowerCase().includes(query) || // Use summary instead of excerpt
+            poem.category.toLowerCase().includes(query),
         )
       setFilteredPoems(results)
     }
@@ -246,7 +238,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
             poem._id === poemId
               ? {
                   ...poem,
-                  readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1,
+                  readListCount: isInReadlist ? poem.readListCount - 1 : poem.readListCount + 1,
                 }
               : poem,
           ),
@@ -266,8 +258,13 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
     }
   }
 
-  const getCoverImage = () => {
+  const getCoverImage = (index?: number) => {
     if (coverImages.length === 0) return "/placeholder.svg"
+    if (index !== undefined && coverImages.length > 1) {
+      // Use the index to get a different image for each card
+      const safeIndex = index % coverImages.length
+      return coverImages[safeIndex]?.url || "/placeholder.svg"
+    }
     const randomIndex = Math.floor(Math.random() * coverImages.length)
     return coverImages[randomIndex]?.url || "/placeholder.svg"
   }
@@ -391,7 +388,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                         onClick={() => router.push(`/poets/${slug}/${category}`)}
                       >
                         <p className="text-xl font-bold text-primary">
-                          {poems.filter((p) => p.category?.toLowerCase() === category).length}
+                          {poems.filter((p) => p.category.toLowerCase() === category).length}
                         </p>
                         <p className="text-xs text-muted-foreground capitalize">{category}</p>
                       </Button>
@@ -421,7 +418,8 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
               </CardContent>
             </Card>
             <div className="mt-4 p-4 text-center text-muted-foreground italic text-sm bg-muted/30 rounded-lg border border-primary/5">
-              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in tranquility."
+              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in
+              tranquility."
               <div className="mt-1 font-medium text-xs">— William Wordsworth</div>
             </div>
           </motion.div>
@@ -468,7 +466,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                   <TabsContent value="all">
                     {filteredPoems.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredPoems.map((poem, index) => {
                           const poemTitle = poem.title?.en || "Untitled"
                           const englishSlug = poem.slug?.en || poem._id
@@ -482,7 +480,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                             >
                               <PoemListItem
                                 poem={poem}
-                                coverImage={getCoverImage()}
+                                coverImage={getCoverImage(index)}
                                 englishSlug={englishSlug}
                                 isInReadlist={isInReadlist}
                                 poemTitle={poemTitle}
@@ -499,37 +497,39 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                   {categories.map((category) => (
                     <TabsContent key={category} value={category}>
-                      {filteredPoems.filter((p) => p.category?.toLowerCase() === category).length > 0 ? (
-                        <div className="space-y-4">
-                          {filteredPoems
-                            .filter((p) => p.category?.toLowerCase() === category)
-                            .slice(0, PREVIEW_LIMIT)
-                            .map((poem, index) => {
-                              const poemTitle = poem.title?.en || "Untitled"
-                              const englishSlug = poem.slug?.en || poem._id
-                              const isInReadlist = readList.includes(poem._id)
-                              return (
-                                <motion.div
-                                  key={poem._id}
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{
-                                    delay: 0.05 * index,
-                                    duration: 0.3,
-                                  }}
-                                >
-                                  <PoemListItem
-                                    poem={poem}
-                                    coverImage={getCoverImage()}
-                                    englishSlug={englishSlug}
-                                    isInReadlist={isInReadlist}
-                                    poemTitle={poemTitle}
-                                    handleReadlistToggle={handleReadlistToggle}
-                                  />
-                                </motion.div>
-                              )
-                            })}
-                          <div className="mt-4 text-center">
+                      {filteredPoems.filter((p) => p.category.toLowerCase() === category).length > 0 ? (
+                        <div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredPoems
+                              .filter((p) => p.category.toLowerCase() === category)
+                              .slice(0, PREVIEW_LIMIT)
+                              .map((poem, index) => {
+                                const poemTitle = poem.title?.en || "Untitled"
+                                const englishSlug = poem.slug?.en || poem._id
+                                const isInReadlist = readList.includes(poem._id)
+                                return (
+                                  <motion.div
+                                    key={poem._id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{
+                                      delay: 0.05 * index,
+                                      duration: 0.3,
+                                    }}
+                                  >
+                                    <PoemListItem
+                                      poem={poem}
+                                      coverImage={getCoverImage(index)}
+                                      englishSlug={englishSlug}
+                                      isInReadlist={isInReadlist}
+                                      poemTitle={poemTitle}
+                                      handleReadlistToggle={handleReadlistToggle}
+                                    />
+                                  </motion.div>
+                                )
+                              })}
+                          </div>
+                          <div className="mt-6 text-center">
                             <Button variant="outline" onClick={() => router.push(`/poets/${slug}/${category}`)}>
                               See All {category.charAt(0).toUpperCase() + category.slice(1)}
                             </Button>

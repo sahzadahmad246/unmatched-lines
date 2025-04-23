@@ -1,100 +1,79 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ChevronLeft, ChevronRight, Sparkles, Quote } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { VerseDownload } from "./verse-download"
-
-interface Poem {
-  _id: string
-  title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
-  content?: {
-    en?: string[] | string
-    hi?: string[] | string
-    ur?: string[] | string
-  }
-}
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight, Sparkles, Quote } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { VerseDownload } from "./verse-download";
+import { Poem } from "@/types/poem";
 
 interface CoverImage {
-  _id: string
-  url: string
+  _id: string;
+  url: string;
 }
 
 interface TopFivePicksProps {
-  poems: Poem[]
-  coverImages: CoverImage[]
+  poems: Poem[];
+  coverImages: CoverImage[];
 }
 
 export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [randomVerses, setRandomVerses] = useState<{ verse: string[]; poem: Poem }[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [randomVerses, setRandomVerses] = useState<{ verse: string[]; poem: Poem }[]>([]);
 
   useEffect(() => {
-    // Generate 5 random verses when component mounts or poems change
     const getRandomVerses = () => {
       const englishPoems = poems.filter(
-        (poem) =>
-          poem.content?.en &&
-          (Array.isArray(poem.content.en)
-            ? poem.content.en.length > 0
-            : typeof poem.content.en === "string" && poem.content.en.trim() !== ""),
-      )
-
-      const shuffledPoems = [...englishPoems].sort(() => Math.random() - 0.5)
-      const verses: { verse: string[]; poem: Poem }[] = []
-
+        (poem) => poem.content?.en && poem.content.en.length > 0
+      );
+  
+      const shuffledPoems = [...englishPoems].sort(() => Math.random() - 0.5);
+      const verses: { verse: string[]; poem: Poem }[] = [];
+  
       for (let i = 0; i < 5 && i < shuffledPoems.length; i++) {
-        const poem = shuffledPoems[i]
-        const content = poem.content?.en
-
-        let lines: string[] = []
-        if (typeof content === "string") {
-          lines = content.split("\n").filter(Boolean)
-        } else if (Array.isArray(content)) {
-          lines = content.flatMap((stanza) => stanza.split("\n")).filter(Boolean)
-        }
-
+        const poem = shuffledPoems[i];
+        const lines = poem.content?.en
+          ?.map((item) => item.verse)
+          .filter((verse): verse is string => typeof verse === "string")
+          .flatMap((verse) => verse.split("\n"))
+          .filter(Boolean) || [];
+  
         if (lines.length > 0) {
-          // Get a random starting line, preferably even-indexed to get pairs
-          const startIndex = Math.floor(Math.random() * (lines.length - 1))
-          // Get two consecutive lines if possible
-          const versePair = lines.slice(startIndex, startIndex + 2)
+          const startIndex = Math.floor(Math.random() * (lines.length - 1));
+          const versePair = lines.slice(startIndex, startIndex + 2);
           if (versePair.length > 0) {
-            verses.push({ verse: versePair, poem })
+            verses.push({ verse: versePair, poem });
           }
         }
       }
-
-      setRandomVerses(verses)
-    }
-
-    getRandomVerses()
-  }, [poems])
+  
+      setRandomVerses(verses);
+    };
+  
+    getRandomVerses();
+  }, [poems]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=400&width=600"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0) return "/placeholder.svg?height=400&width=600";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % randomVerses.length)
-  }
+    setCurrentIndex((prev) => (prev + 1) % randomVerses.length);
+  };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + randomVerses.length) % randomVerses.length)
-  }
+    setCurrentIndex((prev) => (prev - 1 + randomVerses.length) % randomVerses.length);
+  };
 
-  if (randomVerses.length === 0) return null
+  if (randomVerses.length === 0) return null;
 
-  const currentVerse = randomVerses[currentIndex]
+  const currentVerse = randomVerses[currentIndex];
 
   return (
     <section className="py-12 sm:py-20 relative overflow-hidden">
-      {/* Background decoration */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background pointer-events-none" />
       <div className="absolute -left-20 top-20 w-40 h-40 rounded-full bg-primary/5 blur-3xl" />
       <div className="absolute -right-20 bottom-20 w-40 h-40 rounded-full bg-primary/5 blur-3xl" />
@@ -184,7 +163,9 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
                         title={currentVerse.poem.title.en}
                         imageUrl={getRandomCoverImage()}
                         languages={{
-                          en: currentVerse.verse,
+                          en: currentVerse.poem.content?.en?.map((item) => item.verse) || [],
+                          hi: currentVerse.poem.content?.hi?.map((item) => item.verse) || [],
+                          ur: currentVerse.poem.content?.ur?.map((item) => item.verse) || [],
                         }}
                       />
                     </motion.div>
@@ -198,7 +179,6 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
             </motion.div>
           </AnimatePresence>
 
-          {/* Desktop navigation buttons */}
           <Button
             variant="ghost"
             size="icon"
@@ -217,7 +197,6 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
           </Button>
         </div>
 
-        {/* Mobile navigation and indicators */}
         <div className="flex flex-col items-center mt-8 gap-4">
           <div className="flex items-center gap-3 sm:hidden">
             <Button
@@ -253,7 +232,6 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
             </Button>
           </div>
 
-          {/* Desktop indicators */}
           <div className="hidden sm:flex items-center gap-3">
             {randomVerses.map((_, index) => (
               <button key={index} onClick={() => setCurrentIndex(index)} className="group focus:outline-none">
@@ -270,6 +248,5 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
         </div>
       </div>
     </section>
-  )
+  );
 }
-

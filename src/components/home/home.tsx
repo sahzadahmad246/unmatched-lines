@@ -1,126 +1,115 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useSession } from "next-auth/react"
-import Link from "next/link"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { toast } from "sonner"
-import { Footer } from "@/components/home/footer"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { LoadingComponent } from "@/components/utils/LoadingComponent"
-import { BookHeart, Feather, Quote, Sparkles } from "lucide-react"
-import { SearchBar } from "@/components/home/search-bar"
-import { FeaturedCollection } from "@/components/home/featured-collection"
-import { LineOfTheDay } from "@/components/poems/line-of-the-day"
-import { TopFivePicks } from "@/components/home/TopFivePicks"
-import { PoetList } from "../poets/PoetList"
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Footer } from "@/components/home/footer";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { LoadingComponent } from "@/components/utils/LoadingComponent";
+import { BookHeart, Feather, Quote, Sparkles } from "lucide-react";
+import { SearchBar } from "@/components/home/search-bar";
+import { FeaturedCollection } from "@/components/home/featured-collection";
+import { LineOfTheDay } from "@/components/poems/line-of-the-day";
+import { TopFivePicks } from "@/components/home/TopFivePicks";
+import { PoetList } from "../poets/PoetList";
+import { Poem } from "@/types/poem";
 
-// Interfaces
 interface Poet {
-  _id: string
-  name: string
-  slug: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount: number
-  sherCount: number
-}
-
-interface Poem {
-  _id: string
-  title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
-  category: "ghazal" | "sher"
-  excerpt?: string
-  slug?: { en: string }
-  content?: {
-    en?: string[] | string
-    hi?: string[] | string
-    ur?: string[] | string
-  }
-  readListCount?: number
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  dob?: string;
+  city?: string;
+  ghazalCount: number;
+  sherCount: number;
 }
 
 interface CoverImage {
-  _id: string
-  url: string
-  uploadedBy: { name: string }
-  createdAt: string
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
 }
 
 export default function Home() {
-  const { data: session } = useSession()
-  const [poets, setPoets] = useState<Poet[]>([])
-  const [ghazals, setGhazals] = useState<Poem[]>([])
-  const [shers, setShers] = useState<Poem[]>([])
-  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null)
-  const [readList, setReadList] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: session } = useSession();
+  const [poets, setPoets] = useState<Poet[]>([]);
+  const [ghazals, setGhazals] = useState<Poem[]>([]);
+  const [shers, setShers] = useState<Poem[]>([]);
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
+  const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const heroRef = useRef<HTMLDivElement>(null)
-  const hasInitializedRef = useRef(false)
+  const heroRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return
-    hasInitializedRef.current = true
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
     const fetchData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
-        const poetsRes = await fetch("/api/authors", { credentials: "include" })
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
-        const poetsData = await poetsRes.json()
-        setPoets(poetsData.authors || [])
+        // Fetch poets
+        const poetsRes = await fetch("/api/authors", { credentials: "include" });
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
+        const poetsData = await poetsRes.json();
+        setPoets(poetsData.authors || []);
 
-        const poemsRes = await fetch("/api/poem", { credentials: "include" })
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems")
-        const poemsData = await poemsRes.json()
-        const poems = poemsData.poems || []
+        // Fetch poems with new schema
+        const poemsRes = await fetch("/api/poem?limit=12", { credentials: "include" });
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
+        const poemsData = await poemsRes.json();
+        const poems = poemsData.poems || [];
 
-        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
-        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
+        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6));
+        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6));
 
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length)
-          setFeaturedPoem(poems[randomIndex])
+          const randomIndex = Math.floor(Math.random() * poems.length);
+          setFeaturedPoem(poems[randomIndex]);
         }
 
-        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" })
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
-        const coverImagesData = await coverImagesRes.json()
-        setCoverImages(coverImagesData.coverImages || [])
+        // Fetch cover images
+        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
+        // Fetch user's readlist
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" })
+          const userRes = await fetch("/api/user", { credentials: "include" });
           if (userRes.ok) {
-            const userData = await userRes.json()
-            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+            const userData = await userRes.json();
+            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
           }
         }
       } catch (err) {
-        setError("Failed to load data")
+        setError("Failed to load data");
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [session])
+    fetchData();
+  }, [session]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     if (!session) {
@@ -130,13 +119,13 @@ export default function Home() {
           label: "Sign In",
           onClick: () => (window.location.href = "/api/auth/signin"),
         },
-      })
-      return
+      });
+      return;
     }
 
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -144,15 +133,29 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setGhazals((prev) =>
+          prev.map((poem) =>
+            poem._id === poemId
+              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
+              : poem
+          )
+        );
+        setShers((prev) =>
+          prev.map((poem) =>
+            poem._id === poemId
+              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
+              : poem
+          )
+        );
 
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
-          })
+          });
         } else {
           toast.custom(
             (t) => (
@@ -169,19 +172,19 @@ export default function Home() {
                 </div>
               </motion.div>
             ),
-            { duration: 3000 },
-          )
+            { duration: 3000 }
+          );
         }
       }
     } catch (error) {
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
-      })
+      });
     }
-  }
+  };
 
   if (loading) {
-    return <LoadingComponent />
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -198,7 +201,7 @@ export default function Home() {
           </Button>
         </motion.div>
       </div>
-    )
+    );
   }
 
   return (
@@ -281,7 +284,7 @@ export default function Home() {
       {/* Top Five Picks Section */}
       <TopFivePicks poems={[...ghazals, ...shers]} coverImages={coverImages} />
 
-      {/* Featured Poets Section - Using the new PoetList component */}
+      {/* Featured Poets Section */}
       <section className="py-10 sm:py-16 bg-muted/30">
         <div className="container mx-auto px-4">
           <PoetList
@@ -362,5 +365,5 @@ export default function Home() {
 
       <Footer />
     </div>
-  )
+  );
 }

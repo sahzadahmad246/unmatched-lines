@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Link from "next/link";
@@ -45,22 +45,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LoadingComponent } from "@/components/utils/LoadingComponent";
 import { PoemCard } from "./poem-card";
 import { PoemListItem } from "./poem-list-item";
-
-interface Poem {
-  _id: string;
-  title: { en: string; hi?: string; ur?: string };
-  author: { name: string; _id: string };
-  category: string;
-  excerpt?: string;
-  slug?: { en: string };
-  content?: {
-    en?: string[] | string;
-    hi?: string[] | string;
-    ur?: string[] | string;
-  };
-  readListCount?: number;
-  tags?: string[];
-}
+import { Poem } from "@/types/poem";
 
 interface CoverImage {
   _id: string;
@@ -86,7 +71,7 @@ export default function Library() {
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [featuredPoem, setFeaturedPoem] = useState<any>(null);
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
   const [activeLang, setActiveLang] = useState<"en" | "hi" | "ur">("en");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [allPoems, setAllPoems] = useState<Poem[]>([]);
@@ -98,6 +83,9 @@ export default function Library() {
   const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState<"poems" | "poets">("poems");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -117,51 +105,47 @@ export default function Library() {
       setLoading(true);
       setError(null);
       try {
-        const poetsRes = await fetch("/api/authors", {
-          credentials: "include",
-        });
+        // Fetch poets
+        const poetsRes = await fetch("/api/authors", { credentials: "include" });
         if (!poetsRes.ok) throw new Error("Failed to fetch poets");
         const poetsData = await poetsRes.json();
 
         const shuffledPoets = [...poetsData.authors];
         for (let i = shuffledPoets.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [shuffledPoets[i], shuffledPoets[j]] = [
-            shuffledPoets[j],
-            shuffledPoets[i],
-          ];
+          [shuffledPoets[i], shuffledPoets[j]] = [shuffledPoets[j], shuffledPoets[i]];
         }
         setPoets(shuffledPoets);
 
-        const poemsRes = await fetch("/api/poem", { credentials: "include" });
+        // Fetch poems with new schema
+        const poemsRes = await fetch(`/api/poem?page=1&limit=20`, { credentials: "include" });
         if (!poemsRes.ok) throw new Error("Failed to fetch poems");
         const poemsData = await poemsRes.json();
         const poems = poemsData.poems || [];
         setAllPoems(poems);
         setFilteredPoems(poems);
+        setHasMore(poemsData.hasMore || false);
 
         const categories = Array.from(
           new Set(poems.map((poem: Poem) => poem.category).filter(Boolean))
         ) as string[];
         setAvailableCategories(categories);
 
-        const coverImagesRes = await fetch("/api/cover-images", {
-          credentials: "include",
-        });
+        // Fetch cover images
+        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
         if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
         const coverImagesData = await coverImagesRes.json();
         setCoverImages(coverImagesData.coverImages || []);
 
+        // Group poems by poet
         const poemsByPoetMap: { [key: string]: any[] } = {};
         shuffledPoets.slice(0, 4).forEach((poet) => {
           const poetPoems = poems.filter(
-            (poem: Poem) =>
-              poem.author?._id === poet._id || poem.author?.name === poet.name
+            (poem: Poem) => poem.author?._id === poet._id || poem.author?.name === poet.name
           );
           const categorizedPoems: { [key: string]: any[] } = {};
           poetPoems.forEach((poem: Poem) => {
-            if (!categorizedPoems[poem.category])
-              categorizedPoems[poem.category] = [];
+            if (!categorizedPoems[poem.category]) categorizedPoems[poem.category] = [];
             categorizedPoems[poem.category].push(poem);
           });
 
@@ -182,17 +166,15 @@ export default function Library() {
               });
             });
           });
-          if (poetPoemsWithCategory.length > 0)
-            poemsByPoetMap[poet._id] = poetPoemsWithCategory;
+          if (poetPoemsWithCategory.length > 0) poemsByPoetMap[poet._id] = poetPoemsWithCategory;
         });
         setPoemsByPoet(poemsByPoetMap);
 
+        // Fetch user's readlist
         const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
           const userData = await userRes.json();
-          setReadList(
-            userData.user.readList.map((poem: any) => poem._id.toString())
-          );
+          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
         } else if (userRes.status === 401) {
           setReadList([]);
         } else {
@@ -207,6 +189,38 @@ export default function Library() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          fetchMorePoems();
+        }
+      },
+      { threshold: 1.0 }
+    );
+    if (loaderRef.current) observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading]);
+
+  const fetchMorePoems = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/poem?page=${page + 1}&limit=20`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch more poems");
+      const data = await res.json();
+      setAllPoems((prev) => [...prev, ...data.poems]);
+      setFilteredPoems((prev) => [...prev, ...data.poems]);
+      setPage(page + 1);
+      setHasMore(data.hasMore || false);
+    } catch (error) {
+      toast.error("Failed to load more poems", {
+        description: "Please try again",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (allPoems.length === 0) return;
@@ -235,31 +249,27 @@ export default function Library() {
         (poem) =>
           poem.title?.en?.toLowerCase().includes(query) ||
           poem.author?.name?.toLowerCase().includes(query) ||
-          poem.category?.toLowerCase().includes(query)
+          poem.category?.toLowerCase().includes(query) ||
+          poem.summary?.en?.toLowerCase().includes(query)
       );
     }
 
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter((poem) =>
-        selectedCategories.includes(poem.category)
-      );
+      filtered = filtered.filter((poem) => selectedCategories.includes(poem.category));
     }
 
     setFilteredPoems(filtered);
   }, [searchQuery, selectedCategories, allPoems]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0)
-      return "/placeholder.svg?height=300&width=300";
+    if (coverImages.length === 0) return "/placeholder.svg?height=300&width=300";
     const randomIndex = Math.floor(Math.random() * coverImages.length);
     return coverImages[randomIndex].url;
   };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist
-      ? "/api/user/readlist/remove"
-      : "/api/user/readlist/add";
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
     const method = isInReadlist ? "DELETE" : "POST";
 
     try {
@@ -270,18 +280,28 @@ export default function Library() {
         credentials: "include",
       });
       if (res.ok) {
-        setReadList((prev) =>
-          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
-        );
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
         setFeaturedPoem((prev: any) =>
           prev?._id === poemId
             ? {
                 ...prev,
-                readListCount: isInReadlist
-                  ? (prev.readListCount || 1) - 1
-                  : (prev.readListCount || 0) + 1,
+                readListCount: isInReadlist ? (prev.readListCount || 1) - 1 : (prev.readListCount || 0) + 1,
               }
             : prev
+        );
+        setAllPoems((prev) =>
+          prev.map((poem) =>
+            poem._id === poemId
+              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
+              : poem
+          )
+        );
+        setFilteredPoems((prev) =>
+          prev.map((poem) =>
+            poem._id === poemId
+              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
+              : poem
+          )
         );
         setPoemsByPoet((prevPoemsByPoet) => {
           const updated = { ...prevPoemsByPoet };
@@ -290,9 +310,7 @@ export default function Library() {
               if (poem._id === poemId) {
                 return {
                   ...poem,
-                  readListCount: isInReadlist
-                    ? (poem.readListCount || 1) - 1
-                    : (poem.readListCount || 0) + 1,
+                  readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1,
                 };
               }
               return poem;
@@ -317,9 +335,7 @@ export default function Library() {
                 <BookHeart className="h-5 w-5" />
                 <div>
                   <div className="font-medium">Added to your anthology</div>
-                  <div className="text-sm opacity-90">
-                    "{poemTitle}" now resides in your collection
-                  </div>
+                  <div className="text-sm opacity-90">"{poemTitle}" now resides in your collection</div>
                 </div>
               </motion.div>
             ),
@@ -346,13 +362,11 @@ export default function Library() {
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
     );
   };
 
-  if (loading) {
+  if (loading && page === 1) {
     return <LoadingComponent />;
   }
 
@@ -365,11 +379,7 @@ export default function Library() {
       >
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-destructive">{error}</h2>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => window.location.reload()}
-        >
+        <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
           Try Again
         </Button>
       </motion.div>
@@ -378,7 +388,6 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background mb-16">
-      {/* Use the LineOfTheDay component */}
       <LineOfTheDay poems={allPoems} coverImages={coverImages} />
 
       <div className="container mx-auto px-4 py-8">
@@ -432,10 +441,7 @@ export default function Library() {
                   </h3>
                   <div className="space-y-2">
                     {availableCategories.map((category) => (
-                      <div
-                        key={category}
-                        className="flex items-center space-x-2"
-                      >
+                      <div key={category} className="flex items-center space-x-2">
                         <Checkbox
                           id={`category-${category}`}
                           checked={selectedCategories.includes(category)}
@@ -484,9 +490,7 @@ export default function Library() {
               <DrawerContent>
                 <DrawerHeader>
                   <DrawerTitle>Filters</DrawerTitle>
-                  <DrawerDescription>
-                    Refine your poetry collection
-                  </DrawerDescription>
+                  <DrawerDescription>Refine your poetry collection</DrawerDescription>
                 </DrawerHeader>
                 <div className="px-4 py-2 space-y-6">
                   <div>
@@ -528,10 +532,7 @@ export default function Library() {
                     </h3>
                     <div className="space-y-2">
                       {availableCategories.map((category) => (
-                        <div
-                          key={category}
-                          className="flex items-center space-x-2"
-                        >
+                        <div key={category} className="flex items-center space-x-2">
                           <Checkbox
                             id={`mobile-category-${category}`}
                             checked={selectedCategories.includes(category)}
@@ -579,9 +580,7 @@ export default function Library() {
                   </div>
                 </div>
                 <DrawerFooter>
-                  <Button onClick={() => setFilterOpen(false)}>
-                    Apply Filters
-                  </Button>
+                  <Button onClick={() => setFilterOpen(false)}>Apply Filters</Button>
                   <DrawerClose asChild>
                     <Button variant="outline">Cancel</Button>
                   </DrawerClose>
@@ -641,9 +640,7 @@ export default function Library() {
 
             <Tabs
               value={activeTab}
-              onValueChange={(value) =>
-                setActiveTab(value as "poems" | "poets")
-              }
+              onValueChange={(value) => setActiveTab(value as "poems" | "poets")}
               className="mb-6"
             >
               <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -660,14 +657,9 @@ export default function Library() {
               <TabsContent value="poems" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Showing{" "}
-                    <span className="font-medium">{filteredPoems.length}</span>{" "}
-                    poems
+                    Showing <span className="font-medium">{filteredPoems.length}</span> poems
                     {selectedCategories.length > 0 && (
-                      <span>
-                        {" "}
-                        in {selectedCategories.map((c) => c).join(", ")}
-                      </span>
+                      <span> in {selectedCategories.map((c) => c).join(", ")}</span>
                     )}
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
@@ -694,9 +686,7 @@ export default function Library() {
                 {filteredPoems.length === 0 ? (
                   <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
                     <BookText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium mb-2">
-                      No poems found
-                    </h3>
+                    <h3 className="text-base sm:text-lg font-medium mb-2">No poems found</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground italic font-serif">
                       Try adjusting your filters or search query
                     </p>
@@ -765,25 +755,25 @@ export default function Library() {
                     })}
                   </div>
                 )}
+                {hasMore && <div ref={loaderRef} className="h-10" />}
+                {loading && page > 1 && (
+                  <div className="text-center py-4">
+                    <LoadingComponent />
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="poets" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Showing <span className="font-medium">{poets.length}</span>{" "}
-                    poets
+                    Showing <span className="font-medium">{poets.length}</span> poets
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {poets.slice(0, 8).map((poet, index) => (
-                    <PoetCard
-                      key={poet._id}
-                      poet={poet}
-                      variant="compact"
-                      index={index}
-                    />
+                    <PoetCard key={poet._id} poet={poet} variant="compact" index={index} />
                   ))}
                 </div>
 
@@ -795,14 +785,7 @@ export default function Library() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     {poets.slice(0, 4).map((poet, index) => (
-                      <PoetCard
-                        key={poet._id}
-                        poet={{
-                          ...poet,
-                        }}
-                        variant="full"
-                        index={index}
-                      />
+                      <PoetCard key={poet._id} poet={poet} variant="full" index={index} />
                     ))}
                   </div>
 
@@ -830,9 +813,7 @@ export default function Library() {
         <AlertDialogContent className="border border-primary/20">
           <motion.div initial={fadeIn.hidden} animate={fadeIn.visible}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif text-xl">
-                Share this poem
-              </AlertDialogTitle>
+              <AlertDialogTitle className="font-serif text-xl">Share this poem</AlertDialogTitle>
               <AlertDialogDescription>
                 Copy the link below to share this beautiful poem with others
               </AlertDialogDescription>
@@ -841,9 +822,7 @@ export default function Library() {
               <input
                 type="text"
                 readOnly
-                value={
-                  typeof window !== "undefined" ? window.location.href : ""
-                }
+                value={typeof window !== "undefined" ? window.location.href : ""}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <Button
@@ -851,8 +830,7 @@ export default function Library() {
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
-                    description:
-                      "The poem's link has been copied to your clipboard",
+                    description: "The poem's link has been copied to your clipboard",
                     icon: <Sparkles className="h-4 w-4" />,
                   });
                   setShowShareDialog(false);
@@ -862,9 +840,7 @@ export default function Library() {
               </Button>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="font-serif">
-                Close
-              </AlertDialogCancel>
+              <AlertDialogCancel className="font-serif">Close</AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>

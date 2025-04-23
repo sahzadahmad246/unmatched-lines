@@ -8,19 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Calendar, BookOpen } from "lucide-react";
 import { VerseDownload } from "../home/verse-download";
-
-interface Poem {
-  _id: string;
-  title: { en: string; hi?: string; ur?: string };
-  author: { name: string; _id: string };
-  category: string; 
-  slug?: { en: string };
-  content?: {
-    en?: string[] | string;
-    hi?: string[] | string;
-    ur?: string[] | string;
-  };
-}
+import { Poem } from "@/types/poem";
 
 interface LineOfTheDayProps {
   poems: Poem[];
@@ -51,22 +39,18 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
     setPoemOfTheDay(selectedPoem);
 
     const verses = {
-      en: Array.isArray(selectedPoem.content?.en)
-        ? selectedPoem.content.en.filter(Boolean)
-        : selectedPoem.content?.en?.split("\n").filter(Boolean) || [],
-      hi: Array.isArray(selectedPoem.content?.hi)
-        ? selectedPoem.content.hi.filter(Boolean)
-        : selectedPoem.content?.hi?.split("\n").filter(Boolean) || [],
-      ur: Array.isArray(selectedPoem.content?.ur)
-        ? selectedPoem.content.ur.filter(Boolean)
-        : selectedPoem.content?.ur?.split("\n").filter(Boolean) || [],
+      en: selectedPoem.content?.en?.map((item) => item.verse).filter(Boolean) || [],
+      hi: selectedPoem.content?.hi?.map((item) => item.verse).filter(Boolean) || [],
+      ur: selectedPoem.content?.ur?.map((item) => item.verse).filter(Boolean) || [],
     };
 
     const verseArray =
       verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : [];
     if (verseArray.length > 0) {
       const verseIndex = seed % verseArray.length;
-      setLineOfTheDay(verseArray[verseIndex] || "No verse available");
+      setLineOfTheDay(verseArray[verseIndex] || selectedPoem.summary?.en || "No verse available");
+    } else {
+      setLineOfTheDay(selectedPoem.summary?.en || "No verse available");
     }
     setLineAuthor(selectedPoem.author?.name || "Unknown Author");
   }, [poems]);
@@ -123,7 +107,11 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
                     author={lineAuthor}
                     imageUrl={getRandomCoverImage()}
                     title="Line of the Day"
-                    languages={poemOfTheDay?.content}
+                    languages={{
+                      en: poemOfTheDay?.content?.en?.map((item) => item.verse) || [],
+                      hi: poemOfTheDay?.content?.hi?.map((item) => item.verse) || [],
+                      ur: poemOfTheDay?.content?.ur?.map((item) => item.verse) || [],
+                    }}
                   />
                   {poemOfTheDay && (
                     <Button

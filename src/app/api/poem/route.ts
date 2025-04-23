@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const slug = url.searchParams.get("slug");
     const category = url.searchParams.get("category")?.toLowerCase();
     const authorSlug = url.searchParams.get("authorSlug");
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "10");
 
     // Fetch a single poem by slug
     if (slug) {
@@ -26,6 +28,9 @@ export async function GET(request: NextRequest) {
       if (!poem) {
         return NextResponse.json({ error: "Poem not found" }, { status: 404 });
       }
+
+      // Increment viewsCount
+      await Poem.findByIdAndUpdate(poem._id, { $inc: { viewsCount: 1 } });
 
       return NextResponse.json({ poem });
     }
@@ -52,17 +57,29 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      return NextResponse.json({ poems, author: { name: author.name, slug: author.slug } });
+      return NextResponse.json({
+        poems,
+        author: { name: author.name, slug: author.slug },
+      });
     }
 
-    // Default: fetch all published poems
+    // Default: fetch all published poems with pagination
+    const skip = (page - 1) * limit;
     const poems = await Poem.find({ status: "published" })
       .populate("author", "name")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    return NextResponse.json({ poems });
+    const totalPoems = await Poem.countDocuments({ status: "published" });
+
+    return NextResponse.json({
+      poems,
+      totalPoems,
+      currentPage: page,
+      totalPages: Math.ceil(totalPoems / limit),
+    });
   } catch (error) {
-    
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -73,9 +90,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+
+
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -90,9 +106,28 @@ export async function POST(request: NextRequest) {
     const titleEn = formData.get("titleEn") as string;
     const titleHi = formData.get("titleHi") as string;
     const titleUr = formData.get("titleUr") as string;
-    const contentEn = formData.getAll("contentEn[]") as string[];
-    const contentHi = formData.getAll("contentHi[]") as string[];
-    const contentUr = formData.getAll("contentUr[]") as string[];
+    const contentEn = JSON.parse(formData.get("contentEn") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const contentHi = JSON.parse(formData.get("contentHi") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const contentUr = JSON.parse(formData.get("contentUr") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const summaryEn = formData.get("summaryEn") as string;
+    const summaryHi = formData.get("summaryHi") as string;
+    const summaryUr = formData.get("summaryUr") as string;
+    const didYouKnowEn = formData.get("didYouKnowEn") as string;
+    const didYouKnowHi = formData.get("didYouKnowHi") as string;
+    const didYouKnowUr = formData.get("didYouKnowUr") as string;
+    const faqs = JSON.parse(formData.get("faqs") as string) as {
+      question: { en: string; hi: string; ur: string };
+      answer: { en: string; hi: string; ur: string };
+    }[];
     const category = formData.get("category") as string;
     const status = formData.get("status") as string;
     const tags = formData.get("tags") as string;
@@ -103,15 +138,21 @@ export async function POST(request: NextRequest) {
     const baseSlug = titleEn
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-    
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
     const slugEn = `${baseSlug}-en`;
     const slugHi = `${baseSlug}-hi`;
     const slugUr = `${baseSlug}-ur`;
 
-    
+    // Check slug uniqueness
+    const slugCheck = await Poem.findOne({
+      $or: [{ "slug.en": slugEn }, { "slug.hi": slugHi }, { "slug.ur": slugUr }],
+    });
+    if (slugCheck) {
+      return NextResponse.json({ error: "Slug already exists" }, { status: 400 });
+    }
 
     // Validation
     if (!authorId) {
@@ -125,22 +166,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure content fields are valid arrays of strings
-    if (!Array.isArray(contentEn) || contentEn.length === 0 || contentEn.some(v => typeof v !== "string" || !v.trim())) {
+    if (
+      !Array.isArray(contentEn) ||
+      contentEn.length === 0 ||
+      contentEn.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
       return NextResponse.json(
-        { error: "English content must be a non-empty array of non-empty strings" },
+        { error: "English content must be a non-empty array of verses with meanings" },
         { status: 400 }
       );
     }
-    if (!Array.isArray(contentHi) || contentHi.length === 0 || contentHi.some(v => typeof v !== "string" || !v.trim())) {
+    if (
+      !Array.isArray(contentHi) ||
+      contentHi.length === 0 ||
+      contentHi.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
       return NextResponse.json(
-        { error: "Hindi content must be a non-empty array of non-empty strings" },
+        { error: "Hindi content must be a non-empty array of verses with meanings" },
         { status: 400 }
       );
     }
-    if (!Array.isArray(contentUr) || contentUr.length === 0 || contentUr.some(v => typeof v !== "string" || !v.trim())) {
+    if (
+      !Array.isArray(contentUr) ||
+      contentUr.length === 0 ||
+      contentUr.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
       return NextResponse.json(
-        { error: "Urdu content must be a non-empty array of non-empty strings" },
+        { error: "Urdu content must be a non-empty array of verses with meanings" },
         { status: 400 }
       );
     }
@@ -165,34 +217,29 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(arrayBuffer);
       coverImageUrl = await new Promise((resolve, reject) => {
         cloudinary.uploader
-          .upload_stream(
-            { folder: "unmatched_line/poems" },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result!.secure_url);
-            }
-          )
+          .upload_stream({ folder: "unmatched_line/poems" }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result!.secure_url);
+          })
           .end(buffer);
       });
     }
 
-    // Create the poem document - keeping the content as arrays
+    // Create the poem document
     const poemData = {
       title: { en: titleEn, hi: titleHi, ur: titleUr },
-      content: {
-        en: contentEn,
-        hi: contentHi,
-        ur: contentUr,
-      },
+      content: { en: contentEn, hi: contentHi, ur: contentUr },
       slug: { en: slugEn, hi: slugHi, ur: slugUr },
       author: authorId,
       category,
       status,
       tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
       coverImage: coverImageUrl || "",
+      summary: { en: summaryEn || "", hi: summaryHi || "", ur: summaryUr || "" },
+      didYouKnow: { en: didYouKnowEn || "", hi: didYouKnowHi || "", ur: didYouKnowUr || "" },
+      faqs: faqs || [],
+      viewsCount: 0,
     };
-
-   
 
     const newPoem = await Poem.create(poemData);
 
@@ -214,12 +261,8 @@ export async function POST(request: NextRequest) {
       { new: true }
     );
 
-    return NextResponse.json(
-      { message: "Poem added", poem: newPoem },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: "Poem added", poem: newPoem }, { status: 201 });
   } catch (error) {
-   
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -248,9 +291,28 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const titleEn = formData.get("titleEn") as string;
     const titleHi = formData.get("titleHi") as string;
     const titleUr = formData.get("titleUr") as string;
-    const contentEn = formData.getAll("contentEn[]") as string[];
-    const contentHi = formData.getAll("contentHi[]") as string[];
-    const contentUr = formData.getAll("contentUr[]") as string[];
+    const contentEn = JSON.parse(formData.get("contentEn") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const contentHi = JSON.parse(formData.get("contentHi") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const contentUr = JSON.parse(formData.get("contentUr") as string) as {
+      verse: string;
+      meaning: string;
+    }[];
+    const summaryEn = formData.get("summaryEn") as string;
+    const summaryHi = formData.get("summaryHi") as string;
+    const summaryUr = formData.get("summaryUr") as string;
+    const didYouKnowEn = formData.get("didYouKnowEn") as string;
+    const didYouKnowHi = formData.get("didYouKnowHi") as string;
+    const didYouKnowUr = formData.get("didYouKnowUr") as string;
+    const faqs = JSON.parse(formData.get("faqs") as string) as {
+      question: { en: string; hi: string; ur: string };
+      answer: { en: string; hi: string; ur: string };
+    }[];
     const category = formData.get("category") as string;
     const status = formData.get("status") as string;
     const tags = formData.get("tags") as string;
@@ -260,10 +322,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const baseSlug = titleEn
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-    
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
     const slugEn = `${baseSlug}-en`;
     const slugHi = `${baseSlug}-hi`;
     const slugUr = `${baseSlug}-ur`;
@@ -285,9 +347,33 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (!contentEn.length || !contentHi.length || !contentUr.length) {
+    if (
+      !Array.isArray(contentEn) ||
+      contentEn.length === 0 ||
+      contentEn.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
       return NextResponse.json(
-        { error: "At least one verse is required for each language" },
+        { error: "English content must be a non-empty array of verses with meanings" },
+        { status: 400 }
+      );
+    }
+    if (
+      !Array.isArray(contentHi) ||
+      contentHi.length === 0 ||
+      contentHi.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
+      return NextResponse.json(
+        { error: "Hindi content must be a non-empty array of verses with meanings" },
+        { status: 400 }
+      );
+    }
+    if (
+      !Array.isArray(contentUr) ||
+      contentUr.length === 0 ||
+      contentUr.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+    ) {
+      return NextResponse.json(
+        { error: "Urdu content must be a non-empty array of verses with meanings" },
         { status: 400 }
       );
     }
@@ -298,32 +384,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const buffer = Buffer.from(arrayBuffer);
       coverImageUrl = await new Promise((resolve, reject) => {
         cloudinary.uploader
-          .upload_stream(
-            { folder: "unmatched_line/poems" },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result!.secure_url);
-            }
-          )
+          .upload_stream({ folder: "unmatched_line/poems" }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result!.secure_url);
+          })
           .end(buffer);
       });
     }
 
-    // Keep content as arrays when updating
     const updatedPoem = await Poem.findByIdAndUpdate(
       id,
       {
         title: { en: titleEn, hi: titleHi, ur: titleUr },
-        content: { 
-          en: contentEn, 
-          hi: contentHi, 
-          ur: contentUr 
-        },
+        content: { en: contentEn, hi: contentHi, ur: contentUr },
         slug: { en: slugEn, hi: slugHi, ur: slugUr },
         category,
         status,
         tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
         coverImage: coverImageUrl,
+        summary: { en: summaryEn || "", hi: summaryHi || "", ur: summaryUr || "" },
+        didYouKnow: { en: didYouKnowEn || "", hi: didYouKnowHi || "", ur: didYouKnowUr || "" },
+        faqs: faqs || [],
       },
       { new: true, runValidators: true }
     );
@@ -354,15 +435,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
-    
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  // DELETE remains unchanged
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -407,10 +485,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {
-  
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -43,10 +43,11 @@ export async function generateMetadata({
 
   const title = poem?.title?.ur || "شعر نہیں ملا";
   const author = poem?.author?.name || "نامعلوم مصنف";
-  const description = poem?.content?.ur
-    ? `${poem.content.ur[0]?.slice(0, 150)}... - ${author} کا شعر`
-    : `${author} کا یہ شعر اردو میں پڑھیں۔`;
-  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
+  const description = poem?.summary?.ur
+    ? poem.summary.ur.slice(0, 150)
+    : poem?.content?.ur?.[0]?.verse
+      ? `${poem.content.ur[0].verse.slice(0, 150)}... - ${author} کا شعر`
+      : `${author} کا یہ شعر اردو میں پڑھیں۔`;
   const coverImageUrl =
     poem?.coverImage || (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
   const slugs = getSlugs(poem, resolvedParams.slug);
@@ -94,7 +95,6 @@ export async function generateMetadata({
   };
 }
 
-// Generate structured data for SEO
 function generateStructuredData(
   poem: Poem | null,
   language: string,
@@ -115,7 +115,7 @@ function generateStructuredData(
       name: poem.author?.name || "نامعلوم مصنف",
     },
     description:
-      poem.content?.ur?.[0]?.slice(0, 150) || `${poem.author?.name || "نامعلوم مصنف"} کا شعر`,
+      poem.summary?.ur || poem.content?.ur?.[0]?.verse || `${poem.author?.name || "نامعلوم مصنف"} کا شعر`,
     inLanguage: "ur",
     url: `${baseUrl}/poems/ur/${slugs.ur}`,
     image: coverImageUrl,
@@ -125,7 +125,6 @@ function generateStructuredData(
   };
 }
 
-// Generate breadcrumb structured data
 function generateBreadcrumbData(
   poem: Poem | null,
   language: string,
@@ -164,7 +163,7 @@ export default async function PoemPage({
 
   const structuredData = generateStructuredData(poem, "ur", baseUrl, slugs, coverImageUrl);
   const breadcrumbData = generateBreadcrumbData(poem, "ur", baseUrl, slugs);
-
+ 
   return (
     <>
       {structuredData && (

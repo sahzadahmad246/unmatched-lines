@@ -1,28 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
-import { BookOpen, ArrowRight, User, ChevronDown, BookmarkPlus, BookHeart, Languages, Copy } from "lucide-react"
+import { motion } from "framer-motion"
+import { User, Quote, ArrowRight, Heart, Eye, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { toast } from "sonner"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface Poem {
   _id: string
   title: { en: string; hi?: string; ur?: string }
   author: { name: string; _id: string }
-  category: "ghazal" | "sher"
-  excerpt?: string
-  slug?: { en: string }
+  category: string
   content?: {
-    en?: string[] | string
-    hi?: string[] | string
-    ur?: string[] | string
+    en?: { verse: string; meaning: string }[]
+    hi?: { verse: string; meaning: string }[]
+    ur?: { verse: string; meaning: string }[]
   }
-  readListCount?: number
+  slug: { en: string; hi?: string; ur?: string }
+  readListCount: number
+  viewsCount: number
+}
+
+interface Author {
+  _id: string
+  name: string
+  slug: string
+  image?: string
+  bio?: string
 }
 
 interface FeaturedCollectionProps {
@@ -32,299 +42,323 @@ interface FeaturedCollectionProps {
   handleReadlistToggle: (id: string, title: string) => void
 }
 
-export function FeaturedCollection({ ghazals, shers, readList, handleReadlistToggle }: FeaturedCollectionProps) {
-  const [activeCategory, setActiveCategory] = useState<"all" | "ghazal" | "sher">("all")
-
-  return (
-    <section className="py-10 sm:py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-6 sm:mb-8 font-serif">Featured Collections</h2>
-
-        <Tabs
-          defaultValue="all"
-          className="w-full"
-          onValueChange={(value) => setActiveCategory(value as "all" | "ghazal" | "sher")}
-        >
-          <div className="flex justify-center mb-6 sm:mb-8">
-            <TabsList className="grid grid-cols-3 w-full max-w-md">
-              <TabsTrigger value="all" className="font-serif text-xs sm:text-sm">
-                All Poems
-              </TabsTrigger>
-              <TabsTrigger value="ghazal" className="font-serif text-xs sm:text-sm">
-                Ghazals
-              </TabsTrigger>
-              <TabsTrigger value="sher" className="font-serif text-xs sm:text-sm">
-                Shers
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="all" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-              {[...ghazals.slice(0, 3), ...shers.slice(0, 3)].map((poem, index) => (
-                <PoemCard
-                  key={poem._id}
-                  poem={poem}
-                  index={index}
-                  isInReadlist={readList.includes(poem._id)}
-                  handleReadlistToggle={handleReadlistToggle}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ghazal" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-              {ghazals.map((poem, index) => (
-                <PoemCard
-                  key={poem._id}
-                  poem={poem}
-                  index={index}
-                  isInReadlist={readList.includes(poem._id)}
-                  handleReadlistToggle={handleReadlistToggle}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="sher" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-              {shers.map((poem, index) => (
-                <PoemCard
-                  key={poem._id}
-                  poem={poem}
-                  index={index}
-                  isInReadlist={readList.includes(poem._id)}
-                  handleReadlistToggle={handleReadlistToggle}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-center mt-8 sm:mt-10">
-          <Button asChild size="sm" variant="outline" className="gap-2 font-serif text-xs sm:text-sm">
-            <Link href={`/${activeCategory === "all" ? "poems" : activeCategory}`}>
-              View All {activeCategory === "all" ? "Poems" : activeCategory === "ghazal" ? "Ghazals" : "Shers"}
-              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </section>
-  )
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
 }
 
-interface PoemCardProps {
-  poem: Poem
-  index: number
-  isInReadlist: boolean
-  handleReadlistToggle: (id: string, title: string) => void
+const slideUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
 }
 
-function PoemCard({ poem, index, isInReadlist, handleReadlistToggle }: PoemCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [contentLang, setContentLang] = useState<"en" | "hi" | "ur">("en")
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+}
 
-  // Determine available languages
-  const availableLanguages = Object.entries({
-    en: poem.content?.en,
-    hi: poem.content?.hi,
-    ur: poem.content?.ur,
-  })
-    .filter(([_, content]) => content && (Array.isArray(content) ? content.length > 0 : content.trim() !== ""))
-    .map(([lang]) => lang)
-
-  // If selected language is not available, default to first available
-  if (availableLanguages.length > 0 && !availableLanguages.includes(contentLang)) {
-    setContentLang(availableLanguages[0] as "en" | "hi" | "ur")
+const customStyles = `
+  .urdu-text {
+    font-family: 'Fajer Noori Nastalique', sans-serif;
+    direction: rtl;
+    text-align: center;
+    line-height: 1.8;
+    font-size: 0.95rem;
   }
+  
+  .poem-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .poem-card-content {
+    flex-grow: 1;
+  }
+  
+  .category-section {
+    margin-bottom: 2.5rem;
+  }
+  
+  .category-section:last-child {
+    margin-bottom: 0;
+  }
+  
+  .category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .category-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-family: serif;
+  }
+  
+  .category-link {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--primary);
+    transition: all 0.2s;
+  }
+  
+  .category-link:hover {
+    opacity: 0.8;
+    transform: translateX(2px);
+  }
+`
 
-  // Format poetry content similar to PoemDetail
-  const formatPoetryContent = (content: string[] | string | undefined) => {
-    if (!content) {
-      return <div className="italic text-muted-foreground text-xs">Content not available</div>
+export function FeaturedCollection({ ghazals, shers, readList, handleReadlistToggle }: FeaturedCollectionProps) {
+  const [language, setLanguage] = useState<"en" | "hi" | "ur">("en")
+  const [authorDataMap, setAuthorDataMap] = useState<Record<string, Author>>({})
+
+  // Fetch author data
+  useEffect(() => {
+    const fetchAuthorsData = async () => {
+      const poems = [...ghazals, ...shers]
+      const authorIds = [...new Set(poems.map((poem) => poem.author._id))].filter(Boolean)
+      const authorDataMap: Record<string, Author> = {}
+
+      await Promise.all(
+        authorIds.map(async (authorId) => {
+          try {
+            const res = await fetch(`/api/authors/${authorId}`, { credentials: "include" })
+            if (!res.ok) return
+            const data = await res.json()
+            if (data.author) authorDataMap[authorId] = data.author
+          } catch (error) {
+            console.error(`FeaturedCollection - Error fetching author ${authorId}:`, error)
+          }
+        }),
+      )
+
+      setAuthorDataMap(authorDataMap)
     }
 
-    let stanzas: string[] = [];
-    if (typeof content === "string") {
-      stanzas = content.split("\n\n").filter(Boolean);
-    } else if (Array.isArray(content)) {
-      stanzas = content;
+    if (ghazals.length > 0 || shers.length > 0) fetchAuthorsData()
+  }, [ghazals, shers])
+
+  const formatPoetryContent = (
+    content: { verse: string; meaning: string }[] | undefined,
+    lang: "en" | "hi" | "ur",
+    isSherCategory: boolean,
+  ): React.ReactNode => {
+    if (!content || content.length === 0 || !content[0]?.verse) {
+      return (
+        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
+        </div>
+      )
     }
 
-    if (stanzas.length === 0) {
-      return <div className="italic text-muted-foreground text-xs">Content not available</div>
+    const lines = content[0].verse.split("\n").filter(Boolean)
+    if (lines.length === 0) {
+      return (
+        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
+        </div>
+      )
+    }
+
+    if (isSherCategory) {
+      return (
+        <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lines.map((line, lineIndex) => (
+            <div
+              key={lineIndex}
+              className={`poem-line leading-relaxed text-sm font-serif ${lang === "ur" ? "urdu-text" : ""}`}
+            >
+              {line || "\u00A0"}
+            </div>
+          ))}
+        </div>
+      )
     }
 
     return (
-      <div className="space-y-4">
-        {stanzas.slice(0, 2).map((stanza, index) => (
-          <div key={index} className="poem-stanza">
-            {stanza.split("\n").map((line, lineIndex) => (
-              <div 
-                key={lineIndex} 
-                className="poem-line leading-relaxed text-[11px] sm:text-xs"
-              >
-                {line || "\u00A0"}
-              </div>
-            ))}
+      <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+        {lines.slice(0, 2).map((line, lineIndex) => (
+          <div
+            key={lineIndex}
+            className={`poem-line leading-relaxed text-xs sm:text-sm font-serif line-clamp-1 ${lang === "ur" ? "urdu-text" : ""}`}
+          >
+            {line || "\u00A0"}
           </div>
         ))}
-        {stanzas.length > 2 && (
-          <div className="text-xs text-muted-foreground italic">...</div>
-        )}
       </div>
     )
   }
 
-  const getContentForLanguage = (lang: "en" | "hi" | "ur") => {
-    return formatPoetryContent(poem.content?.[lang])
-  }
+  // Group poems by category
+  const categories = [
+    { id: "ghazal", title: "Ghazals", poems: ghazals },
+    { id: "sher", title: "Shers", poems: shers },
+  ]
 
-  const getRawContentForCopy = (lang: "en" | "hi" | "ur") => {
-    const content = poem.content?.[lang];
-    if (!content) return "";
-    if (typeof content === "string") return content;
-    return content.join("\n\n");
-  }
+  const renderPoemCard = (poem: Poem, index: number) => {
+    const authorData = poem.author._id ? authorDataMap[poem.author._id] : null
+    const currentSlug = poem.slug[language] || poem.slug.en || poem._id
+    const currentTitle = poem.title[language] || poem.title.en || "Untitled"
+    const currentContent = poem.content?.[language] || poem.content?.en || []
+    const poemLanguage = poem.content?.[language] ? language : "en"
+    const isInReadlist = readList.includes(poem._id)
+    const isSherCategory = poem.category.toLowerCase() === "sher"
 
-  const currentContent = getContentForLanguage(contentLang)
+    return (
+      <motion.article key={poem._id} variants={slideUp} className="h-full">
+        <Card className="border shadow-sm hover:shadow-xl transition-all duration-300 h-full bg-white dark:bg-slate-900 overflow-hidden group poem-card">
+          <CardHeader className={`p-4 ${isSherCategory ? "pb-0" : "pb-2"}`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                {!isSherCategory && (
+                  <h2
+                    className={`text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4 ${language === "ur" ? "urdu-text" : ""}`}
+                  >
+                    <Link href={`/poems/${poemLanguage}/${currentSlug}`}>{currentTitle}</Link>
+                  </h2>
+                )}
+                <div className="flex items-center gap-2 mt-1">
+                  <Avatar className="h-6 w-6 border border-primary/20">
+                    {authorData?.image ? (
+                      <AvatarImage
+                        src={authorData.image || "/placeholder.svg"}
+                        alt={authorData.name || poem.author.name}
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        <User className="h-3 w-3" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <p className={`text-gray-600 dark:text-gray-400 text-xs ${language === "ur" ? "urdu-text" : ""}`}>
+                    {authorData?.name || poem.author.name || "Unknown Author"}
+                  </p>
+                </div>
+              </div>
+              <motion.button
+                onClick={() => handleReadlistToggle(poem._id, currentTitle)}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-1"
+                aria-label={isInReadlist ? "Remove from readlist" : "Add to readlist"}
+              >
+                <Heart className={`h-5 w-5 ${isInReadlist ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
+              </motion.button>
+            </div>
+          </CardHeader>
 
-  const handleCopy = () => {
-    const contentToCopy = getRawContentForCopy(contentLang);
-    navigator.clipboard.writeText(contentToCopy).then(() => {
-      toast.success("Verses copied", {
-        description: "The poem verses have been copied to your clipboard",
-        icon: <Copy className="h-4 w-4" />,
-      });
-    }).catch(() => {
-      toast.error("Copy failed", {
-        description: "Failed to copy the verses",
-      });
-    });
-  }
+          <CardContent className="p-4 pt-2 poem-card-content">
+            <Link href={`/poems/${poemLanguage}/${currentSlug}`} className="block">
+              <div
+                className={`${isSherCategory ? "mt-2" : "mt-0"} font-serif text-gray-800 dark:text-gray-200 border-l-2 border-primary/30 pl-3 py-1`}
+              >
+                {formatPoetryContent(currentContent, poemLanguage, isSherCategory)}
+              </div>
+            </Link>
+          </CardContent>
 
-  // Get language display names
-  const languageNames: Record<string, string> = {
-    en: "English",
-    hi: "Hindi",
-    ur: "Urdu",
+          <CardFooter className="p-4 pt-0 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${language === "ur" ? "urdu-text" : ""}`}
+              >
+                {poem.category || "Uncategorized"}
+              </Badge>
+              <Badge variant="outline" className="gap-1 text-xs bg-primary/5 hover:bg-primary/10 transition-colors">
+                <Eye className="h-3 w-3" />
+                <span>{poem.viewsCount || 0}</span>
+              </Badge>
+            </div>
+            <motion.div
+              className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
+              whileHover={{ x: 3 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            >
+              <Link href={`/poems/${poemLanguage}/${currentSlug}`}>
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
+            </motion.div>
+          </CardFooter>
+        </Card>
+      </motion.article>
+    )
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1 }}
-      whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className="flex flex-col" // Ensure column layout
-    >
-      <Card className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
-        <CardContent className="flex-grow p-3 sm:p-4 pt-4">
-          <div className="flex justify-between items-start mb-2 sm:mb-3">
-            <Badge variant="secondary" className="font-serif capitalize text-xs">
-              {poem.category}
-            </Badge>
-            <button
-              className="p-1 sm:p-1.5 rounded-full hover:bg-muted transition-colors"
-              onClick={() => handleReadlistToggle(poem._id, poem.title.en)}
-              aria-label={isInReadlist ? "Remove from reading list" : "Add to reading list"}
-            >
-              {isInReadlist ? (
-                <BookHeart className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-              ) : (
-                <BookmarkPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              )}
-            </button>
-          </div>
+    <>
+      <style>{customStyles}</style>
+      <section className="py-10 sm:py-16 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="mb-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center font-serif header-title">
+              Featured Collections
+            </h2>
+            <motion.div
+              className="w-24 h-1 bg-primary/60 mx-auto mt-2"
+              initial={{ width: 0 }}
+              animate={{ width: "6rem" }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            />
+          </motion.div>
 
-          <h3 className="text-sm sm:text-base font-bold mb-1 sm:mb-2 font-serif">
-            {poem.title[contentLang] || poem.title.en}
-          </h3>
+          <Tabs defaultValue="en" onValueChange={(value) => setLanguage(value as "en" | "hi" | "ur")} className="mb-8">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+              <TabsTrigger value="en">English</TabsTrigger>
+              <TabsTrigger value="hi">Hindi</TabsTrigger>
+              <TabsTrigger value="ur">Urdu</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2 sm:mb-3 font-serif">
-            <User className="h-3 w-3" /> {poem.author.name}
-          </p>
+          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-8">
+            {categories.map((category) => (
+              <div key={category.id} className="category-section">
+                <div className="category-header">
+                  <h3 className="category-title">{category.title}</h3>
+                  <Link href={`/${category.id}`} className="category-link">
+                    <span>See all</span>
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Link>
+                </div>
 
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="w-full flex items-center justify-between text-xs sm:text-sm font-medium p-1.5 sm:p-2 rounded-md hover:bg-muted transition-colors"
-            aria-expanded={isExpanded}
-          >
-            <span>View Verses</span>
-            <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-              <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </motion.div>
-          </button>
-
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden mt-2"
-              >
-                {availableLanguages.length > 1 && (
-                  <div className="mb-2 flex items-center justify-between gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Languages className="h-3 w-3 text-muted-foreground" />
-                      <Tabs
-                        value={contentLang}
-                        onValueChange={(value) => setContentLang(value as "en" | "hi" | "ur")}
-                        className="w-auto"
-                      >
-                        <TabsList className="h-7">
-                          {availableLanguages.map((lang) => (
-                            <TabsTrigger key={lang} value={lang} className="text-xs px-2 py-0.5 h-5">
-                              {languageNames[lang]}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <button
-                      onClick={handleCopy}
-                      className="p-1 hover:bg-muted rounded-full transition-colors"
-                      aria-label="Copy verses"
-                    >
-                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
+                {category.poems.length === 0 ? (
+                  <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="text-center py-6">
+                    <Quote className="h-8 w-8 mx-auto text-gray-400 mb-3" />
+                    <p className={`text-gray-600 text-base font-serif italic ${language === "ur" ? "urdu-text" : ""}`}>
+                      {language === "en"
+                        ? "No poems found in this category."
+                        : language === "hi"
+                          ? "इस श्रेणी में कोई कविता नहीं मिली।"
+                          : "اس زمرے میں کوئی نظم نہیں ملی۔"}
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {category.poems.slice(0, 3).map((poem, index) => renderPoemCard(poem, index))}
                   </div>
                 )}
-
-                <div className="bg-muted/30 p-2 sm:p-3 rounded-md font-serif poem-content">
-                  <div className={contentLang === "ur" ? "text-right" : ""}>
-                    {currentContent}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <Button asChild variant="default" size="sm" className="gap-1 font-serif text-xs w-full">
-                    <Link href={`/poems/en/${poem.slug?.en || poem._id}`}>
-                      <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> See Full Poem
-                    </Link>
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
-
-        <CardFooter className="p-3 pt-0 mt-auto">
-          <div className="w-full flex items-center justify-end">
-            {poem.readListCount !== undefined && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <BookHeart className="h-3 w-3" />
-                <span>{poem.readListCount}</span>
               </div>
-            )}
+            ))}
+          </motion.div>
+
+          <div className="flex justify-center mt-10">
+            <Button asChild size="sm" variant="outline" className="gap-2 font-serif text-xs sm:text-sm">
+              <Link href="/library">
+                View All Poems
+                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </Link>
+            </Button>
           </div>
-        </CardFooter>
-      </Card>
-    </motion.div>
+        </div>
+      </section>
+    </>
   )
-  // Ensure column layout
 }

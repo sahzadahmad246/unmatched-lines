@@ -7,10 +7,6 @@ import ClientLayout from "./client-layout";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: {
-    default: "Unmatched Lines - Poetry Collection",
-    template: "%s | Unmatched Lines - Poetry Collection",
-  },
   description:
     "Discover beautiful poetry from renowned poets across different languages and traditions. Explore classic and contemporary poems in our curated collection.",
   keywords:

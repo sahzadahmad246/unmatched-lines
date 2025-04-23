@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Poem } from "@/types/poem";
+import { Poem } from "@/types/poem";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Feather, User, Quote, ArrowRight, Heart } from "lucide-react";
+import { Feather, User, Quote, ArrowRight, Heart, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,10 +109,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
   useEffect(() => {
     const fetchCoverImages = async () => {
       try {
-        const res = await fetch("/api/cover-images", {
-          credentials: "include",
-          cache: "force-cache",
-        });
+        const res = await fetch("/api/cover-images", { credentials: "include", cache: "force-cache" });
         if (!res.ok) throw new Error(`Failed to fetch cover images: ${res.status}`);
         const data = await res.json();
         setCoverImages(data.coverImages || []);
@@ -130,22 +127,15 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
   useEffect(() => {
     const fetchAuthorsData = async () => {
       const authorIds = [...new Set(poems.map((poem) => poem.author._id))].filter(Boolean);
-
       const authorDataMap: Record<string, Author> = {};
 
       await Promise.all(
         authorIds.map(async (authorId) => {
-          if (!authorId) return;
-
           try {
-            const res = await fetch(`/api/authors/${authorId}`, {
-              credentials: "include",
-            });
+            const res = await fetch(`/api/authors/${authorId}`, { credentials: "include" });
             if (!res.ok) return;
             const data = await res.json();
-            if (data.author) {
-              authorDataMap[authorId] = data.author;
-            }
+            if (data.author) authorDataMap[authorId] = data.author;
           } catch (error) {
             console.error(`CategoryPoems - Error fetching author ${authorId}:`, error);
           }
@@ -155,9 +145,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
       setAuthorDataMap(authorDataMap);
     };
 
-    if (poems.length > 0) {
-      fetchAuthorsData();
-    }
+    if (poems.length > 0) fetchAuthorsData();
   }, [poems]);
 
   // Fetch user's readlist
@@ -165,10 +153,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
     const fetchReadList = async () => {
       if (!session) return;
       try {
-        const res = await fetch("/api/user", {
-          credentials: "include",
-          cache: "no-store",
-        });
+        const res = await fetch("/api/user", { credentials: "include", cache: "no-store" });
         if (!res.ok) throw new Error(`Failed to fetch user data: ${res.status}`);
         const data = await res.json();
         setReadList(data.user.readList.map((poem: any) => poem._id.toString()) || []);
@@ -210,7 +195,6 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
 
       if (res.ok) {
         setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
-
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
@@ -235,10 +219,9 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           );
         }
       } else {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `Failed to update readlist: ${res.status}`);
+        throw new Error(`Failed to update readlist: ${res.status}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
       });
@@ -258,14 +241,8 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           transition={{ duration: 0.5 }}
         >
           <motion.div
-            animate={{
-              rotate: 360,
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              rotate: { duration: 2, repeat: Infinity, ease: "linear" },
-              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-            }}
+            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+            transition={{ rotate: { duration: 2, repeat: Infinity, ease: "linear" }, scale: { duration: 2, repeat: Infinity, ease: "easeInOut" } }}
           >
             <Feather className="h-12 w-12 text-primary/70" />
           </motion.div>
@@ -275,19 +252,22 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
     );
   }
 
-  const formatPoetryContent = (content: string[] | undefined, lang: "en" | "hi" | "ur"): React.ReactNode => {
-    if (!content || !Array.isArray(content) || content.length === 0) {
-      return <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
-        {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
-      </div>;
+  const formatPoetryContent = (content: { verse: string; meaning: string }[] | undefined, lang: "en" | "hi" | "ur"): React.ReactNode => {
+    if (!content || content.length === 0 || !content[0]?.verse) {
+      return (
+        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
+        </div>
+      );
     }
 
-    const lines = content[0].split("\n").filter(Boolean);
-
+    const lines = content[0].verse.split("\n").filter(Boolean);
     if (lines.length === 0) {
-      return <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
-        {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
-      </div>;
+      return (
+        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध نہیں है" : "مواد دستیاب نہیں ہے"}
+        </div>
+      );
     }
 
     if (isSherCategory) {
@@ -325,11 +305,7 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                 initial={{ opacity: 0.6 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1 }}
-                style={{
-                  backgroundImage: `url(${coverImageUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
+                style={{ backgroundImage: `url(${coverImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60 flex items-center justify-center">
                   <motion.div
@@ -378,15 +354,10 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           <motion.div className="grid gap-6 poem-grid" variants={staggerContainer} initial="hidden" animate="visible">
             {poems.map((poem) => {
               const authorData = poem.author._id ? authorDataMap[poem.author._id] : null;
-              const poemSlug = Array.isArray(poem.slug) ? poem.slug[0] : poem.slug;
-              const poemTitle = Array.isArray(poem.title) ? poem.title[0] : poem.title;
-              const poemContent = poem.content && Array.isArray(poem.content) && poem.content[0] ? poem.content[0] : poem.content;
-
-              const currentSlug = poemSlug ? poemSlug[language] || poemSlug.en || poem._id : poem._id;
-              const currentTitle = poemTitle ? poemTitle[language] || poemTitle.en || "Untitled" : "Untitled";
-              const currentContent = poemContent ? poemContent[language] || poemContent.en || [] : [];
-              const poemLanguage = poemContent && poemContent[language] ? language : "en";
-
+              const currentSlug = poem.slug[language] || poem.slug.en || poem._id;
+              const currentTitle = poem.title[language] || poem.title.en || "Untitled";
+              const currentContent = poem.content?.[language] || poem.content?.en || [];
+              const poemLanguage = poem.content?.[language] ? language : "en";
               const isInReadlist = readList.includes(poem._id);
 
               return (
@@ -442,9 +413,15 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
                     </CardContent>
 
                     <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                      <Badge variant="outline" className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${language === "ur" ? "urdu-text" : ""}`}>
-                        {poem.category || "Uncategorized"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${language === "ur" ? "urdu-text" : ""}`}>
+                          {poem.category || "Uncategorized"}
+                        </Badge>
+                        <Badge variant="outline" className="gap-1 text-xs bg-primary/5 hover:bg-primary/10 transition-colors">
+                          <Eye className="h-3 w-3" />
+                          <span>{poem.viewsCount || 0}</span>
+                        </Badge>
+                      </div>
                       <motion.div
                         className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
                         whileHover={{ x: 3 }}

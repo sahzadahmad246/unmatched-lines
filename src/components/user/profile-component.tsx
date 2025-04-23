@@ -1,11 +1,11 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { useSession, signOut, signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
+import { useState, useEffect } from "react"
+import { useSession, signOut, signIn } from "next-auth/react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Link from "next/link"
 import {
   LogOut,
   BookOpen,
@@ -17,15 +17,14 @@ import {
   Feather,
   BookHeart,
   Sparkles,
-  Settings,
   Grid3X3,
   BookMarked,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,17 +35,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
+import { useRouter } from "next/navigation"
 
 const fadeIn = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-};
+}
 
 const slideUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
-};
+}
 
 const staggerChildren = {
   hidden: { opacity: 0 },
@@ -56,45 +56,43 @@ const staggerChildren = {
       staggerChildren: 0.1,
     },
   },
-};
+}
 
 export default function ProfileComponent() {
-  const { data: session, status } = useSession();
-  const [userData, setUserData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [poemToRemove, setPoemToRemove] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("saved");
+  const { data: session, status } = useSession()
+  const [userData, setUserData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [poemToRemove, setPoemToRemove] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("saved")
+  const router = useRouter()
 
   useEffect(() => {
     if (session) {
-      setIsLoading(true);
+      setIsLoading(true)
       fetch("/api/user")
         .then((res) => res.json())
         .then((data) => {
-          setUserData(data);
-          setIsLoading(false);
+          setUserData(data)
+          setIsLoading(false)
         })
         .catch((err) => {
-          setIsLoading(false);
+          setIsLoading(false)
           toast.error("Failed to load profile", {
             description: "The verses of your profile couldn't be retrieved",
             icon: <Feather className="h-4 w-4" />,
-          });
-        });
+          })
+        })
     }
-  }, [session]);
+  }, [session])
 
-  const handleRemoveFromReadlist = async (
-    poemId: string,
-    poemTitle: string
-  ) => {
+  const handleRemoveFromReadlist = async (poemId: string, poemTitle: string) => {
     try {
-      setIsLoading(true);
+      setIsLoading(true)
       const res = await fetch("/api/user/readlist/remove", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
-      });
+      })
       if (res.ok) {
         setUserData((prev: any) => ({
           ...prev,
@@ -102,7 +100,7 @@ export default function ProfileComponent() {
             ...prev.user,
             readList: prev.user.readList.filter((p: any) => p._id !== poemId),
           },
-        }));
+        }))
 
         toast.success("Poem removed", {
           description: `"${poemTitle}" has been removed from your reading list.`,
@@ -110,38 +108,70 @@ export default function ProfileComponent() {
           duration: 3000,
           position: "bottom-right",
           className: "border border-primary/20",
-        });
+        })
       }
-      setIsLoading(false);
-      setPoemToRemove(null);
+      setIsLoading(false)
+      setPoemToRemove(null)
     } catch (error) {
-      setIsLoading(false);
-      setPoemToRemove(null);
+      setIsLoading(false)
+      setPoemToRemove(null)
 
       toast.error("Error", {
         description: "Failed to remove the poem. Please try again.",
         icon: <Feather className="h-4 w-4" />,
         duration: 3000,
-      });
+      })
     }
-  };
+  }
+
+  const handlePoemClick = async (poemId: string) => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/poem/${poemId}`)
+      if (res.ok) {
+        const data = await res.json()
+        const poem = data.poem
+
+        // Determine the language to use (defaulting to English)
+        const language = poem.content?.en ? "en" : poem.content?.hi ? "hi" : "ur"
+        const slug = poem.slug[language] || poem.slug.en || poem._id
+
+        // Navigate to the poem details page
+        router.push(`/poems/${language}/${slug}`)
+      } else {
+        toast.error("Error", {
+          description: "Failed to fetch poem details. Please try again.",
+          icon: <Feather className="h-4 w-4" />,
+          duration: 3000,
+        })
+      }
+      setIsLoading(false)
+    } catch (error) {
+      setIsLoading(false)
+      toast.error("Error", {
+        description: "Failed to navigate to poem details. Please try again.",
+        icon: <Feather className="h-4 w-4" />,
+        duration: 3000,
+      })
+    }
+  }
 
   const handleSignOut = () => {
     toast.success("Signed out successfully", {
       description: "We hope to see you again soon",
       icon: <Feather className="h-4 w-4" />,
       duration: 3000,
-    });
-    signOut();
-  };
+    })
+    signOut()
+  }
 
   const handleSignIn = () => {
     toast.loading("Signing you in...", {
       description: "Opening the door to poetry",
       duration: 3000,
-    });
-    signIn("google");
-  };
+    })
+    signIn("google")
+  }
 
   if (status === "loading") {
     return (
@@ -185,7 +215,7 @@ export default function ProfileComponent() {
           className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
         />
       </motion.div>
-    );
+    )
   }
 
   if (!session) {
@@ -217,8 +247,7 @@ export default function ProfileComponent() {
                 transition={{ delay: 0.5 }}
                 className="text-xl sm:text-2xl font-medium"
               >
-                Welcome to{" "}
-                <span className="italic text-primary">Unmatched Lines</span>
+                Welcome to <span className="italic text-primary">Unmatched Lines</span>
               </motion.h2>
 
               <motion.p
@@ -227,15 +256,10 @@ export default function ProfileComponent() {
                 transition={{ delay: 0.6 }}
                 className="text-muted-foreground"
               >
-                Sign in to discover your personal anthology of saved poems and
-                connect with fellow poetry enthusiasts.
+                Sign in to discover your personal anthology of saved poems and connect with fellow poetry enthusiasts.
               </motion.p>
 
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-              >
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
                 <Button
                   onClick={handleSignIn}
                   className="w-full gap-2 py-5 rounded-xl shadow-lg hover:shadow-primary/20 transition-all duration-300"
@@ -245,25 +269,18 @@ export default function ProfileComponent() {
                 </Button>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
                 <Separator className="my-4" />
                 <blockquote className="text-muted-foreground italic text-sm mt-4">
-                  "Poetry is the journal of a sea animal living on land, wanting
-                  to fly in the air."
-                  <footer className="mt-1 font-medium text-foreground">
-                    — Carl Sandburg
-                  </footer>
+                  "Poetry is the journal of a sea animal living on land, wanting to fly in the air."
+                  <footer className="mt-1 font-medium text-foreground">— Carl Sandburg</footer>
                 </blockquote>
               </motion.div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
-    );
+    )
   }
 
   return (
@@ -292,9 +309,7 @@ export default function ProfileComponent() {
 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-xs truncate">
-                    {session.user?.email}
-                  </span>
+                  <span className="text-xs truncate">{session.user?.email}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -325,32 +340,21 @@ export default function ProfileComponent() {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-2 mt-2 text-sm"
-                      >
+                      <Button variant="outline" className="w-full justify-start gap-2 mt-2 text-sm">
                         <LogOut className="h-4 w-4" />
                         Sign Out
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="border border-primary/20 shadow-lg">
                       <AlertDialogHeader>
-                        <AlertDialogTitle className="text-lg">
-                          Sign out?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle className="text-lg">Sign out?</AlertDialogTitle>
                         <AlertDialogDescription className="italic text-sm">
-                          Your anthology will await your return, preserved just
-                          as you left it.
+                          Your anthology will await your return, preserved just as you left it.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter className="mt-4">
-                        <AlertDialogCancel className="text-sm">
-                          Stay
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleSignOut}
-                          className="text-sm"
-                        >
+                        <AlertDialogCancel className="text-sm">Stay</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSignOut} className="text-sm">
                           Sign out
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -366,9 +370,7 @@ export default function ProfileComponent() {
               <h4 className="text-sm font-medium mb-2">Activity Stats</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-muted/50 p-3 rounded-md text-center">
-                  <p className="text-2xl font-bold text-primary">
-                    {userData?.user?.readList?.length || 0}
-                  </p>
+                  <p className="text-2xl font-bold text-primary">{userData?.user?.readList?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Saved Poems</p>
                 </div>
                 <div className="bg-muted/50 p-3 rounded-md text-center">
@@ -391,24 +393,15 @@ export default function ProfileComponent() {
             <CardContent className="p-6">
               <Tabs defaultValue="saved" onValueChange={setActiveTab}>
                 <TabsList className="mb-6 grid grid-cols-3 h-11">
-                  <TabsTrigger
-                    value="saved"
-                    className="flex items-center gap-2"
-                  >
+                  <TabsTrigger value="saved" className="flex items-center gap-2">
                     <BookMarked className="h-4 w-4" />
                     <span className="hidden sm:inline">Saved Poems</span>
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="collections"
-                    className="flex items-center gap-2"
-                  >
+                  <TabsTrigger value="collections" className="flex items-center gap-2">
                     <Grid3X3 className="h-4 w-4" />
                     <span className="hidden sm:inline">Collections</span>
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="activity"
-                    className="flex items-center gap-2"
-                  >
+                  <TabsTrigger value="activity" className="flex items-center gap-2">
                     <BookHeart className="h-4 w-4" />
                     <span className="hidden sm:inline">Activity</span>
                   </TabsTrigger>
@@ -417,107 +410,91 @@ export default function ProfileComponent() {
                 <TabsContent value="saved" className="space-y-4 mt-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium">Your Saved Poems</h3>
-                    <Badge variant="secondary">
-                      {userData?.user?.readList?.length || 0} Poems
-                    </Badge>
+                    <Badge variant="secondary">{userData?.user?.readList?.length || 0} Poems</Badge>
                   </div>
 
                   {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-4">
                       <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
-                      <p className="text-muted-foreground italic text-sm">
-                        Loading your collection...
-                      </p>
+                      <p className="text-muted-foreground italic text-sm">Loading your collection...</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       <AnimatePresence mode="popLayout">
                         {userData?.user?.readList?.length ? (
-                          userData.user.readList.map(
-                            (poem: any, index: number) => (
-                              <motion.div
-                                key={poem._id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{
-                                  opacity: 0,
-                                  y: 10,
-                                  transition: { duration: 0.2 },
-                                }}
-                                transition={{
-                                  delay: 0.05 * index,
-                                  duration: 0.3,
-                                }}
-                                className="group relative"
+                          userData.user.readList.map((poem: any, index: number) => (
+                            <motion.div
+                              key={poem._id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{
+                                opacity: 0,
+                                y: 10,
+                                transition: { duration: 0.2 },
+                              }}
+                              transition={{
+                                delay: 0.05 * index,
+                                duration: 0.3,
+                              }}
+                              className="group relative"
+                            >
+                              <div
+                                className="flex justify-between items-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-transparent hover:border-primary/10 cursor-pointer"
+                                onClick={() => handlePoemClick(poem._id)}
                               >
-                                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-transparent hover:border-primary/10">
-                                  <div className="flex items-center gap-3">
-                                    <BookOpen className="h-4 w-4 text-primary/70" />
-                                    <span className="italic text-sm">
-                                      {typeof poem.title === "object"
-                                        ? poem.title.en || "Untitled"
-                                        : poem.title}
-                                    </span>
-                                  </div>
-
-                                  <AlertDialog
-                                    open={poemToRemove === poem._id}
-                                    onOpenChange={(open) =>
-                                      !open && setPoemToRemove(null)
-                                    }
-                                  >
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          setPoemToRemove(poem._id)
-                                        }
-                                        className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10 gap-1"
-                                      >
-                                        <BookmarkMinus className="h-4 w-4" />
-                                        <span className="hidden sm:inline text-xs">
-                                          Remove
-                                        </span>
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="border border-destructive/20">
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle className="text-lg">
-                                          Remove this poem?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription className="italic text-sm">
-                                          Are you sure you wish to remove "
-                                          {typeof poem.title === "object"
-                                            ? poem.title.en || "Untitled"
-                                            : poem.title}
-                                          " from your collection?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="mt-4">
-                                        <AlertDialogCancel className="text-sm">
-                                          Keep
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() =>
-                                            handleRemoveFromReadlist(
-                                              poem._id,
-                                              typeof poem.title === "object"
-                                                ? poem.title.en || "Untitled"
-                                                : poem.title
-                                            )
-                                          }
-                                          className="bg-destructive hover:bg-destructive/90 text-sm"
-                                        >
-                                          Remove
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                <div className="flex items-center gap-3">
+                                  <BookOpen className="h-4 w-4 text-primary/70" />
+                                  <span className="italic text-sm">
+                                    {typeof poem.title === "object" ? poem.title.en || "Untitled" : poem.title}
+                                  </span>
                                 </div>
-                              </motion.div>
-                            )
-                          )
+
+                                <AlertDialog
+                                  open={poemToRemove === poem._id}
+                                  onOpenChange={(open) => !open && setPoemToRemove(null)}
+                                >
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setPoemToRemove(poem._id)
+                                      }}
+                                      className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10 gap-1"
+                                    >
+                                      <BookmarkMinus className="h-4 w-4" />
+                                      <span className="hidden sm:inline text-xs">Remove</span>
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="border border-destructive/20">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="text-lg">Remove this poem?</AlertDialogTitle>
+                                      <AlertDialogDescription className="italic text-sm">
+                                        Are you sure you wish to remove "
+                                        {typeof poem.title === "object" ? poem.title.en || "Untitled" : poem.title}"
+                                        from your collection?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="mt-4">
+                                      <AlertDialogCancel className="text-sm">Keep</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() =>
+                                          handleRemoveFromReadlist(
+                                            poem._id,
+                                            typeof poem.title === "object" ? poem.title.en || "Untitled" : poem.title,
+                                          )
+                                        }
+                                        className="bg-destructive hover:bg-destructive/90 text-sm"
+                                      >
+                                        Remove
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </motion.div>
+                          ))
                         ) : (
                           <motion.div
                             initial={{ opacity: 0 }}
@@ -526,20 +503,14 @@ export default function ProfileComponent() {
                             className="flex flex-col items-center justify-center py-8 text-muted-foreground"
                           >
                             <BookOpen className="h-12 w-12 mb-4 opacity-30" />
-                            <p className="italic text-base mb-2">
-                              Your collection is empty
-                            </p>
+                            <p className="italic text-base mb-2">Your collection is empty</p>
                             <p className="text-xs max-w-md text-center">
-                              Explore our collection and save poems that
-                              resonate with you
+                              Explore our collection and save poems that resonate with you
                             </p>
 
                             <div className="mt-6">
                               <Link href="/ghazal">
-                                <Button
-                                  variant="outline"
-                                  className="gap-2 text-sm"
-                                >
+                                <Button variant="outline" className="gap-2 text-sm">
                                   <Sparkles className="h-4 w-4" />
                                   Discover Poems
                                 </Button>
@@ -555,12 +526,9 @@ export default function ProfileComponent() {
                 <TabsContent value="collections">
                   <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                     <Grid3X3 className="h-12 w-12 mb-4 opacity-30" />
-                    <p className="italic text-base mb-2">
-                      Collections coming soon
-                    </p>
+                    <p className="italic text-base mb-2">Collections coming soon</p>
                     <p className="text-xs max-w-md text-center">
-                      Soon you'll be able to organize your favorite poems into
-                      custom collections
+                      Soon you'll be able to organize your favorite poems into custom collections
                     </p>
                   </div>
                 </TabsContent>
@@ -568,12 +536,9 @@ export default function ProfileComponent() {
                 <TabsContent value="activity">
                   <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                     <BookHeart className="h-12 w-12 mb-4 opacity-30" />
-                    <p className="italic text-base mb-2">
-                      Activity feed coming soon
-                    </p>
+                    <p className="italic text-base mb-2">Activity feed coming soon</p>
                     <p className="text-xs max-w-md text-center">
-                      Track your interactions with poems and connect with other
-                      poetry enthusiasts
+                      Track your interactions with poems and connect with other poetry enthusiasts
                     </p>
                   </div>
                 </TabsContent>
@@ -582,12 +547,12 @@ export default function ProfileComponent() {
           </Card>
 
           <div className="mt-4 text-center text-muted-foreground italic text-xs">
-            "Poetry is the spontaneous overflow of powerful feelings: it takes
-            its origin from emotion recollected in tranquility."
+            "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in
+            tranquility."
             <div className="mt-1 font-medium">— William Wordsworth</div>
           </div>
         </motion.div>
       </div>
     </div>
-  );
+  )
 }

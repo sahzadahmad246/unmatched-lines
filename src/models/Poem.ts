@@ -9,9 +9,24 @@ const PoemSchema = new Schema(
       ur: { type: String, required: true, trim: true },
     },
     content: {
-      en: [{ type: String, required: true }],
-      hi: [{ type: String, required: true }],
-      ur: [{ type: String, required: true }],
+      en: [
+        {
+          verse: { type: String, required: true },
+          meaning: { type: String, default: "" },
+        },
+      ],
+      hi: [
+        {
+          verse: { type: String, required: true },
+          meaning: { type: String, default: "" },
+        },
+      ],
+      ur: [
+        {
+          verse: { type: String, required: true },
+          meaning: { type: String, default: "" },
+        },
+      ],
     },
     author: { type: Schema.Types.ObjectId, ref: "Author", required: true },
     readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -32,7 +47,6 @@ const PoemSchema = new Schema(
       ],
       default: "poem",
     },
-
     status: {
       type: String,
       enum: ["draft", "published"],
@@ -43,6 +57,31 @@ const PoemSchema = new Schema(
       hi: { type: String, required: true, unique: true },
       ur: { type: String, required: true, unique: true },
     },
+    summary: {
+      en: { type: String, default: "" },
+      hi: { type: String, default: "" },
+      ur: { type: String, default: "" },
+    },
+    didYouKnow: {
+      en: { type: String, default: "" },
+      hi: { type: String, default: "" },
+      ur: { type: String, default: "" },
+    },
+    faqs: [
+      {
+        question: {
+          en: { type: String, default: "" },
+          hi: { type: String, default: "" },
+          ur: { type: String, default: "" },
+        },
+        answer: {
+          en: { type: String, default: "" },
+          hi: { type: String, default: "" },
+          ur: { type: String, default: "" },
+        },
+      },
+    ],
+    viewsCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

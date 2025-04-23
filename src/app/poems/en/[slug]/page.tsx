@@ -46,10 +46,11 @@ export async function generateMetadata({
 
   const title = poem?.title?.en || "Poem Not Found";
   const author = poem?.author?.name || "Unknown Author";
-  const description = poem?.content?.en
-    ? `${poem.content.en[0]?.slice(0, 150)}... - A poem by ${author}`
-    : `Explore this poem by ${author} in English.`;
-  // Prioritize poem.coverImage (string URL), fallback to coverImages[0].url, then default image
+  const description = poem?.summary?.en
+    ? poem.summary.en.slice(0, 150)
+    : poem?.content?.en?.[0]?.verse
+      ? `${poem.content.en[0].verse.slice(0, 150)}... - A poem by ${author}`
+      : `Explore this poem by ${author} in English.`;
   const coverImageUrl =
     poem?.coverImage ||
     (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
@@ -98,7 +99,6 @@ export async function generateMetadata({
   };
 }
 
-// Generate structured data for SEO
 function generateStructuredData(
   poem: Poem | null,
   language: string,
@@ -118,8 +118,7 @@ function generateStructuredData(
       "@type": "Person",
       name: poem.author?.name || "Unknown Author",
     },
-    description:
-      poem.title?.en || `A poem by ${poem.author?.name || "Unknown Author"}`,
+    description: poem.summary?.en || poem.content?.en?.[0]?.verse || `A poem by ${poem.author?.name || "Unknown Author"}`,
     inLanguage: language,
     url: `${baseUrl}/poems/${language}/${slugs[language]}`,
     image: coverImageUrl,

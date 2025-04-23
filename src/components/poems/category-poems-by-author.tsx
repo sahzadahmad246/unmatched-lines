@@ -2,13 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Poem } from "@/types/poem";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import { Poem } from "@/types/poem";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Feather, User, Quote, ArrowRight } from "lucide-react";
+import { Feather, User, Quote, ArrowRight, Heart, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 interface CoverImage {
   _id: string;
@@ -25,11 +32,9 @@ interface Author {
   bio?: string;
 }
 
-interface CategoryPoemsByAuthorProps {
+interface CategoryPoemsProps {
   poems: Poem[];
   category: string;
-  author: { name: string; slug: string; _id?: string };
-  language?: "en" | "hi" | "ur"; // Added language prop
 }
 
 const fadeIn = {
@@ -61,10 +66,6 @@ const customStyles = `
     .header-title {
       font-size: 1.5rem;
       line-height: 2rem;
-    }
-    
-    .book-icon-container {
-      transform: translateY(-50%);
     }
   }
   
@@ -99,19 +100,19 @@ const customStyles = `
   }
 `;
 
-export default function CategoryPoemsByAuthor({
-  poems,
-  category,
-  author,
-  language = "en", // Default to English
-}: CategoryPoemsByAuthorProps) {
+export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authorData, setAuthorData] = useState<Author | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "ur">(language);
+  const [authorDataMap, setAuthorDataMap] = useState<Record<string, Author>>(
+    {}
+  );
+  const [language, setLanguage] = useState<"en" | "hi" | "ur">("en");
+  const [readList, setReadList] = useState<string[]>([]);
+  const { data: session } = useSession();
   const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
   const isSherCategory = category.toLowerCase() === "sher";
 
+  // Fetch cover images
   useEffect(() => {
     const fetchCoverImages = async () => {
       try {
@@ -119,7 +120,8 @@ export default function CategoryPoemsByAuthor({
           credentials: "include",
           cache: "force-cache",
         });
-        if (!res.ok) throw new Error("Failed to fetch cover images");
+        if (!res.ok)
+          throw new Error(`Failed to fetch cover images: ${res.status}`);
         const data = await res.json();
         setCoverImages(data.coverImages || []);
       } catch (error) {
@@ -132,77 +134,128 @@ export default function CategoryPoemsByAuthor({
     fetchCoverImages();
   }, []);
 
+  // Fetch author data
   useEffect(() => {
-    const fetchAuthorData = async () => {
-      if (author?._id) {
-        try {
-          const res = await fetch(`/api/authors/${author._id}`, {
-            credentials: "include",
-          });
-          if (!res.ok) throw new Error("Failed to fetch author data");
-          const data = await res.json();
-          setAuthorData(data.author);
-        } catch (error) {
-        }
-      } else if (author?.slug) {
-        try {
-          const res = await fetch(`/api/authors?slug=${author.slug}`, {
-            credentials: "include",
-          });
-          if (!res.ok) throw new Error("Failed to fetch author data");
-          const data = await res.json();
-          setAuthorData(data.author);
-        } catch (error) {
-        }
+    const fetchAuthorsData = async () => {
+      const authorIds = [
+        ...new Set(poems.map((poem) => poem.author._id)),
+      ].filter(Boolean);
+      const authorDataMap: Record<string, Author> = {};
+
+      await Promise.all(
+        authorIds.map(async (authorId) => {
+          try {
+            const res = await fetch(`/api/authors/${authorId}`, {
+              credentials: "include",
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.author) authorDataMap[authorId] = data.author;
+          } catch (error) {
+            console.error(
+              `CategoryPoems - Error fetching author ${authorId}:`,
+              error
+            );
+          }
+        })
+      );
+
+      setAuthorDataMap(authorDataMap);
+    };
+
+    if (poems.length > 0) fetchAuthorsData();
+  }, [poems]);
+
+  // Fetch user's readlist
+  useEffect(() => {
+    const fetchReadList = async () => {
+      if (!session) return;
+      try {
+        const res = await fetch("/api/user", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok)
+          throw new Error(`Failed to fetch user data: ${res.status}`);
+        const data = await res.json();
+        setReadList(
+          data.user.readList.map((poem: any) => poem._id.toString()) || []
+        );
+      } catch (error) {
+        toast.error("Failed to load reading list", {
+          description: "You can still add poems to your reading list.",
+        });
       }
     };
 
-    fetchAuthorData();
-  }, [author]);
+    fetchReadList();
+  }, [session]);
 
-  const getSlug = (slug: Poem["slug"], lang: "en" | "hi" | "ur"): string => {
-    if (Array.isArray(slug)) {
-      return slug.find((s) => s[lang])?.[lang] || slug[0]?.en || "";
-    }
-    return slug?.[lang] || slug?.en || "";
-  };
-
-  const formatPoetryContent = (content: string[] | undefined, lang: "en" | "hi" | "ur") => {
-    if (!content || !Array.isArray(content) || content.length === 0) {
-      return (
-        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
-          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
-        </div>
-      );
+  // Handle readlist toggle
+  const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
+    if (!session) {
+      toast.error("Authentication required", {
+        description: "Please sign in to manage your reading list.",
+        action: {
+          label: "Sign In",
+          onClick: () => (window.location.href = "/api/auth/signin"),
+        },
+      });
+      return;
     }
 
-    if (isSherCategory) {
-      return (
-        <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
-          {content[0].split("\n").map((line, lineIndex) => (
-            <div
-              key={lineIndex}
-              className={`poem-line leading-relaxed text-sm font-serif ${lang === "ur" ? "urdu-text" : ""}`}
-            >
-              {line || "\u00A0"}
-            </div>
-          ))}
-        </div>
-      );
-    }
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist
+      ? "/api/user/readlist/remove"
+      : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
-    return (
-      <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
-        {content[0].split("\n").map((line, lineIndex) => (
-          <div
-            key={lineIndex}
-            className={`poem-line leading-relaxed text-xs sm:text-sm font-serif line-clamp-1 ${lang === "ur" ? "urdu-text" : ""}`}
-          >
-            {line || "\u00A0"}
-          </div>
-        ))}
-      </div>
-    );
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poemId }),
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        setReadList((prev) =>
+          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
+        );
+        if (isInReadlist) {
+          toast.error("Removed from reading list", {
+            description: `"${poemTitle}" has been removed from your reading list.`,
+          });
+        } else {
+          toast.custom(
+            (t) => (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center gap-3"
+              >
+                <Heart className="h-5 w-5 fill-current" />
+                <div>
+                  <div className="font-medium">Added to your anthology</div>
+                  <div className="text-sm opacity-90">
+                    "{poemTitle}" now resides in your collection
+                  </div>
+                </div>
+              </motion.div>
+            ),
+            { duration: 3000 }
+          );
+        }
+      } else {
+        throw new Error(`Failed to update readlist: ${res.status}`);
+      }
+    } catch (error) {
+      toast.error("Error", {
+        description: "An error occurred while updating the reading list.",
+      });
+    }
   };
 
   const coverImageUrl =
@@ -220,13 +273,10 @@ export default function CategoryPoemsByAuthor({
           transition={{ duration: 0.5 }}
         >
           <motion.div
-            animate={{
-              rotate: 360,
-              scale: [1, 1.1, 1],
-            }}
+            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
             transition={{
-              rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
-              scale: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+              rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
             }}
           >
             <Feather className="h-12 w-12 text-primary/70" />
@@ -237,11 +287,85 @@ export default function CategoryPoemsByAuthor({
     );
   }
 
+  const formatPoetryContent = (
+    content: { verse: string; meaning: string }[] | undefined,
+    lang: "en" | "hi" | "ur"
+  ): React.ReactNode => {
+    if (!content || content.length === 0 || !content[0]?.verse) {
+      return (
+        <div
+          className={`text-muted-foreground italic text-xs ${
+            lang === "ur" ? "urdu-text" : ""
+          }`}
+        >
+          {lang === "en"
+            ? "Content not available"
+            : lang === "hi"
+            ? "सामग्री उपलब्ध नहीं है"
+            : "مواد دستیاب نہیں ہے"}
+        </div>
+      );
+    }
+
+    const lines = content[0].verse.split("\n").filter(Boolean);
+    if (lines.length === 0) {
+      return (
+        <div
+          className={`text-muted-foreground italic text-xs ${
+            lang === "ur" ? "urdu-text" : ""
+          }`}
+        >
+          {lang === "en"
+            ? "Content not available"
+            : lang === "hi"
+            ? "सामग्री उपलब्ध नहीं है"
+            : "مواد دستیاب نہیں ہے"}
+        </div>
+      );
+    }
+
+    if (isSherCategory) {
+      return (
+        <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+          {lines.map((line, lineIndex) => (
+            <div
+              key={lineIndex}
+              className={`poem-line leading-relaxed text-sm font-serif ${
+                lang === "ur" ? "urdu-text" : ""
+              }`}
+            >
+              {line || "\u00A0"}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
+        {lines.slice(0, 2).map((line, lineIndex) => (
+          <div
+            key={lineIndex}
+            className={`poem-line leading-relaxed text-xs sm:text-sm font-serif line-clamp-1 ${
+              lang === "ur" ? "urdu-text" : ""
+            }`}
+          >
+            {line || "\u00A0"}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       <style>{customStyles}</style>
       <div className="container mx-auto py-8 px-4">
-        <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="mb-12">
+        <motion.div
+          initial={fadeIn.hidden}
+          animate={fadeIn.visible}
+          className="mb-12"
+        >
           <Card className="overflow-hidden border shadow-lg bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
             <CardHeader className="relative p-0">
               <motion.div
@@ -267,24 +391,14 @@ export default function CategoryPoemsByAuthor({
                 </div>
               </motion.div>
               <div className="relative bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 py-8">
-                <motion.div className="flex flex-col items-center gap-2 mt-4">
-                  <h1 className={`text-2xl md:text-4xl font-bold text-center font-serif header-title ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-                    {displayCategory} by {author.name}
+                <motion.div className="flex flex-col items-center gap-2">
+                  <h1
+                    className={`text-2xl md:text-4xl font-bold text-center font-serif mt-4 header-title ${
+                      language === "ur" ? "urdu-text" : ""
+                    }`}
+                  >
+                    {displayCategory}
                   </h1>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="h-8 w-8 border border-primary/20">
-                      {authorData?.image ? (
-                        <AvatarImage src={authorData.image} alt={authorData.name || author.name} />
-                      ) : (
-                        <AvatarFallback>
-                          <User className="h-4 w-4" />
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className={`text-sm text-muted-foreground ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-                      {authorData?.name || author.name}
-                    </span>
-                  </div>
                   <motion.div
                     className="w-24 h-1 bg-primary/60 mx-auto mt-2"
                     initial={{ width: 0 }}
@@ -297,7 +411,11 @@ export default function CategoryPoemsByAuthor({
           </Card>
         </motion.div>
 
-        <Tabs defaultValue={selectedLanguage} onValueChange={(value) => setSelectedLanguage(value as "en" | "hi" | "ur")} className="mb-8">
+        <Tabs
+          defaultValue="en"
+          onValueChange={(value) => setLanguage(value as "en" | "hi" | "ur")}
+          className="mb-8"
+        >
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
             <TabsTrigger value="en">English</TabsTrigger>
             <TabsTrigger value="hi">Hindi</TabsTrigger>
@@ -306,70 +424,163 @@ export default function CategoryPoemsByAuthor({
         </Tabs>
 
         {poems.length === 0 ? (
-          <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="text-center py-12">
+          <motion.div
+            initial={fadeIn.hidden}
+            animate={fadeIn.visible}
+            className="text-center py-12"
+          >
             <Quote className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className={`text-gray-600 text-lg font-serif italic ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-              {selectedLanguage === "en" ? `No ${displayCategory.toLowerCase()} poems found by ${author.name}.` :
-               selectedLanguage === "hi" ? `${author.name} द्वारा कोई ${displayCategory.toLowerCase()} कविता नहीं मिली।` :
-               `کوئی ${displayCategory.toLowerCase()} نظم ${author.name} کی طرف سے نہیں ملی۔`}
+            <p
+              className={`text-gray-600 text-lg font-serif italic ${
+                language === "ur" ? "urdu-text" : ""
+              }`}
+            >
+              {language === "en"
+                ? "No poems found in this category."
+                : language === "hi"
+                ? "इस श्रेणी में कोई कविता नहीं मिली।"
+                : "اس زمرے میں کوئی نظم نہیں ملی۔"}
             </p>
           </motion.div>
         ) : (
-          <motion.div className="grid gap-6 poem-grid" variants={staggerContainer} initial="hidden" animate="visible">
+          <motion.div
+            className="grid gap-6 poem-grid"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
             {poems.map((poem) => {
-              const currentSlug = getSlug(poem.slug, selectedLanguage);
-              const currentTitle = poem.title[selectedLanguage] || poem.title.en || "Untitled";
-              const currentContent = poem.content?.[selectedLanguage] || poem.content?.en || [];
-              const poemLanguage = poem.content?.[selectedLanguage] ? selectedLanguage : "en";
+              const authorData = poem.author._id
+                ? authorDataMap[poem.author._id]
+                : null;
+              const currentSlug =
+                poem.slug[language] || poem.slug.en || poem._id;
+              const currentTitle =
+                poem.title[language] || poem.title.en || "Untitled";
+              const currentContent =
+                poem.content?.[language] || poem.content?.en || [];
+              const poemLanguage = poem.content?.[language] ? language : "en";
+              const isInReadlist = readList.includes(poem._id);
 
               return (
-                <motion.article key={poem._id} variants={slideUp} className="h-full">
-                  <Link href={`/poems/${poemLanguage}/${currentSlug}`} className="block h-full">
-                    <Card className="border shadow-sm hover:shadow-xl transition-all duration-300 h-full bg-white dark:bg-slate-900 overflow-hidden group poem-card">
-                      <CardHeader className={`p-4 ${isSherCategory ? "pb-0" : "pb-2"}`}>
-                        {!isSherCategory && (
-                          <h2 className={`text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4 ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-                            {currentTitle}
-                          </h2>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <Avatar className="h-6 w-6 border border-primary/20">
-                            {authorData?.image ? (
-                              <AvatarImage src={authorData.image} alt={authorData.name || poem.author.name} />
-                            ) : (
-                              <AvatarFallback>
-                                <User className="h-3 w-3" />
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <p className={`text-gray-600 dark:text-gray-400 text-xs ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-                            {poem.author.name || "Unknown Author"}
-                          </p>
+                <motion.article
+                  key={poem._id}
+                  variants={slideUp}
+                  className="h-full"
+                >
+                  <Card className="border shadow-sm hover:shadow-xl transition-all duration-300 h-full bg-white dark:bg-slate-900 overflow-hidden group poem-card">
+                    <CardHeader
+                      className={`p-4 ${isSherCategory ? "pb-0" : "pb-2"}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          {!isSherCategory && (
+                            <h2
+                              className={`text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4 ${
+                                language === "ur" ? "urdu-text" : ""
+                              }`}
+                            >
+                              <Link
+                                href={`/poems/${poemLanguage}/${currentSlug}`}
+                              >
+                                {currentTitle}
+                              </Link>
+                            </h2>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Avatar className="h-6 w-6 border border-primary/20">
+                              {authorData?.image ? (
+                                <AvatarImage
+                                  src={authorData.image}
+                                  alt={authorData.name || poem.author.name}
+                                />
+                              ) : (
+                                <AvatarFallback>
+                                  <User className="h-3 w-3" />
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <p
+                              className={`text-gray-600 dark:text-gray-400 text-xs ${
+                                language === "ur" ? "urdu-text" : ""
+                              }`}
+                            >
+                              {authorData?.name ||
+                                poem.author.name ||
+                                "Unknown Author"}
+                            </p>
+                          </div>
                         </div>
-                      </CardHeader>
+                        <motion.button
+                          onClick={() =>
+                            handleReadlistToggle(poem._id, currentTitle)
+                          }
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="p-1"
+                          aria-label={
+                            isInReadlist
+                              ? "Remove from readlist"
+                              : "Add to readlist"
+                          }
+                        >
+                          <Heart
+                            className={`h-5 w-5 ${
+                              isInReadlist
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-500"
+                            }`}
+                          />
+                        </motion.button>
+                      </div>
+                    </CardHeader>
 
-                      <CardContent className="p-4 pt-2 poem-card-content">
+                    <CardContent className="p-4 pt-2 poem-card-content">
+                      <Link
+                        href={`/poems/${poemLanguage}/${currentSlug}`}
+                        className="block"
+                      >
                         <div
-                          className={`${isSherCategory ? "mt-2" : "mt-0"} font-serif text-gray-800 dark:text-gray-200 border-l-2 border-primary/30 pl-3 py-1`}
+                          className={`${
+                            isSherCategory ? "mt-2" : "mt-0"
+                          } font-serif text-gray-800 dark:text-gray-200 border-l-2 border-primary/30 pl-3 py-1`}
                         >
                           {formatPoetryContent(currentContent, poemLanguage)}
                         </div>
-                      </CardContent>
+                      </Link>
+                    </CardContent>
 
-                      <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                        <Badge variant="outline" className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${selectedLanguage === "ur" ? "urdu-text" : ""}`}>
-                          {poem.category || "Uncategorized"}
-                        </Badge>
-                        <motion.div
-                          className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
-                          whileHover={{ x: 3 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                        >
-                          Read <ArrowRight className="h-3 w-3 ml-1" />
-                        </motion.div>
-                      </CardFooter>
-                    </Card>
-                  </Link>
+                    <CardFooter className="p-4 pt-0 flex justify-between items-center">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${
+                          language === "ur" ? "urdu-text" : ""
+                        }`}
+                      >
+                        {poem.category || "Uncategorized"}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="gap-1 text-xs bg-primary/5 hover:bg-primary/10 transition-colors"
+                      >
+                        <Eye className="h-3 w-3" />
+                        <span>{poem.viewsCount || 0}</span>
+                      </Badge>
+                      <motion.div
+                        className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
+                        whileHover={{ x: 3 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 10,
+                        }}
+                      >
+                        <Link href={`/poems/${poemLanguage}/${currentSlug}`}>
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </Link>
+                      </motion.div>
+                    </CardFooter>
+                  </Card>
                 </motion.article>
               );
             })}
