@@ -1,10 +1,12 @@
-"use client"
+// src/components/home/PoetProfileComponent.tsx
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import Link from "next/link"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import Image from "next/image";
+import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   Search,
   BookOpen,
@@ -17,37 +19,22 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { PoemListItem } from "@/components/poems/poem-list-item"
-import { toast } from "sonner"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { Poem, CoverImage } from "@/types/poem"
-
-interface Poet {
-  _id: string
-  name: string
-  bio?: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount?: number
-  sherCount?: number
-  otherCount?: number
-  createdAt: string
-  updatedAt: string
-  slug: string
-}
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { PoemListItem } from "@/components/poems/poem-list-item";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Poet, Poem, CoverImage } from "@/types/poem";
 
 interface PoetProfileProps {
-  slug: string
-  poet: Poet
+  slug: string;
+  poet: Poet;
 }
 
 const customStyles = `
@@ -130,98 +117,127 @@ const customStyles = `
   .poem-content {
     width: 100%;
   }
-`
+`;
 
 export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
-  const router = useRouter()
-  const [poems, setPoems] = useState<Poem[]>([])
-  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [readList, setReadList] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("all")
-  const [showFullBio, setShowFullBio] = useState(false)
-  const [profileImageOpen, setProfileImageOpen] = useState(false)
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [poems, setPoems] = useState<Poem[]>([]);
+  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [readList, setReadList] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [showFullBio, setShowFullBio] = useState(false);
+  const [profileImageOpen, setProfileImageOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
 
-  const PREVIEW_LIMIT = 3 // Show only 3 poems per category as a preview
+  const PREVIEW_LIMIT = 3;
+  const TOP_CONTENT_LIMIT = 3;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [poemRes, userRes, coverImagesRes] = await Promise.all([
-          fetch(`/api/poem`, { credentials: "include" }),
-          fetch("/api/user", { credentials: "include" }),
-          fetch("/api/cover-images", { credentials: "include" }),
-        ])
+          fetch(`/api/poem`, { credentials: "include" }).catch(() => new Response(null, { status: 500 })),
+          fetch("/api/user", { credentials: "include" }).catch(() => new Response(null, { status: 401 })),
+          fetch("/api/cover-images", { credentials: "include" }).catch(() => new Response(null, { status: 404 })),
+        ]);
 
-        if (!poemRes.ok) throw new Error(`Failed to fetch poems`)
-        const poemData = await poemRes.json()
+        if (!poemRes.ok) {
+          const errorData = await poemRes.json().catch(() => ({}));
+          console.error("Poem API error:", {
+            status: poemRes.status,
+            statusText: poemRes.statusText,
+            error: errorData,
+          });
+          throw new Error(`Failed to fetch poems: ${poemRes.status} ${poemRes.statusText}`);
+        }
+
+        const poemData = await poemRes.json();
+        console.log("Poem API response:", poemData);
+
+        if (!poemData.poems) {
+          console.warn("Invalid poem data: 'poems' array missing");
+          setPoems([]);
+          setFilteredPoems([]);
+          setCategories([]);
+          setError("No poems available");
+          return;
+        }
+
         const poetPoems = poemData.poems
-          .filter((poem: Poem) => poem.author?._id.toString() === poet._id.toString())
+          .filter((poem: Poem) => {
+            if (!poem.author?._id) {
+              console.warn("Poem missing author:", poem._id);
+              return false;
+            }
+            return poem.author._id.toString() === poet._id.toString();
+          })
           .map((poem: Poem) => ({
             ...poem,
-            viewsCount: poem.viewsCount ?? 0, // Default for required field
-            readListCount: poem.readListCount ?? 0, // Default for required field
-            category: poem.category ?? "Uncategorized", // Ensure required field
-            summary: poem.summary ?? { en: "" }, // Default for optional field
-            didYouKnow: poem.didYouKnow ?? { en: "" }, // Default for optional field
-            faqs: poem.faqs ?? [], // Default for optional field
-            createdAt: poem.createdAt ?? new Date().toISOString(), // Default for optional field
-            tags: poem.tags ?? [], // Default for optional field
-            categories: poem.categories ?? [], // Default for optional field
-            coverImage: poem.coverImage ?? "/placeholder.svg", // Default for optional field
-          }))
-        setPoems(poetPoems)
-        setFilteredPoems(poetPoems)
+            viewsCount: poem.viewsCount ?? 0,
+            readListCount: poem.readListCount ?? 0,
+            category: poem.category ?? "Uncategorized",
+            summary: poem.summary ?? { en: "" },
+            didYouKnow: poem.didYouKnow ?? { en: "" },
+            faqs: poem.faqs ?? [],
+            createdAt: poem.createdAt ?? new Date().toISOString(),
+            tags: poem.tags ?? [],
+            categories: poem.categories ?? [],
+            coverImage: poem.coverImage ?? "/placeholder.svg",
+            slug: poem.slug ?? { en: poem._id },
+          }));
 
-        const uniqueCategories = Array.from(new Set(poetPoems.map((poem: Poem) => poem.category.toLowerCase()))).filter(
-          (cat): cat is string => !!cat,
-        )
-        setCategories(uniqueCategories)
+        if (poetPoems.length === 0) {
+          console.warn(`No poems found for poet: ${poet._id} (${poet.name})`);
+          setError("No poems found for this poet");
+        }
+
+        setPoems(poetPoems);
+        setFilteredPoems(poetPoems);
+
+        const uniqueCategories = Array.from(
+          new Set(poetPoems.map((poem: Poem) => poem.category.toLowerCase()))
+        ).filter((cat): cat is string => !!cat);
+        setCategories(uniqueCategories);
 
         if (userRes.ok) {
-          const userData = await userRes.json()
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+          const userData = await userRes.json();
+          setReadList(userData.user?.readList?.map((poem: any) => poem._id.toString()) || []);
+          setIsFollowing(
+            Array.isArray(poet.followers) && userData.user?._id
+              ? poet.followers.some((f: any) => f.userId === userData.user._id)
+              : false
+          );
+        } else {
+          console.warn("User API not available, skipping readList and follow status");
         }
 
         if (coverImagesRes.ok) {
-          const coverImagesData = await coverImagesRes.json()
-          setCoverImages(coverImagesData.coverImages || [])
+          const coverImagesData = await coverImagesRes.json();
+          setCoverImages(coverImagesData.coverImages || []);
+        } else {
+          console.warn("Cover Images API not available, using default cover image");
         }
-      } catch (err) {
-        setError("Failed to load poems")
+      } catch (err: any) {
+        console.error("Fetch data error:", err.message);
+        setError(err.message || "Failed to load poems");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [poet._id])
-
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category.toLowerCase() === activeTab))
-    } else {
-      const query = searchQuery.toLowerCase()
-      const results = poems
-        .filter((poem) => (activeTab === "all" ? true : poem.category.toLowerCase() === activeTab))
-        .filter(
-          (poem) =>
-            poem.title.en.toLowerCase().includes(query) ||
-            poem.summary?.en.toLowerCase().includes(query) || // Use summary instead of excerpt
-            poem.category.toLowerCase().includes(query),
-        )
-      setFilteredPoems(results)
-    }
-  }, [searchQuery, poems, activeTab])
+    fetchData();
+  }, [poet._id, poet.followers]);
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -229,10 +245,10 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
         setPoems((prevPoems) =>
           prevPoems.map((poem) =>
             poem._id === poemId
@@ -240,39 +256,71 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                   ...poem,
                   readListCount: isInReadlist ? poem.readListCount - 1 : poem.readListCount + 1,
                 }
-              : poem,
-          ),
-        )
+              : poem
+          )
+        );
         toast(isInReadlist ? "Removed from reading list" : "Added to reading list", {
           description: `"${poemTitle}" has been ${isInReadlist ? "removed from" : "added to"} your reading list.`,
-        })
+        });
       } else if (res.status === 401) {
         toast("Authentication required", {
           description: "Please sign in to manage your reading list.",
-        })
+        });
       }
     } catch (error) {
       toast("Error", {
         description: "An error occurred while updating the reading list.",
-      })
+      });
     }
-  }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!session) {
+      toast("Authentication required", {
+        description: "Please sign in to follow poets.",
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/authors/${slug}/follow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsFollowing(data.isFollowing);
+        poet.followerCount = data.followerCount;
+        toast(data.message, {
+          description: `${poet.name} has been ${data.isFollowing ? "followed" : "unfollowed"}.`,
+        });
+      } else {
+        toast("Error", {
+          description: data.error || "Failed to toggle follow.",
+        });
+      }
+    } catch (error) {
+      toast("Error", {
+        description: "An error occurred while updating follow status.",
+      });
+    }
+  };
 
   const getCoverImage = (index?: number) => {
-    if (coverImages.length === 0) return "/placeholder.svg"
+    if (coverImages.length === 0) return "/placeholder.svg";
     if (index !== undefined && coverImages.length > 1) {
-      // Use the index to get a different image for each card
-      const safeIndex = index % coverImages.length
-      return coverImages[safeIndex]?.url || "/placeholder.svg"
+      const safeIndex = index % coverImages.length;
+      return coverImages[safeIndex]?.url || "/placeholder.svg";
     }
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex]?.url || "/placeholder.svg"
-  }
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex]?.url || "/placeholder.svg";
+  };
 
   const truncateBio = (bio: string, maxLength = 120) => {
-    if (!bio || bio.length <= maxLength) return bio
-    return bio.substring(0, maxLength) + "..."
-  }
+    if (!bio || bio.length <= maxLength) return bio;
+    return bio.substring(0, maxLength) + "...";
+  };
 
   if (loading) {
     return (
@@ -280,7 +328,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         <Loader2 className="h-12 w-12 text-primary/70 animate-spin" />
         <p className="text-xl font-medium">Loading poet profile...</p>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -292,7 +340,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
           <Button className="mt-4">Back to Profiles</Button>
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -332,7 +380,19 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                       <User className="h-3 w-3" />
                       <span className="text-xs">Poet</span>
                     </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <User className="h-3 w-3" />
+                      <span className="text-xs">{poet.followerCount} Followers</span>
+                    </Badge>
                   </div>
+                  <Button
+                    onClick={handleFollowToggle}
+                    disabled={!session}
+                    variant={isFollowing ? "secondary" : "default"}
+                    className="w-full"
+                  >
+                    {isFollowing ? "Unfollow" : "Follow"}
+                  </Button>
                   <Separator className="my-4" />
                   {poet.bio && (
                     <div className="space-y-2">
@@ -468,9 +528,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                     {filteredPoems.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredPoems.map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled"
-                          const englishSlug = poem.slug?.en || poem._id
-                          const isInReadlist = readList.includes(poem._id)
+                          const poemTitle = poem.title?.en || "Untitled";
+                          const englishSlug = poem.slug?.en || poem._id;
+                          const isInReadlist = readList.includes(poem._id);
                           return (
                             <motion.div
                               key={poem._id}
@@ -487,57 +547,131 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                                 handleReadlistToggle={handleReadlistToggle}
                               />
                             </motion.div>
-                          )
+                          );
                         })}
                       </div>
                     ) : (
                       <EmptyState query={searchQuery} />
                     )}
+                    <div className="mt-6">
+                      <h3 className="text-lg font-semibold mb-4">Top Content</h3>
+                      {poet.topContent ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(poet.topContent)
+                            .filter(([category]) => poet.topContent[category as keyof Poet["topContent"]].length > 0)
+                            .map(([category, items]) => (
+                              <div key={category} className="mb-4">
+                                <h4 className="text-md font-medium capitalize">{category}</h4>
+                                {items.slice(0, TOP_CONTENT_LIMIT).map((item: any, index: number) => (
+                                  <motion.div
+                                    key={item.contentId._id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.05 * index, duration: 0.3 }}
+                                  >
+                                    <PoemListItem
+                                      poem={item.contentId}
+                                      coverImage={getCoverImage(index)}
+                                      englishSlug={item.contentId.slug?.en || item.contentId._id}
+                                      isInReadlist={readList.includes(item.contentId._id)}
+                                      poemTitle={item.contentId.title?.en || "Untitled"}
+                                      handleReadlistToggle={handleReadlistToggle}
+                                    />
+                                  </motion.div>
+                                ))}
+                                {items.length > TOP_CONTENT_LIMIT && (
+                                  <div className="mt-4 text-center">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => router.push(`/authors/${slug}/top-20/${category}`)}
+                                    >
+                                      See All {category.charAt(0).toUpperCase() + category.slice(1)}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">No top content available.</p>
+                        </div>
+                      )}
+                    </div>
                   </TabsContent>
 
                   {categories.map((category) => (
                     <TabsContent key={category} value={category}>
-                      {filteredPoems.filter((p) => p.category.toLowerCase() === category).length > 0 ? (
-                        <div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {filteredPoems
-                              .filter((p) => p.category.toLowerCase() === category)
-                              .slice(0, PREVIEW_LIMIT)
-                              .map((poem, index) => {
-                                const poemTitle = poem.title?.en || "Untitled"
-                                const englishSlug = poem.slug?.en || poem._id
-                                const isInReadlist = readList.includes(poem._id)
-                                return (
+                      <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {filteredPoems
+                            .filter((p) => p.category.toLowerCase() === category)
+                            .slice(0, PREVIEW_LIMIT)
+                            .map((poem, index) => {
+                              const poemTitle = poem.title?.en || "Untitled";
+                              const englishSlug = poem.slug?.en || poem._id;
+                              const isInReadlist = readList.includes(poem._id);
+                              return (
+                                <motion.div
+                                  key={poem._id}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.05 * index, duration: 0.3 }}
+                                >
+                                  <PoemListItem
+                                    poem={poem}
+                                    coverImage={getCoverImage(index)}
+                                    englishSlug={englishSlug}
+                                    isInReadlist={isInReadlist}
+                                    poemTitle={poemTitle}
+                                    handleReadlistToggle={handleReadlistToggle}
+                                  />
+                                </motion.div>
+                              );
+                            })}
+                        </div>
+                        <div className="mt-6">
+                          <h3 className="text-lg font-semibold mb-4">Top {category.charAt(0).toUpperCase() + category.slice(1)}</h3>
+                          {poet.topContent && poet.topContent[category as keyof Poet["topContent"]] ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {poet.topContent[category as keyof Poet["topContent"]]
+                                .slice(0, TOP_CONTENT_LIMIT)
+                                .map((item: any, index: number) => (
                                   <motion.div
-                                    key={poem._id}
+                                    key={item.contentId._id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                      delay: 0.05 * index,
-                                      duration: 0.3,
-                                    }}
+                                    transition={{ delay: 0.05 * index, duration: 0.3 }}
                                   >
                                     <PoemListItem
-                                      poem={poem}
+                                      poem={item.contentId}
                                       coverImage={getCoverImage(index)}
-                                      englishSlug={englishSlug}
-                                      isInReadlist={isInReadlist}
-                                      poemTitle={poemTitle}
+                                      englishSlug={item.contentId.slug?.en || item.contentId._id}
+                                      isInReadlist={readList.includes(item.contentId._id)}
+                                      poemTitle={item.contentId.title?.en || "Untitled"}
                                       handleReadlistToggle={handleReadlistToggle}
                                     />
                                   </motion.div>
-                                )
-                              })}
-                          </div>
-                          <div className="mt-6 text-center">
-                            <Button variant="outline" onClick={() => router.push(`/poets/${slug}/${category}`)}>
-                              See All {category.charAt(0).toUpperCase() + category.slice(1)}
-                            </Button>
-                          </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4">
+                              <p className="text-muted-foreground">No top {category} available.</p>
+                            </div>
+                          )}
+                          {poet.topContent &&
+                            poet.topContent[category as keyof Poet["topContent"]]?.length > TOP_CONTENT_LIMIT && (
+                              <div className="mt-4 text-center">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => router.push(`/authors/${slug}/top-20/${category}`)}
+                                >
+                                  See All {category.charAt(0).toUpperCase() + category.slice(1)}
+                                </Button>
+                              </div>
+                            )}
                         </div>
-                      ) : (
-                        <EmptyState category={`${category}s`} query={searchQuery} />
-                      )}
+                      </div>
                     </TabsContent>
                   ))}
                 </Tabs>
@@ -569,12 +703,12 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         </Dialog>
       </div>
     </>
-  )
+  );
 }
 
 interface EmptyStateProps {
-  category?: string
-  query?: string
+  category?: string;
+  query?: string;
 }
 
 function EmptyState({ category = "works", query }: EmptyStateProps) {
@@ -590,5 +724,5 @@ function EmptyState({ category = "works", query }: EmptyStateProps) {
           : `There are no ${category} available at the moment.`}
       </p>
     </div>
-  )
+  );
 }

@@ -20,7 +20,7 @@ interface PoemListItemProps {
   englishSlug: string;
   isInReadlist: boolean;
   poemTitle: string;
-  handleReadlistToggle: (id: string, title: string) => void;
+  handleReadlistToggle?: (id: string, title: string) => void; // Made optional
 }
 
 const fadeIn = {
@@ -59,7 +59,7 @@ export function PoemListItem({
   englishSlug,
   isInReadlist,
   poemTitle,
-  handleReadlistToggle,
+  handleReadlistToggle = () => {}, // Default to no-op function
 }: PoemListItemProps) {
   const [language, setLanguage] = useState<"en" | "hi" | "ur">("en");
   const [authorData, setAuthorData] = useState<Author | null>(null);

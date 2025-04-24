@@ -1,82 +1,96 @@
-import type { Metadata, Viewport } from "next"
-import { notFound } from "next/navigation"
-import { PoetProfileComponent } from "@/components/home/PoetProfileComponent"
-
-interface Poet {
-  _id: string // Added for poem filtering
-  name: string // Future: Change to { en: string; hi?: string; ur?: string }
-  bio?: string // Future: Change to { en: string; hi?: string; ur?: string }
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount?: number
-  sherCount?: number
-  otherCount?: number
-  createdAt: string
-  updatedAt: string
-  slug: string
-}
+import { notFound } from "next/navigation";
+import { PoetProfileComponent } from "@/components/home/PoetProfileComponent";
+import type { Metadata } from "next";
+import { Poet, Poem } from "@/types/poem";
 
 interface PoetProfileProps {
-  params: Promise<{ slug: string }>
+  params: Promise<{ slug: string }>;
 }
 
 async function fetchPoet(slug: string): Promise<Poet | null> {
   try {
     const res = await fetch(`${process.env.NEXTAUTH_URL}/api/authors/${encodeURIComponent(slug)}`, {
       cache: "force-cache",
-    })
-    if (!res.ok) throw new Error("Failed to fetch poet")
-    const data = await res.json()
-    // Future: Expect data.poet to include name: { en, hi, ur }, bio: { en, hi, ur }
-    return data.poet || data.author || null // Handle author key
+    });
+    if (!res.ok) throw new Error("Failed to fetch poet");
+    const data = await res.json();
+    return data.poet || data.author || null;
   } catch (error) {
-   
-    return null
+    console.error(`Error fetching poet for slug ${slug}:`, error);
+    // Mock data for build if API is unavailable
+    if (process.env.NODE_ENV === "production" || process.env.IS_BUILD) {
+      return {
+        _id: `mock-${slug}`,
+        name: slug
+          .split("-")
+          .slice(0, -1)
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" "),
+        bio: "Mocked poet bio for build.",
+        image: "/default-poet-image.jpg",
+        dob: undefined,
+        city: undefined,
+        ghazalCount: 0,
+        sherCount: 0,
+        otherCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        slug,
+        followerCount: 0,
+        followers: [],
+        topContent: {
+          poem: [],
+          ghazal: [],
+          sher: [],
+          nazm: [],
+          rubai: [],
+          marsiya: [],
+          qataa: [],
+          other: [],
+        },
+      };
+    }
+    return null;
   }
 }
 
 async function fetchPoetSlugs(): Promise<string[]> {
   try {
+    console.log('Fetching poet slugs from:', `${process.env.NEXTAUTH_URL}/api/authors`);
     const res = await fetch(`${process.env.NEXTAUTH_URL}/api/authors`, {
       cache: "force-cache",
-    })
-    if (!res.ok) throw new Error("Failed to fetch poets")
-    const data = await res.json()
-    return data.authors?.map((poet: Poet) => poet.slug) || []
+    });
+    if (!res.ok) throw new Error("Failed to fetch poets");
+    const data = await res.json();
+    return data.authors?.map((poet: Poet) => poet.slug) || [];
   } catch (error) {
-   
-    return ["mirza-ghalib-eb936b", "faiz-ahmed-faiz-456"]
+    console.error("Error fetching poet slugs:", error);
+    return ["mirza-ghalib-eb936b", "faiz-ahmed-faiz-456"];
   }
 }
 
 export async function generateStaticParams() {
-  const slugs = await fetchPoetSlugs()
-  return slugs.map((slug) => ({ slug }))
+  const slugs = await fetchPoetSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
-
-
-export async function generateMetadata({
-  params,
-}: PoetProfileProps): Promise<Metadata> {
-  const resolvedParams = await params
-  const slug = decodeURIComponent(resolvedParams.slug)
-  const poet = await fetchPoet(slug)
-  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com"
+export async function generateMetadata({ params }: PoetProfileProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const slug = decodeURIComponent(resolvedParams.slug);
+  const poet = await fetchPoet(slug);
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const poetName = poet?.name || slug
-    .split('-')
+    .split("-")
     .slice(0, -1)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-  // Future: Use poet.name.en if name becomes { en, hi, ur }
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 
-  const title = `${poetName} | Unmatched Lines`
+  const title = `${poetName} | Unmatched Lines`;
   const description = poet?.bio
-    ? `${poet.bio.substring(0, 100)}... Explore ${poetName}'s ${poet.ghazalCount || 0} ghazals and ${poet.sherCount || 0} shers.`
-    : `Discover ${poetName}'s poetry, including ghazals and shers, at Unmatched Lines.`
-  const imageUrl = poet?.image || "/default-poet-image.jpg"
+    ? `${poet.bio.substring(0, 100)}... Explore ${poetName}'s top poems, ${poet.ghazalCount || 0} ghazals, ${poet.sherCount || 0} shers, and ${poet.followerCount} followers.`
+    : `Discover ${poetName}'s poetry, including top ghazals and shers, with ${poet?.followerCount || 0} followers at Unmatched Lines.`;
+  const imageUrl = poet?.image || "/default-poet-image.jpg";
 
   return {
     title,
@@ -88,6 +102,7 @@ export async function generateMetadata({
       "ghazal",
       "sher",
       "nazm",
+      "top poems",
       "Unmatched Lines",
     ],
     alternates: {
@@ -138,33 +153,34 @@ export async function generateMetadata({
       },
     },
     metadataBase: new URL(baseUrl),
-  }
+  };
 }
 
 export default async function PoetProfile({ params }: PoetProfileProps) {
-  const resolvedParams = await params
-  const slug = decodeURIComponent(resolvedParams.slug)
-  const poet = await fetchPoet(slug)
+  const resolvedParams = await params;
+  const slug = decodeURIComponent(resolvedParams.slug);
+  const poet = await fetchPoet(slug);
 
   if (!poet) {
-    notFound()
+    notFound();
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com"
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Person",
     name: poet.name,
-    // Future: Use name.en if name becomes { en, hi, ur }
     url: `${baseUrl}/poets/${encodeURIComponent(slug)}`,
     image: poet.image || null,
     birthDate: poet.dob || null,
     address: poet.city ? { "@type": "PostalAddress", addressLocality: poet.city } : null,
-    description: poet.bio || `${poet.name}, a poet featured on Unmatched Lines with ${poet.ghazalCount || 0} ghazals and ${poet.sherCount || 0} shers.`,
-    // Future: Add description.hi, description.ur
+    description: poet.bio
+      ? `${poet.bio.substring(0, 100)}... Top poems include ${
+          poet.topContent?.poem?.[0]?.contentId?.title?.en || "various works"
+        }. Followed by ${poet.followerCount} users.`
+      : `${poet.name}, a poet with ${poet.followerCount} followers on Unmatched Lines.`,
     inLanguage: "en",
-    // Future: Update to ["en", "hi", "ur"] if poet info becomes multilingual
     sameAs: [],
     worksFor: {
       "@type": "Organization",
@@ -189,12 +205,11 @@ export default async function PoetProfile({ params }: PoetProfileProps) {
           "@type": "ListItem",
           position: 3,
           name: poet.name,
-          // Future: Use name.en
           item: `${baseUrl}/poets/${encodeURIComponent(slug)}`,
         },
       ],
     },
-  }
+  };
 
   return (
     <>
@@ -206,7 +221,7 @@ export default async function PoetProfile({ params }: PoetProfileProps) {
       />
       <PoetProfileComponent slug={slug} poet={poet} />
     </>
-  )
+  );
 }
 
-export const revalidate = 86400
+export const revalidate = 86400;

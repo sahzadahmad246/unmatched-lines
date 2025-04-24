@@ -8,6 +8,7 @@ import Poem from "@/models/Poem";
 import cloudinary from "@/lib/cloudinary";
 import User from "@/models/User";
 import mongoose from "mongoose";
+import { updateTopContentForAuthor } from "@/lib/updateTopContent";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -34,25 +35,38 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    console.log("Received id/slug:", id);
-
     const isObjectId = mongoose.Types.ObjectId.isValid(id);
-    console.log("Is valid ObjectId:", isObjectId);
 
     let author;
     if (isObjectId) {
-      author = await Author.findById(id).populate("poems", "title category");
+      author = await Author.findById(id);
     } else {
-      author = await Author.findOne({ slug: id }).populate("poems", "title category");
+      author = await Author.findOne({ slug: id });
     }
 
     if (!author) {
-      console.log("Author not found for:", id);
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
 
-    console.log("Fetched author:", author);
-    return NextResponse.json({ author });
+    // Update topContent if last updated more than a day ago
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (!author.topContentLastUpdated || author.topContentLastUpdated < oneDayAgo) {
+      await updateTopContentForAuthor(author._id.toString());
+    }
+
+    // Fetch updated author
+    const updatedAuthor = await Author.findById(author._id)
+      .populate("poems.poemId", "title.en category")
+      .populate("topContent.poem.contentId", "title.en viewsCount")
+      .populate("topContent.ghazal.contentId", "title.en viewsCount")
+      .populate("topContent.sher.contentId", "title.en viewsCount")
+      .populate("topContent.nazm.contentId", "title.en viewsCount")
+      .populate("topContent.rubai.contentId", "title.en viewsCount")
+      .populate("topContent.marsiya.contentId", "title.en viewsCount")
+      .populate("topContent.qataa.contentId", "title.en viewsCount")
+      .populate("topContent.other.contentId", "title.en viewsCount");
+
+    return NextResponse.json({ author: updatedAuthor });
   } catch (error) {
     console.error("Error fetching author:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -103,7 +117,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     let slug = author.slug;
     if (name && name !== author.name) {
-      slug = await generateUniqueSlug(name, id); // Pass id to exclude current author
+      slug = await generateUniqueSlug(name, id);
     }
 
     const updatedAuthor = await Author.findByIdAndUpdate(
