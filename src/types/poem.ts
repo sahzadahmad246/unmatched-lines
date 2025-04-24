@@ -35,30 +35,3 @@ export interface CoverImage {
   uploadedBy: { name: string };
   createdAt: string;
 }
-
-export interface Poet {
-  _id: string;
-  name: string;
-  bio?: string;
-  image?: string;
-  dob?: string;
-  city?: string;
-  ghazalCount?: number;
-  sherCount?: number;
-  otherCount?: number;
-  createdAt: string;
-  updatedAt: string;
-  slug: string;
-  followerCount: number;
-  followers: { userId: string }[]; // Always an array
-  topContent: {
-    poem: { contentId: Poem; rank: number }[];
-    ghazal: { contentId: Poem; rank: number }[];
-    sher: { contentId: Poem; rank: number }[];
-    nazm: { contentId: Poem; rank: number }[];
-    rubai: { contentId: Poem; rank: number }[];
-    marsiya: { contentId: Poem; rank: number }[];
-    qataa: { contentId: Poem; rank: number }[];
-    other: { contentId: Poem; rank: number }[];
-  };
-}
