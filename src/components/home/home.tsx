@@ -256,8 +256,8 @@ export default function Home() {
           }
         `}
       </style>
-      {/* Hero Section - Completely Restyled */}
-      <div className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
+      {/* Hero Section - Adjusted height for desktop */}
+      <div className="relative min-h-[70vh] md:min-h-[60vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <Image
             src={getRandomCoverImage() || "/placeholder.svg"}
@@ -270,7 +270,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/70 to-background" />
         </div>
 
-        <div className="container mx-auto px-4 z-10 relative py-12 md:py-20">
+        <div className="container mx-auto px-4 z-10 relative py-12 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -312,7 +312,8 @@ export default function Home() {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              class-sName="flex flex-col items-center justify-center"
+              transition={{ delay: 0.3, duration: 0.7 }}
+              className="flex flex-col items-center justify-center"
             >
               <div className="relative w-full max-w-md mx-auto">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/40 rounded-lg blur-lg opacity-70"></div>
