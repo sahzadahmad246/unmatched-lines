@@ -178,7 +178,7 @@ export function SearchBar({
           .custom-search-dialog {
             width: 95vw;
             max-width: 600px;
-            height: 600px;
+            height: 500px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -401,7 +401,7 @@ export function SearchBar({
                               href={
                                 result.type === "poem"
                                   ? `/poems/en/${currentSlug}`
-                                  : `/poets/${currentSlug}`
+                                  : `/poets/en/${currentSlug}`
                               }
                               className="flex items-start gap-3"
                               onClick={() => {
