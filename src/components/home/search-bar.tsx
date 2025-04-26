@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Loader2, Feather } from "lucide-react";
+import { Search, X, Loader2, Feather, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -88,7 +88,40 @@ export function SearchBar({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "poems" | "poets">("all");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const router = useRouter();
+
+  // Load recent searches from local storage on mount
+  useEffect(() => {
+    const storedSearches = localStorage.getItem("recentSearches");
+    if (storedSearches) {
+      setRecentSearches(JSON.parse(storedSearches));
+    }
+  }, []);
+
+  // Save query to recent searches
+  const saveRecentSearch = (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    const updatedSearches = [
+      searchQuery,
+      ...recentSearches.filter((q) => q !== searchQuery),
+    ].slice(0, 5); // Keep only the latest 5 searches
+    setRecentSearches(updatedSearches);
+    localStorage.setItem("recentSearches", JSON.stringify(updatedSearches));
+  };
+
+  // Clear a single recent search
+  const clearRecentSearch = (search: string) => {
+    const updatedSearches = recentSearches.filter((q) => q !== search);
+    setRecentSearches(updatedSearches);
+    localStorage.setItem("recentSearches", JSON.stringify(updatedSearches));
+  };
+
+  // Clear all recent searches
+  const clearAllRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem("recentSearches");
+  };
 
   useEffect(() => {
     const handleSearch = async () => {
@@ -120,9 +153,15 @@ export function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      saveRecentSearch(query);
       router.push(`/search?q=${encodeURIComponent(query)}`);
       setIsSearchOpen(false);
     }
+  };
+
+  const handleRecentSearchClick = (search: string) => {
+    setQuery(search);
+    setIsSearchOpen(true);
   };
 
   const filteredResults = results.filter((result) => {
@@ -168,6 +207,20 @@ export function SearchBar({
             .custom-search-dialog {
               height: 80vh;
             }
+          }
+          .recent-search-tag {
+            transition: all 0.2s ease;
+          }
+          .recent-search-tag:hover {
+            background-color: #e2e8f0;
+            transform: scale(1.05);
+          }
+          .clear-search-button {
+            transition: all 0.2s ease;
+          }
+          .clear-search-button:hover {
+            background-color: #f1f5f9;
+            transform: scale(1.1);
           }
         `}
       </style>
@@ -245,7 +298,48 @@ export function SearchBar({
             <div className="custom-results-container">
               <TabsContent value={activeTab} className="m-0 p-0">
                 <AnimatePresence>
-                  {query.trim().length < 2 ? (
+                  {query.trim().length < 2 && recentSearches.length > 0 ? (
+                    <div className="p-4 sm:p-6">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-sm font-medium text-foreground">
+                          Recent Searches
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={clearAllRecentSearches}
+                          className="h-6 w-6"
+                          title="Clear all recent searches"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {recentSearches.map((search, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center recent-search-tag px-3 py-1.5 text-xs rounded-full bg-muted text-foreground font-medium"
+                          >
+                            <button
+                              onClick={() => handleRecentSearchClick(search)}
+                              className="truncate max-w-[150px]"
+                            >
+                              {search}
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => clearRecentSearch(search)}
+                              className="clear-search-button h-5 w-5 ml-1"
+                              title="Clear this search"
+                            >
+                              <X className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : query.trim().length < 2 ? (
                     <div className="p-4 sm:p-6 text-center text-muted-foreground">
                       Type at least 2 characters to search
                     </div>
@@ -307,10 +401,13 @@ export function SearchBar({
                               href={
                                 result.type === "poem"
                                   ? `/poems/en/${currentSlug}`
-                                  : `/poets/en/${currentSlug}`
+                                  : `/poets/${currentSlug}`
                               }
                               className="flex items-start gap-3"
-                              onClick={() => setIsSearchOpen(false)}
+                              onClick={() => {
+                                saveRecentSearch(query);
+                                setIsSearchOpen(false);
+                              }}
                             >
                               {result.type === "poet" ? (
                                 <Avatar className="h-10 w-10 rounded-full">
@@ -356,6 +453,7 @@ export function SearchBar({
                 <Button
                   className="w-full"
                   onClick={() => {
+                    saveRecentSearch(query);
                     router.push(
                       `/search?q=${encodeURIComponent(query)}&type=${activeTab}`
                     );

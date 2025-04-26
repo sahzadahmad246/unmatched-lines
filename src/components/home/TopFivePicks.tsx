@@ -2,11 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Sparkles, Quote } from "lucide-react";
+import Link from "next/link";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Heart,
+  Eye,
+  User,
+  BookOpen,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VerseDownload } from "./verse-download";
-import { Poem } from "@/types/poem";
+import type { Poem } from "@/types/poem";
 
 interface CoverImage {
   _id: string;
@@ -16,29 +27,48 @@ interface CoverImage {
 interface TopFivePicksProps {
   poems: Poem[];
   coverImages: CoverImage[];
+  readList?: string[];
+  handleReadlistToggle?: (id: string, title: string) => void;
 }
 
-export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
+export function TopFivePicks({
+  poems,
+  coverImages,
+  readList = [],
+  handleReadlistToggle,
+}: TopFivePicksProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [randomVerses, setRandomVerses] = useState<{ verse: string[]; poem: Poem }[]>([]);
+  const [randomVerses, setRandomVerses] = useState<
+    { verse: string[]; poem: Poem }[]
+  >([]);
+  const [authorImages, setAuthorImages] = useState<Record<string, string>>({});
+  const [isCopied, setIsCopied] = useState(false);
+
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=400&width=600";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   useEffect(() => {
     const getRandomVerses = () => {
       const englishPoems = poems.filter(
         (poem) => poem.content?.en && poem.content.en.length > 0
       );
-  
+
       const shuffledPoems = [...englishPoems].sort(() => Math.random() - 0.5);
       const verses: { verse: string[]; poem: Poem }[] = [];
-  
+
       for (let i = 0; i < 5 && i < shuffledPoems.length; i++) {
         const poem = shuffledPoems[i];
-        const lines = poem.content?.en
-          ?.map((item) => item.verse)
-          .filter((verse): verse is string => typeof verse === "string")
-          .flatMap((verse) => verse.split("\n"))
-          .filter(Boolean) || [];
-  
+        const lines =
+          poem.content?.en
+            ?.map((item) => item.verse)
+            .filter((verse): verse is string => typeof verse === "string")
+            .flatMap((verse) => verse.split("\n"))
+            .filter(Boolean) || [];
+
         if (lines.length > 0) {
           const startIndex = Math.floor(Math.random() * (lines.length - 1));
           const versePair = lines.slice(startIndex, startIndex + 2);
@@ -47,175 +77,263 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
           }
         }
       }
-  
+
       setRandomVerses(verses);
     };
-  
+
     getRandomVerses();
   }, [poems]);
 
-  const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=400&width=600";
-    const randomIndex = Math.floor(Math.random() * coverImages.length);
-    return coverImages[randomIndex].url;
-  };
+  // Fetch author images
+  useEffect(() => {
+    const fetchAuthorImages = async () => {
+      const authorIds = [
+        ...new Set(randomVerses.map((item) => item.poem.author._id)),
+      ];
+      const images: Record<string, string> = {};
+
+      await Promise.all(
+        authorIds.map(async (authorId) => {
+          try {
+            const res = await fetch(`/api/authors/${authorId}`, {
+              credentials: "include",
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.author?.image) {
+                images[authorId] = data.author.image;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching author image:", error);
+          }
+        })
+      );
+
+      setAuthorImages(images);
+    };
+
+    if (randomVerses.length > 0) {
+      fetchAuthorImages();
+    }
+  }, [randomVerses]);
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % randomVerses.length);
+    setIsCopied(false); // Reset copy state on slide change
   };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + randomVerses.length) % randomVerses.length);
+    setCurrentIndex(
+      (prev) => (prev - 1 + randomVerses.length) % randomVerses.length
+    );
+    setIsCopied(false); // Reset copy state on slide change
+  };
+
+  const handleCopy = () => {
+    const textToCopy = randomVerses[currentIndex].verse.join("\n");
+    navigator.clipboard.writeText(textToCopy);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   if (randomVerses.length === 0) return null;
 
   const currentVerse = randomVerses[currentIndex];
+  const isInReadlist = currentVerse
+    ? readList.includes(currentVerse.poem._id)
+    : false;
 
   return (
-    <section className="py-12 sm:py-20 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background pointer-events-none" />
-      <div className="absolute -left-20 top-20 w-40 h-40 rounded-full bg-primary/5 blur-3xl" />
-      <div className="absolute -right-20 bottom-20 w-40 h-40 rounded-full bg-primary/5 blur-3xl" />
-
-      <div className="container mx-auto px-4 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-          className="flex flex-col items-center mb-10 sm:mb-12"
-        >
-          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary mb-4">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Daily Inspiration</span>
+    <div className="h-full">
+      <div className="bg-gradient-to-br from-background to-muted/10 rounded-xl border border-primary/20 shadow-md h-full">
+        <div className="p-5 sm:p-6 flex flex-col h-full">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base sm:text-lg font-medium font-sans">
+              Top Five Picks
+            </h2>
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              <Sparkles className="h-3 w-3" />
+              <span className="text-xs font-medium">Daily Inspiration</span>
+            </div>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-serif text-center relative">
-            <span className="relative">
-              Top Five Picks
-              <motion.span
-                className="absolute -bottom-2 left-0 w-full h-1 bg-primary/30 rounded-full"
-                initial={{ width: 0 }}
-                whileInView={{ width: "100%" }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-                viewport={{ once: true }}
-              />
-            </span>
-          </h2>
-        </motion.div>
-
-        <div className="relative max-w-3xl mx-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.4 }}
-              className="relative"
-            >
-              <Card className="overflow-hidden border-0 bg-gradient-to-br from-background to-muted/50 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-2xl">
-                <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
-                  <Quote className="h-8 w-8 sm:h-10 sm:w-10 text-primary/20" />
+          <div className="relative flex-grow flex flex-col">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+                className="flex flex-col h-full"
+              >
+                {/* Formatted Lines */}
+                <div className="text-center mb-5 max-w-md mx-auto">
+                  {currentVerse.verse.map((line, idx) => (
+                    <p
+                      key={idx}
+                      className="text-base sm:text-lg md:text-xl font-sans mb-2 leading-relaxed"
+                    >
+                      {line}
+                    </p>
+                  ))}
                 </div>
 
-                <div className="p-8 sm:p-10 md:p-12 flex flex-col items-center">
-                  <div className="text-center space-y-6 sm:space-y-8 max-w-xl mx-auto">
-                    <div className="space-y-4 sm:space-y-5 pt-6">
-                      {currentVerse.verse.map((line, idx) => (
-                        <motion.p
-                          key={idx}
-                          className="text-lg sm:text-xl md:text-2xl font-serif italic leading-relaxed"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.2, duration: 0.4 }}
-                        >
-                          {line}
-                        </motion.p>
-                      ))}
-                    </div>
-
-                    <motion.div
-                      className="pt-2"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.5, duration: 0.4 }}
-                    >
-                      <div className="w-12 h-0.5 bg-primary/30 mx-auto mb-4" />
-                      <p className="text-sm sm:text-base text-muted-foreground font-serif">
-                        — {currentVerse.poem.author.name}
-                      </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground/70 font-serif mt-1">
-                        "{currentVerse.poem.title.en}"
-                      </p>
-                    </motion.div>
-
-                    <motion.div
-                      className="flex justify-center pt-2"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6, duration: 0.4 }}
-                    >
-                      <VerseDownload
-                        verse={currentVerse.verse.join("\n")}
-                        author={currentVerse.poem.author.name}
-                        title={currentVerse.poem.title.en}
-                        imageUrl={getRandomCoverImage()}
-                        languages={{
-                          en: currentVerse.poem.content?.en?.map((item) => item.verse) || [],
-                          hi: currentVerse.poem.content?.hi?.map((item) => item.verse) || [],
-                          ur: currentVerse.poem.content?.ur?.map((item) => item.verse) || [],
-                        }}
+                {/* Poet Info - Aligned in row */}
+                <div className="flex items-center justify-center gap-3 mb-5">
+                  <Avatar className="h-10 w-10 border border-primary/20">
+                    {authorImages[currentVerse.poem.author._id] ? (
+                      <AvatarImage
+                        src={
+                          authorImages[currentVerse.poem.author._id] ||
+                          "/placeholder.svg"
+                        }
+                        alt={currentVerse.poem.author.name}
                       />
-                    </motion.div>
+                    ) : (
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium font-sans">
+                      {currentVerse.poem.author.name}
+                    </span>
+                    <div className="w-full h-0.5 bg-primary/30 rounded-full mt-1"></div>
                   </div>
                 </div>
 
-                <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
-                  <Quote className="h-8 w-8 sm:h-10 sm:w-10 text-primary/20 rotate-180" />
+                {/* Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-auto">
+                  <VerseDownload
+                    verse={currentVerse.verse.join("\n")}
+                    author={currentVerse.poem.author.name}
+                    title={currentVerse.poem.title.en}
+                    imageUrl={getRandomCoverImage()}
+                    languages={{
+                      en:
+                        currentVerse.poem.content?.en?.map(
+                          (item) => item.verse
+                        ) || [],
+                      hi:
+                        currentVerse.poem.content?.hi?.map(
+                          (item) => item.verse
+                        ) || [],
+                      ur:
+                        currentVerse.poem.content?.ur?.map(
+                          (item) => item.verse
+                        ) || [],
+                    }}
+                  />
+
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs sm:text-sm font-sans"
+                  >
+                    <Link
+                      href={`/poems/en/${
+                        currentVerse.poem.slug?.en || currentVerse.poem._id
+                      }`}
+                    >
+                      <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    </Link>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs sm:text-sm font-sans"
+                  >
+                    <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span>{currentVerse.poem.viewsCount || 0}</span>
+                  </Button>
+
+                  {handleReadlistToggle && (
+                    <Button
+                      onClick={() =>
+                        handleReadlistToggle(
+                          currentVerse.poem._id,
+                          currentVerse.poem.title?.en || "Untitled"
+                        )
+                      }
+                      variant="outline"
+                      size="sm"
+                      className={`gap-1 text-xs sm:text-sm font-sans ${
+                        isInReadlist ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      <Heart
+                        className={`h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 ${
+                          isInReadlist ? "fill-primary text-primary" : ""
+                        }`}
+                      />
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={handleCopy}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs sm:text-sm font-sans"
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </Card>
-            </motion.div>
-          </AnimatePresence>
+              </motion.div>
+            </AnimatePresence>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handlePrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full shadow-md bg-background/80 backdrop-blur-sm border h-12 w-12 hidden sm:flex hover:bg-background hover:scale-110 transition-all duration-300"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full shadow-md bg-background/80 backdrop-blur-sm border h-12 w-12 hidden sm:flex hover:bg-background hover:scale-110 transition-all duration-300"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePrev}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full shadow-md bg-background/80 backdrop-blur-sm border h-8 w-8 hidden sm:flex hover:bg-background hover:scale-110 transition-all duration-300"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNext}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full shadow-md bg-background/80 backdrop-blur-sm border h-8 w-8 hidden sm:flex hover:bg-background hover:scale-110 transition-all duration-300"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
 
-        <div className="flex flex-col items-center mt-8 gap-4">
-          <div className="flex items-center gap-3 sm:hidden">
+          <div className="flex items-center justify-center mt-4 gap-3">
             <Button
               variant="outline"
               size="icon"
               onClick={handlePrev}
-              className="rounded-full h-10 w-10 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all"
+              className="rounded-full h-7 w-7 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all sm:hidden"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3" />
             </Button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {randomVerses.map((_, index) => (
-                <button key={index} onClick={() => setCurrentIndex(index)} className="group focus:outline-none">
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className="group focus:outline-none"
+                >
                   <span
-                    className={`block w-2 h-2 rounded-full transition-all duration-300 ${
+                    className={`block h-1.5 rounded-full transition-all duration-300 ${
                       index === currentIndex
-                        ? "bg-primary w-6"
-                        : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"
+                        ? "bg-primary w-4"
+                        : "bg-muted-foreground/30 w-1.5 group-hover:bg-muted-foreground/50"
                     }`}
                   />
                 </button>
@@ -226,27 +344,13 @@ export function TopFivePicks({ poems, coverImages }: TopFivePicksProps) {
               variant="outline"
               size="icon"
               onClick={handleNext}
-              className="rounded-full h-10 w-10 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all"
+              className="rounded-full h-7 w-7 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all sm:hidden"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3" />
             </Button>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-3">
-            {randomVerses.map((_, index) => (
-              <button key={index} onClick={() => setCurrentIndex(index)} className="group focus:outline-none">
-                <span
-                  className={`block h-1.5 rounded-full transition-all duration-300 ${
-                    index === currentIndex
-                      ? "bg-primary w-8"
-                      : "bg-muted-foreground/30 w-3 group-hover:bg-muted-foreground/50"
-                  }`}
-                />
-              </button>
-            ))}
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

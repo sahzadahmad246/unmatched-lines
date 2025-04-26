@@ -2,23 +2,39 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import Image from "next/image";
-import { Calendar, BookOpen } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  BookOpen,
+  Heart,
+  Eye,
+  User,
+  Calendar,
+  Copy,
+  Check,
+} from "lucide-react";
 import { VerseDownload } from "../home/verse-download";
-import { Poem } from "@/types/poem";
+import type { Poem } from "@/types/poem";
 
 interface LineOfTheDayProps {
   poems: Poem[];
   coverImages: { url: string }[];
+  readList?: string[];
+  handleReadlistToggle?: (id: string, title: string) => void;
 }
 
-export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
+export function LineOfTheDay({
+  poems,
+  coverImages,
+  readList = [],
+  handleReadlistToggle,
+}: LineOfTheDayProps) {
   const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
   const [lineAuthor, setLineAuthor] = useState<string>("");
   const [poemOfTheDay, setPoemOfTheDay] = useState<Poem | null>(null);
+  const [authorImage, setAuthorImage] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const [todayDate] = useState(
     new Date().toLocaleDateString("en-US", {
       month: "long",
@@ -26,6 +42,13 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
       year: "numeric",
     })
   );
+
+  const getRandomCoverImage = () => {
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   useEffect(() => {
     if (poems.length === 0) return;
@@ -38,28 +61,58 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
     const selectedPoem = poems[poemIndex];
     setPoemOfTheDay(selectedPoem);
 
+    // Fetch author image if available
+    const fetchAuthorImage = async () => {
+      if (selectedPoem?.author?._id) {
+        try {
+          const res = await fetch(`/api/authors/${selectedPoem.author._id}`, {
+            credentials: "include",
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.author?.image) {
+              setAuthorImage(data.author.image);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching author image:", error);
+        }
+      }
+    };
+    fetchAuthorImage();
+
     const verses = {
-      en: selectedPoem.content?.en?.map((item) => item.verse).filter(Boolean) || [],
-      hi: selectedPoem.content?.hi?.map((item) => item.verse).filter(Boolean) || [],
-      ur: selectedPoem.content?.ur?.map((item) => item.verse).filter(Boolean) || [],
+      en:
+        selectedPoem.content?.en?.map((item) => item.verse).filter(Boolean) ||
+        [],
+      hi:
+        selectedPoem.content?.hi?.map((item) => item.verse).filter(Boolean) ||
+        [],
+      ur:
+        selectedPoem.content?.ur?.map((item) => item.verse).filter(Boolean) ||
+        [],
     };
 
     const verseArray =
-      verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : [];
+      verses.en.length > 0
+        ? verses.en
+        : verses.hi.length > 0
+        ? verses.hi
+        : verses.ur.length > 0
+        ? verses.ur
+        : [];
     if (verseArray.length > 0) {
       const verseIndex = seed % verseArray.length;
-      setLineOfTheDay(verseArray[verseIndex] || selectedPoem.summary?.en || "No verse available");
+      setLineOfTheDay(
+        verseArray[verseIndex] ||
+          selectedPoem.summary?.en ||
+          "No verse available"
+      );
     } else {
       setLineOfTheDay(selectedPoem.summary?.en || "No verse available");
     }
     setLineAuthor(selectedPoem.author?.name || "Unknown Author");
   }, [poems]);
-
-  const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920";
-    const randomIndex = Math.floor(Math.random() * coverImages.length);
-    return coverImages[randomIndex].url;
-  };
 
   const formatVerseForDisplay = (verse: string) => {
     if (!verse) return ["No verse available"];
@@ -67,75 +120,171 @@ export function LineOfTheDay({ poems, coverImages }: LineOfTheDayProps) {
     return lines.length > 0 ? lines : [verse];
   };
 
+  const handleCopy = () => {
+    const textToCopy = formatVerseForDisplay(lineOfTheDay).join("\n");
+    navigator.clipboard.writeText(textToCopy);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const isInReadlist = poemOfTheDay
+    ? readList.includes(poemOfTheDay._id)
+    : false;
+
   return (
-    <section className="py-10 sm:py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif">Line of the Day</h2>
+    <div className="h-full">
+      <div className="bg-gradient-to-br from-background to-muted/10 rounded-xl border border-primary/20 shadow-md h-full">
+        <div className="p-5 sm:p-6 flex flex-col h-full">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              <h2 className="text-base sm:text-lg font-medium font-sans">
+                Line of the Day
+              </h2>
             </div>
-            <div className="text-xs sm:text-sm text-muted-foreground font-serif">{todayDate}</div>
+            <div className="text-xs text-muted-foreground font-sans">
+              {todayDate}
+            </div>
           </div>
 
           {lineOfTheDay ? (
-            <div className="relative overflow-hidden rounded-lg shadow-md">
-              <div className="absolute inset-0 z-0">
-                <Image
-                  src={getRandomCoverImage()}
-                  alt="Line of the Day background"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 1200px"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80" />
-              </div>
-
-              <div className="relative z-10 p-6 sm:p-10 md:p-12 flex flex-col items-center text-center text-white">
-                <div className="text-sm sm:text-base md:text-xl italic font-serif mb-4 leading-relaxed">
+            <div className="relative flex-grow flex flex-col">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                className="flex flex-col h-full"
+              >
+                {/* Formatted Lines */}
+                <div className="text-center mb-5 max-w-md mx-auto">
                   {formatVerseForDisplay(lineOfTheDay).map((line, index) => (
-                    <p key={index} className="mb-2">"{line}"</p>
+                    <p
+                      key={index}
+                      className="text-base sm:text-lg md:text-xl font-sans mb-2 leading-relaxed"
+                    >
+                      {line}
+                    </p>
                   ))}
                 </div>
-                <Separator className="w-12 sm:w-16 my-3 sm:my-4 bg-white/30" />
-                <p className="text-xs sm:text-sm md:text-base text-white/80 font-serif mb-6">— {lineAuthor}</p>
 
-                <div className="flex items-center justify-center gap-3">
+                {/* Poet Info - Aligned in row */}
+                <div className="flex items-center justify-center gap-3 mb-5">
+                  <Avatar className="h-10 w-10 border border-primary/20">
+                    {authorImage ? (
+                      <AvatarImage
+                        src={authorImage || "/placeholder.svg"}
+                        alt={lineAuthor}
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium font-sans">
+                      {lineAuthor}
+                    </span>
+                    <div className="w-full h-0.5 bg-primary/30 rounded-full mt-1"></div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-auto">
                   <VerseDownload
                     verse={lineOfTheDay}
                     author={lineAuthor}
-                    imageUrl={getRandomCoverImage()}
                     title="Line of the Day"
+                    imageUrl={getRandomCoverImage()}
                     languages={{
-                      en: poemOfTheDay?.content?.en?.map((item) => item.verse) || [],
-                      hi: poemOfTheDay?.content?.hi?.map((item) => item.verse) || [],
-                      ur: poemOfTheDay?.content?.ur?.map((item) => item.verse) || [],
+                      en:
+                        poemOfTheDay?.content?.en?.map((item) => item.verse) ||
+                        [],
+                      hi:
+                        poemOfTheDay?.content?.hi?.map((item) => item.verse) ||
+                        [],
+                      ur:
+                        poemOfTheDay?.content?.ur?.map((item) => item.verse) ||
+                        [],
                     }}
                   />
+
                   {poemOfTheDay && (
                     <Button
                       asChild
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
-                      className="gap-2 font-serif text-xs sm:text-sm text-black border"
+                      className="gap-1 text-xs sm:text-sm font-sans"
                     >
-                      <Link href={`/poems/en/${poemOfTheDay.slug?.en || poemOfTheDay._id}`}>
-                        <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        <span>Read Full Poem</span>
+                      <Link
+                        href={`/poems/en/${
+                          poemOfTheDay.slug?.en || poemOfTheDay._id
+                        }`}
+                      >
+                        <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
                       </Link>
                     </Button>
                   )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs sm:text-sm font-sans"
+                  >
+                    <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span>{poemOfTheDay?.viewsCount || 0}</span>
+                  </Button>
+
+                  {handleReadlistToggle && poemOfTheDay && (
+                    <Button
+                      onClick={() =>
+                        handleReadlistToggle(
+                          poemOfTheDay._id,
+                          poemOfTheDay.title?.en || "Untitled"
+                        )
+                      }
+                      variant="outline"
+                      size="sm"
+                      className={`gap-1 text-xs sm:text-sm font-sans ${
+                        isInReadlist ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      <Heart
+                        className={`h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 ${
+                          isInReadlist ? "fill-primary text-primary" : ""
+                        }`}
+                      />
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={handleCopy}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs sm:text-sm font-sans"
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
+              </motion.div>
             </div>
           ) : (
-            <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
-              <p className="text-muted-foreground italic font-serif">No line of the day available</p>
+            <div className="text-center p-6 bg-muted/20 rounded-lg border border-primary/10">
+              <p className="text-muted-foreground italic font-sans">
+                No line of the day available
+              </p>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

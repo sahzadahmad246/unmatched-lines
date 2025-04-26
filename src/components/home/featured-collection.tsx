@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 interface Poem {
   _id: string
   title: { en: string; hi?: string; ur?: string }
-  author: { name: string; _id: string }
+  author: { name: string; _id: string; slug?: string }
   category: string
   content?: {
     en?: { verse: string; meaning: string }[]
@@ -38,6 +38,7 @@ interface Author {
 interface FeaturedCollectionProps {
   ghazals: Poem[]
   shers: Poem[]
+  nazms?: Poem[] // Added nazms as optional
   readList: string[]
   handleReadlistToggle: (id: string, title: string) => void
 }
@@ -116,14 +117,20 @@ const customStyles = `
   }
 `
 
-export function FeaturedCollection({ ghazals, shers, readList, handleReadlistToggle }: FeaturedCollectionProps) {
+export function FeaturedCollection({
+  ghazals,
+  shers,
+  nazms = [],
+  readList,
+  handleReadlistToggle,
+}: FeaturedCollectionProps) {
   const [language, setLanguage] = useState<"en" | "hi" | "ur">("en")
   const [authorDataMap, setAuthorDataMap] = useState<Record<string, Author>>({})
 
   // Fetch author data
   useEffect(() => {
     const fetchAuthorsData = async () => {
-      const poems = [...ghazals, ...shers]
+      const poems = [...ghazals, ...shers, ...nazms]
       const authorIds = [...new Set(poems.map((poem) => poem.author._id))].filter(Boolean)
       const authorDataMap: Record<string, Author> = {}
 
@@ -143,8 +150,8 @@ export function FeaturedCollection({ ghazals, shers, readList, handleReadlistTog
       setAuthorDataMap(authorDataMap)
     }
 
-    if (ghazals.length > 0 || shers.length > 0) fetchAuthorsData()
-  }, [ghazals, shers])
+    if (ghazals.length > 0 || shers.length > 0 || nazms.length > 0) fetchAuthorsData()
+  }, [ghazals, shers, nazms])
 
   const formatPoetryContent = (
     content: { verse: string; meaning: string }[] | undefined,
@@ -201,6 +208,7 @@ export function FeaturedCollection({ ghazals, shers, readList, handleReadlistTog
   const categories = [
     { id: "ghazal", title: "Ghazals", poems: ghazals },
     { id: "sher", title: "Shers", poems: shers },
+    ...(nazms.length > 0 ? [{ id: "nazm", title: "Nazms", poems: nazms }] : []),
   ]
 
   const renderPoemCard = (poem: Poem, index: number) => {
