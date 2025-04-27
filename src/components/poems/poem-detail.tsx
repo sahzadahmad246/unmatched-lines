@@ -34,12 +34,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { VerseDownload } from "../home/verse-download";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import type { Poem } from "@/types/poem";
 import RelatedPoems from "./related-poems";
+import PoetSpotlight from "../poets/poet-spotlight";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 
@@ -117,7 +123,8 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   const [authorData, setAuthorData] = useState<any>(null);
   const [authorLoading, setAuthorLoading] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
-  const [selectedCoverImage, setSelectedCoverImage] = useState<string>("/placeholder.svg");
+  const [selectedCoverImage, setSelectedCoverImage] =
+    useState<string>("/placeholder.svg");
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showMeaningDialog, setShowMeaningDialog] = useState(false);
   const [currentMeaning, setCurrentMeaning] = useState({
@@ -125,7 +132,6 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
     meaning: "",
   });
 
-  // Add these state variables
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [showFullDidYouKnow, setShowFullDidYouKnow] = useState(false);
 
@@ -144,7 +150,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         const userRes = await fetch("/api/user", { credentials: "include" });
         if (userRes.ok) {
           const userData = await userRes.json();
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
+          setReadList(
+            userData.user.readList.map((poem: any) => poem._id.toString())
+          );
         } else if (userRes.status === 401) {
           setReadList([]);
         } else {
@@ -156,8 +164,13 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           if (poem.coverImage && poem.coverImage.trim() !== "") {
             setSelectedCoverImage(poem.coverImage);
           } else if (coverImagesData.coverImages?.length > 0) {
-            const randomIndex = Math.floor(Math.random() * coverImagesData.coverImages.length);
-            setSelectedCoverImage(coverImagesData.coverImages[randomIndex]?.url || "/placeholder.svg");
+            const randomIndex = Math.floor(
+              Math.random() * coverImagesData.coverImages.length
+            );
+            setSelectedCoverImage(
+              coverImagesData.coverImages[randomIndex]?.url ||
+                "/placeholder.svg"
+            );
           }
           toast.success("Poem unveiled", {
             description: "Immerse yourself in the verses",
@@ -204,9 +217,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      const ScrollTop = window.scrollY;
+      const docHeight =
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight;
+      const scrollPercent = docHeight > 0 ? (ScrollTop / docHeight) * 100 : 0;
       setScrollProgress(scrollPercent);
     };
 
@@ -214,9 +229,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleReadlistToggle = async (poemId: string) => {
+  const handleReadlistToggle = async (poemId: string, title: string) => {
     const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const url = isInReadlist
+      ? "/api/user/readlist/remove"
+      : "/api/user/readlist/add";
     const method = isInReadlist ? "DELETE" : "POST";
 
     try {
@@ -227,18 +244,20 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         credentials: "include",
       });
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadList((prev) =>
+          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
+        );
         setReadListCount((prev) => (isInReadlist ? prev - 1 : prev + 1));
 
         if (isInReadlist) {
           toast.success("Removed from anthology", {
-            description: "This poem has been removed from your collection",
+            description: `The poem "${title}" has been removed from your collection`,
             icon: <BookmarkCheck className="h-4 w-4" />,
             position: "bottom-right",
           });
         } else {
           toast.success("Added to anthology", {
-            description: "This poem now resides in your collection",
+            description: `The poem "${title}" now resides in your collection`,
             icon: <BookHeart className="h-4 w-4" />,
             position: "bottom-right",
           });
@@ -286,11 +305,15 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   const handleCopyAll = () => {
     if (poem?.content?.[language]) {
       const text = poem.content[language]
-        .map((item) => `${item.verse}\n${item.meaning ? `Meaning: ${item.meaning}` : ""}`)
+        .map(
+          (item) =>
+            `${item.verse}\n${item.meaning ? `Meaning: ${item.meaning}` : ""}`
+        )
         .join("\n\n");
       navigator.clipboard.writeText(text);
       toast.success("Poem copied", {
-        description: "The entire poem and meanings have been copied to your clipboard",
+        description:
+          "The entire poem and meanings have been copied to your clipboard",
         icon: <Copy className="h-4 w-4" />,
       });
     }
@@ -310,7 +333,6 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
     setShowMeaningDialog(true);
   };
 
-  // Add these helper functions
   const truncateText = (text: string, maxLength: number) => {
     if (!text || text.length <= maxLength) return text;
     return text.slice(0, maxLength) + "...";
@@ -361,7 +383,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   if (error || !poem) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 sm:gap-6 w-full px-4">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-4xl sm:text-5xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-4xl sm:text-5xl"
+        >
           <Feather className="h-12 w-12 sm:h-16 sm:w-16" />
         </motion.div>
         <motion.h2
@@ -386,8 +412,16 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
             ? "हवा में खोई फुसफुसाहट की तरह, हमें आपके द्वारा खोजी गई छंद नहीं मिल रही हैं"
             : "ہوا میں کھوئی ہوئی سرگوشی کی طرح، ہمیں آپ کی تلاش کردہ آیات نہیں مل رہی ہیں"}
         </motion.p>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-          <Button variant="outline" onClick={() => router.back()} className="gap-1.5 text-xs sm:text-sm h-8 sm:h-9">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="gap-1.5 text-xs sm:text-sm h-8 sm:h-9"
+          >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Back</span>
           </Button>
@@ -405,7 +439,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
   ) => {
     if (!content || !Array.isArray(content) || content.length === 0) {
       return (
-        <div className={`text-muted-foreground italic text-xs sm:text-sm ${language === "ur" ? "urdu-text" : ""}`}>
+        <div
+          className={`text-muted-foreground italic text-xs sm:text-sm ${
+            language === "ur" ? "urdu-text" : ""
+          }`}
+        >
           {language === "en"
             ? "Content not available in English"
             : language === "hi"
@@ -434,7 +472,6 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
             );
           }
 
-          // Fix the extra empty space issue by properly handling newlines
           const lines = verse
             .split("\n")
             .map((line) => line.trim())
@@ -443,7 +480,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           return (
             <motion.div
               key={index}
-              className={`space-y-1 ${language === "ur" ? "urdu-text poem-text" : "poem-text"}`}
+              className={`space-y-1 ${
+                language === "ur" ? "urdu-text poem-text" : "poem-text"
+              }`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -518,13 +557,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
           animate={{ opacity: 1 }}
           className="mb-4 sm:mb-6 flex justify-between items-center"
         >
-          <Button variant="ghost" onClick={() => router.back()} className="gap-1.5 h-8 text-xs sm:text-sm">
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="gap-1.5 h-8 text-xs sm:text-sm"
+          >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Back</span>
           </Button>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <Card className="overflow-hidden border shadow-md bg-white">
             <CardHeader className="relative p-0">
               <motion.div
@@ -593,7 +640,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                             language === "ur" ? "urdu-text" : ""
                           }`}
                         >
-                          {authorData?.name || poem.author.name || "Unknown Author"}
+                          {authorData?.name ||
+                            poem.author.name ||
+                            "Unknown Author"}
                         </span>
                       </Link>
                     )}
@@ -641,11 +690,12 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
             <CardContent className="p-4 sm:p-6 md:p-8">
               <div className="flex flex-col gap-6 sm:gap-8">
-                {/* Summary Section */}
                 {poem.summary?.[language] && (
                   <motion.div
                     className={`text-sm sm:text-base ${
-                      language === "ur" ? "urdu-text summary-text" : "summary-text"
+                      language === "ur"
+                        ? "urdu-text summary-text"
+                        : "summary-text"
                     } bg-gray-50 p-4 rounded-lg border border-gray-200`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -657,13 +707,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="h-4 w-4 text-primary/70" />
                       <h3 className="font-semibold">
-                        {language === "en" ? "About" : language == "hi" ? "परिचय" : "تعارف"}
+                        {language === "en"
+                          ? "About"
+                          : language == "hi"
+                          ? "परिचय"
+                          : "تعارف"}
                       </h3>
                     </div>
                     <p>
-                      {showFullSummary || poem.summary[language].length <= summaryMaxLength
+                      {showFullSummary ||
+                      poem.summary[language].length <= summaryMaxLength
                         ? poem.summary[language]
-                        : truncateText(poem.summary[language], summaryMaxLength)}
+                        : truncateText(
+                            poem.summary[language],
+                            summaryMaxLength
+                          )}
                     </p>
                     {poem.summary[language].length > summaryMaxLength && (
                       <Button
@@ -678,21 +736,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                   </motion.div>
                 )}
 
-                {/* Poem Content Section */}
                 <section>
                   <div className="flex justify-end items-center mb-4">
-                    {poem.content?.[language] && poem.content[language].length > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyAll}
-                        className="gap-1.5 text-xs h-8"
-                        aria-label="Copy entire poem"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy All
-                      </Button>
-                    )}
+                    {poem.content?.[language] &&
+                      poem.content[language].length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyAll}
+                          className="gap-1.5 text-xs h-8"
+                          aria-label="Copy entire poem"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          Copy All
+                        </Button>
+                      )}
                   </div>
 
                   <motion.div
@@ -703,15 +761,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    {formatPoetryContent(poem.content?.[language] || [], language)}
+                    {formatPoetryContent(
+                      poem.content?.[language] || [],
+                      language
+                    )}
                   </motion.div>
                 </section>
 
                 <Separator className="my-2" />
 
-                {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 sm:gap-3 justify-center items-center action-buttons">
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <VerseDownload
                       verse={poem.content?.[language]?.[0]?.verse || ""}
                       author={poem.author?.name || "Unknown Author"}
@@ -725,7 +789,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     />
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <Button
                       variant="outline"
                       size="sm"
@@ -738,26 +806,43 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </Button>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="outline"
                           size="sm"
                           className="gap-1.5 text-xs h-8 bg-white shadow-sm"
-                          aria-label={isInReadlist ? "Remove from anthology" : "Add to anthology"}
+                          aria-label={
+                            isInReadlist
+                              ? "Remove from anthology"
+                              : "Add to anthology"
+                          }
                         >
                           <Heart
-                            className={`h-3.5 w-3.5 ${isInReadlist ? "fill-red-500 text-red-500" : "text-gray-500"}`}
+                            className={`h-3.5 w-3.5 ${
+                              isInReadlist
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-500"
+                            }`}
                           />
                           <span>{readListCount}</span>
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent className="border border-gray-200 p-4 sm:p-6">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
                           <AlertDialogHeader>
                             <AlertDialogTitle className="text-base sm:text-lg">
-                              {isInReadlist ? "Remove from your anthology?" : "Add to your anthology?"}
+                              {isInReadlist
+                                ? "Remove from your anthology?"
+                                : "Add to your anthology?"}
                             </AlertDialogTitle>
                             <AlertDialogDescription className="text-muted-foreground italic text-xs sm:text-sm">
                               {isInReadlist
@@ -766,11 +851,21 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter className="mt-4">
-                            <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">
+                              Cancel
+                            </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => poem._id && handleReadlistToggle(poem._id)}
+                              onClick={() =>
+                                poem._id &&
+                                handleReadlistToggle(
+                                  poem._id,
+                                  poem.title?.[language] || "Untitled"
+                                )
+                              }
                               className={`text-xs sm:text-sm h-8 sm:h-9 ${
-                                isInReadlist ? "bg-destructive hover:bg-destructive/90" : "bg-black hover:bg-gray-800"
+                                isInReadlist
+                                  ? "bg-destructive hover:bg-destructive/90"
+                                  : "bg-black hover:bg-gray-800"
                               }`}
                             >
                               {isInReadlist ? "Remove" : "Add"}
@@ -781,7 +876,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </AlertDialog>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <Button
                       variant="outline"
                       size="sm"
@@ -796,9 +895,7 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
 
                 <Separator className="my-2" />
 
-                {/* Details Section */}
                 <section>
-                  {/* Tags Section - Moved up */}
                   {poem.tags && poem.tags.length > 0 && (
                     <motion.div
                       className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm mb-6"
@@ -809,30 +906,42 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                       <div className="flex items-center gap-2 mb-3">
                         <Feather className="h-4 w-4 text-primary/70" />
                         <h3 className="text-sm sm:text-base font-medium">
-                          {language === "en" ? "Tags" : language === "hi" ? "टैग" : "ٹیگز"}
+                          {language === "en"
+                            ? "Tags"
+                            : language === "hi"
+                            ? "टैग"
+                            : "ٹیگز"}
                         </h3>
                       </div>
                       <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
-                        {poem.tags.slice(0, showAllTags ? poem.tags.length : 6).map((tag: string, index: number) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.1 * index }}
-                          >
-                            <Button
-                              variant="outline"
-                              className={`text-[10px] sm:text-xs h-6 sm:h-7 px-2.5 py-1 bg-gray-50 border-gray-200 hover:bg-gray-100 transition-colors ${
-                                language === "ur" ? "urdu-text tag-text" : "tag-text"
-                              }`}
-                              onClick={() => {
-                                router.push(`/search?q=${encodeURIComponent(tag)}&type=poems`);
-                              }}
+                        {poem.tags
+                          .slice(0, showAllTags ? poem.tags.length : 6)
+                          .map((tag: string, index: number) => (
+                            <motion.div
+                              key={index}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.1 * index }}
                             >
-                              {tag}
-                            </Button>
-                          </motion.div>
-                        ))}
+                              <Button
+                                variant="outline"
+                                className={`text-[10px] sm:text-xs h-6 sm:h-7 px-2.5 py-1 bg-gray-50 border-gray-200 hover:bg-gray-100 transition-colors ${
+                                  language === "ur"
+                                    ? "urdu-text tag-text"
+                                    : "tag-text"
+                                }`}
+                                onClick={() => {
+                                  router.push(
+                                    `/search?q=${encodeURIComponent(
+                                      tag
+                                    )}&type=poems`
+                                  );
+                                }}
+                              >
+                                {tag}
+                              </Button>
+                            </motion.div>
+                          ))}
                         {poem.tags.length > 6 && (
                           <Button
                             variant="ghost"
@@ -840,14 +949,15 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                             onClick={() => setShowAllTags(!showAllTags)}
                             className="h-6 sm:h-7 px-2 text-[10px] sm:text-xs hover:bg-gray-50"
                           >
-                            {showAllTags ? "Show Less" : `+${poem.tags.length - 6} more`}
+                            {showAllTags
+                              ? "Show Less"
+                              : `+${poem.tags.length - 6} more`}
                           </Button>
                         )}
                       </div>
                     </motion.div>
                   )}
 
-                  {/* Did You Know Section */}
                   {poem.didYouKnow?.[language] && (
                     <motion.div
                       className="bg-gray-50 p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm mb-6"
@@ -866,20 +976,31 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                         </h3>
                       </div>
                       <p
-                        className={`${language === "ur" ? "urdu-text didyouknow-text" : "didyouknow-text"}`}
+                        className={`${
+                          language === "ur"
+                            ? "urdu-text didyouknow-text"
+                            : "didyouknow-text"
+                        }`}
                         style={{
                           direction: language === "ur" ? "rtl" : "ltr",
                         }}
                       >
-                        {showFullDidYouKnow || poem.didYouKnow[language].length <= didYouKnowMaxLength
+                        {showFullDidYouKnow ||
+                        poem.didYouKnow[language].length <= didYouKnowMaxLength
                           ? poem.didYouKnow[language]
-                          : truncateText(poem.didYouKnow[language], didYouKnowMaxLength)}
+                          : truncateText(
+                              poem.didYouKnow[language],
+                              didYouKnowMaxLength
+                            )}
                       </p>
-                      {poem.didYouKnow[language].length > didYouKnowMaxLength && (
+                      {poem.didYouKnow[language].length >
+                        didYouKnowMaxLength && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setShowFullDidYouKnow(!showFullDidYouKnow)}
+                          onClick={() =>
+                            setShowFullDidYouKnow(!showFullDidYouKnow)
+                          }
                           className="mt-2 h-7 px-2 text-xs hover:bg-gray-100"
                         >
                           {showFullDidYouKnow ? "Show Less" : "See More"}
@@ -888,7 +1009,6 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </motion.div>
                   )}
 
-                  {/* FAQs Section */}
                   {poem.faqs && poem.faqs.length > 0 && (
                     <motion.div
                       className="space-y-2 bg-white p-4 sm:p-5 rounded-lg border shadow-sm mb-6"
@@ -898,15 +1018,31 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <HelpCircle className="h-4 w-4 text-primary/70" />
-                        <h3 className={`font-semibold ${language === "ur" ? "urdu-text" : ""}`}>
-                          {language === "en" ? "FAQs" : language === "hi" ? "प्रश्नोत्तर" : "سوالات و جوابات"}
+                        <h3
+                          className={`font-semibold ${
+                            language === "ur" ? "urdu-text" : ""
+                          }`}
+                        >
+                          {language === "en"
+                            ? "FAQs"
+                            : language === "hi"
+                            ? "प्रश्नोत्तर"
+                            : "سوالات و جوابات"}
                         </h3>
                       </div>
                       <Accordion type="single" collapsible className="w-full">
                         {poem.faqs.map((faq, index) => (
-                          <AccordionItem key={index} value={`faq-${index}`} className="border-b border-gray-200">
+                          <AccordionItem
+                            key={index}
+                            value={`faq-${index}`}
+                            className="border-b border-gray-200"
+                          >
                             <AccordionTrigger
-                              className={`text-sm ${language === "ur" ? "urdu-text faq-text text-right" : "faq-text"}`}
+                              className={`text-sm ${
+                                language === "ur"
+                                  ? "urdu-text faq-text text-right"
+                                  : "faq-text"
+                              }`}
                               style={{
                                 direction: language === "ur" ? "rtl" : "ltr",
                               }}
@@ -914,7 +1050,11 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                               {faq.question[language] || faq.question.en}
                             </AccordionTrigger>
                             <AccordionContent
-                              className={`text-sm ${language === "ur" ? "urdu-text faq-text" : "faq-text"}`}
+                              className={`text-sm ${
+                                language === "ur"
+                                  ? "urdu-text faq-text"
+                                  : "faq-text"
+                              }`}
                               style={{
                                 direction: language === "ur" ? "rtl" : "ltr",
                               }}
@@ -927,27 +1067,43 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </motion.div>
                   )}
 
-                  {/* Quote Section */}
                   <motion.div
                     className="bg-gray-50 p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm text-center italic text-sm text-gray-600"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.7 }}
                   >
-                    "Poetry is not a turning loose of emotion, but an escape from emotion; it is not the expression of
-                    personality, but an escape from personality."
-                    <div className="mt-1 font-medium text-[10px] sm:text-xs">— T.S. Eliot</div>
+                    "Poetry is not a turning loose of emotion, but an escape
+                    from emotion; it is not the expression of personality, but
+                    an escape from personality."
+                    <div className="mt-1 font-medium text-[10px] sm:text-xs">
+                      — T.S. Eliot
+                    </div>
                   </motion.div>
                 </section>
 
                 <Separator className="my-2" />
 
-                {/* Related Poems Section */}
+                {/* Poet Spotlight Section */}
+                <PoetSpotlight author={authorData} />
+
+                <Separator className="my-2" />
+
                 <section>
                   <h2 className="text-lg sm:text-xl font-bold mb-4">
-                    {language === "en" ? "Related Poems" : language === "hi" ? "संबंधित कविताएँ" : "متعلقہ نظمیں"}
+                    {language === "en"
+                      ? "Related Poems"
+                      : language === "hi"
+                      ? "संबंधित कविताएँ"
+                      : "متعلقہ نظمیں"}
                   </h2>
-                  <RelatedPoems currentPoem={poem} language={language} hideTitle={true} />
+                  <RelatedPoems
+                    currentPoem={poem}
+                    language={language}
+                    hideTitle={true}
+                    readList={readList}
+                    handleReadlistToggle={handleReadlistToggle}
+                  />
                 </section>
               </div>
             </CardContent>
@@ -955,12 +1111,13 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
         </motion.div>
       </div>
 
-      {/* Share Dialog */}
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <AlertDialogContent className="border border-gray-200 p-4 sm:p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Share this poem</AlertDialogTitle>
+              <AlertDialogTitle className="text-base sm:text-lg">
+                Share this poem
+              </AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground italic text-xs sm:text-sm">
                 Copy the link below to share this beautiful poem with others
               </AlertDialogDescription>
@@ -969,7 +1126,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
               <Input
                 type="text"
                 readOnly
-                value={typeof window !== "undefined" ? window.location.href : ""}
+                value={
+                  typeof window !== "undefined" ? window.location.href : ""
+                }
                 className="bg-muted/50 text-xs sm:text-sm h-8 sm:h-9"
               />
               <Button
@@ -978,7 +1137,8 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
                   toast.success("Link copied", {
-                    description: "The poem's link has been copied to your clipboard",
+                    description:
+                      "The poem's link has been copied to your clipboard",
                     icon: <Copy className="h-3.5 w-3.5" />,
                   });
                   setShowShareDialog(false);
@@ -989,25 +1149,30 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
               </Button>
             </div>
             <AlertDialogFooter className="mt-4 sm:mt-6">
-              <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">Close</AlertDialogCancel>
+              <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">
+                Close
+              </AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Meaning Dialog */}
       <AlertDialog open={showMeaningDialog} onOpenChange={setShowMeaningDialog}>
         <AlertDialogContent className="border border-gray-200 p-4 sm:p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Verse Meaning</AlertDialogTitle>
+              <AlertDialogTitle className="text-base sm:text-lg">
+                Verse Meaning
+              </AlertDialogTitle>
             </AlertDialogHeader>
             <div className="mt-4 space-y-4">
               <div className="border-l-2 border-primary/30 pl-3 py-1">
                 <div className="flex items-start gap-2 mb-2">
                   <Quote className="h-4 w-4 mt-1 text-primary/70" />
                   <div
-                    className={`bg-gray-50/70 p-3 rounded-md w-full ${language === "ur" ? "urdu-text" : "font-serif"}`}
+                    className={`bg-gray-50/70 p-3 rounded-md w-full ${
+                      language === "ur" ? "urdu-text" : "font-serif"
+                    }`}
                   >
                     <p
                       className="text-sm sm:text-base"
@@ -1026,7 +1191,12 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                   <Info className="h-4 w-4 mt-1 text-primary/70" />
                   <div className="w-full">
                     <h4 className="text-sm font-medium mb-1">
-                      {language === "en" ? "Meaning" : language === "hi" ? "अर्थ" : "معنی"}:
+                      {language === "en"
+                        ? "Meaning"
+                        : language === "hi"
+                        ? "अर्थ"
+                        : "معنی"}
+                      :
                     </h4>
                     <p
                       className={`text-sm ${
@@ -1044,7 +1214,9 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
               </div>
             </div>
             <AlertDialogFooter className="mt-4 sm:mt-6">
-              <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">Close</AlertDialogCancel>
+              <AlertDialogCancel className="text-xs sm:text-sm h-8 sm:h-9">
+                Close
+              </AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>
