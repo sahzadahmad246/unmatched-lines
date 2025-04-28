@@ -1,97 +1,119 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useSession } from "next-auth/react"
-import Link from "next/link"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { toast } from "sonner"
-import { Footer } from "@/components/home/footer"
-import { Button } from "@/components/ui/button"
-import { LoadingComponent } from "@/components/utils/LoadingComponent"
-import { BookHeart, Feather, Sparkles, BookOpen, Star, Trash2, X } from "lucide-react"
-import { SearchBar } from "@/components/home/search-bar"
-import { FeaturedCollection } from "@/components/home/featured-collection"
-import { LineOfTheDay } from "@/components/poems/line-of-the-day"
-import { TopFivePicks } from "./TopFivePicks"
-import { PoetList } from "../poets/PoetList"
-import type { Poem } from "@/types/poem"
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Footer } from "@/components/home/footer";
+import { Button } from "@/components/ui/button";
+import { LoadingComponent } from "@/components/utils/LoadingComponent";
+import {
+  BookHeart,
+  Feather,
+  Sparkles,
+  BookOpen,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
+import { SearchBar } from "@/components/home/search-bar";
+import FeaturedCollection from "@/components/home/featured-collection";
+import { LineOfTheDay } from "@/components/poems/line-of-the-day";
+import { TopFivePicks } from "./TopFivePicks";
+import { PoetList } from "../poets/PoetList";
+import type { Poem } from "@/types/poem";
 
 interface Poet {
-  _id: string
-  name: string
-  slug: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount: number
-  sherCount: number
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  dob?: string;
+  city?: string;
+  ghazalCount: number;
+  sherCount: number;
 }
 
 interface CoverImage {
-  _id: string
-  url: string
-  uploadedBy: { name: string }
-  createdAt: string
+  _id: string;
+  url: string;
+  uploadedBy: { name: string };
+  createdAt: string;
 }
 
 export default function Home() {
-  const { data: session } = useSession()
-  const [poets, setPoets] = useState<Poet[]>([])
-  const [ghazals, setGhazals] = useState<Poem[]>([])
-  const [shers, setShers] = useState<Poem[]>([])
-  const [nazms, setNazms] = useState<Poem[]>([])
-  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null)
-  const [readList, setReadList] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const { data: session } = useSession();
+  const [poets, setPoets] = useState<Poet[]>([]);
+  const [ghazals, setGhazals] = useState<Poem[]>([]);
+  const [shers, setShers] = useState<Poem[]>([]);
+  const [nazms, setNazms] = useState<Poem[]>([]);
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
+  const [readList, setReadList] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  const heroRef = useRef<HTMLDivElement>(null)
-  const hasInitializedRef = useRef(false)
+  const heroRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return
-    hasInitializedRef.current = true
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
     const fetchData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
         // Fetch poets
-        const poetsRes = await fetch("/api/authors", { credentials: "include" })
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets")
-        const poetsData = await poetsRes.json()
-        setPoets(poetsData.authors || [])
+        const poetsRes = await fetch("/api/authors", {
+          credentials: "include",
+        });
+        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
+        const poetsData = await poetsRes.json();
+        setPoets(poetsData.authors || []);
 
         // Fetch poems with new schema
-        const poemsRes = await fetch("/api/poem?limit=12", { credentials: "include" })
-        if (!poetsRes.ok) throw new Error("Failed to fetch poems")
-        const poemsData = await poemsRes.json()
-        const poems = poemsData.poems || []
+        const poemsRes = await fetch("/api/poem?limit=12", {
+          credentials: "include",
+        });
+        if (!poetsRes.ok) throw new Error("Failed to fetch poems");
+        const poemsData = await poemsRes.json();
+        const poems = poemsData.poems || [];
 
-        setGhazals(poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6))
-        setShers(poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6))
-        setNazms(poems.filter((poem: Poem) => poem.category === "nazm").slice(0, 6))
+        setGhazals(
+          poems.filter((poem: Poem) => poem.category === "ghazal").slice(0, 6)
+        );
+        setShers(
+          poems.filter((poem: Poem) => poem.category === "sher").slice(0, 6)
+        );
+        setNazms(
+          poems.filter((poem: Poem) => poem.category === "nazm").slice(0, 6)
+        );
 
         if (poems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * poems.length)
-          setFeaturedPoem(poems[randomIndex])
+          const randomIndex = Math.floor(Math.random() * poems.length);
+          setFeaturedPoem(poems[randomIndex]);
         }
 
         // Fetch cover images
-        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" })
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images")
-        const coverImagesData = await coverImagesRes.json()
-        setCoverImages(coverImagesData.coverImages || [])
+        const coverImagesRes = await fetch("/api/cover-images", {
+          credentials: "include",
+        });
+        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
+        const coverImagesData = await coverImagesRes.json();
+        setCoverImages(coverImagesData.coverImages || []);
 
         // Fetch user's readlist
         if (session) {
-          const userRes = await fetch("/api/user", { credentials: "include" })
+          const userRes = await fetch("/api/user", { credentials: "include" });
           if (userRes.ok) {
-            const userData = await userRes.json()
-            setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+            const userData = await userRes.json();
+            setReadList(
+              userData.user.readList.map((poem: any) => poem._id.toString())
+            );
           }
         }
 
@@ -101,23 +123,24 @@ export default function Home() {
           setRecentSearches(JSON.parse(storedSearches));
         }
       } catch (err) {
-        setError("Failed to load data")
+        setError("Failed to load data");
         toast.error("Failed to load content", {
           description: "Please try refreshing the page",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [session])
+    fetchData();
+  }, [session]);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     if (!session) {
@@ -127,13 +150,15 @@ export default function Home() {
           label: "Sign In",
           onClick: () => (window.location.href = "/api/auth/signin"),
         },
-      })
-      return
+      });
+      return;
     }
 
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist
+      ? "/api/user/readlist/remove"
+      : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -141,36 +166,53 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
+        setReadList((prev) =>
+          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
+        );
         setGhazals((prev) =>
           prev.map((poem) =>
             poem._id === poemId
-              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
-              : poem,
-          ),
-        )
+              ? {
+                  ...poem,
+                  readListCount: isInReadlist
+                    ? (poem.readListCount || 1) - 1
+                    : (poem.readListCount || 0) + 1,
+                }
+              : poem
+          )
+        );
         setShers((prev) =>
           prev.map((poem) =>
             poem._id === poemId
-              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
-              : poem,
-          ),
-        )
+              ? {
+                  ...poem,
+                  readListCount: isInReadlist
+                    ? (poem.readListCount || 1) - 1
+                    : (poem.readListCount || 0) + 1,
+                }
+              : poem
+          )
+        );
         setNazms((prev) =>
           prev.map((poem) =>
             poem._id === poemId
-              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
-              : poem,
-          ),
-        )
+              ? {
+                  ...poem,
+                  readListCount: isInReadlist
+                    ? (poem.readListCount || 1) - 1
+                    : (poem.readListCount || 0) + 1,
+                }
+              : poem
+          )
+        );
 
         if (isInReadlist) {
           toast.error("Removed from reading list", {
             description: `"${poemTitle}" has been removed from your reading list.`,
-          })
+          });
         } else {
           toast.custom(
             (t) => (
@@ -183,20 +225,22 @@ export default function Home() {
                 <BookHeart className="h-5 w-5" />
                 <div>
                   <div className="font-medium">Added to your anthology</div>
-                  <div className="text-sm opacity-90">"{poemTitle}" now resides in your collection</div>
+                  <div className="text-sm opacity-90">
+                    "{poemTitle}" now resides in your collection
+                  </div>
                 </div>
               </motion.div>
             ),
-            { duration: 3000 },
-          )
+            { duration: 3000 }
+          );
         }
       }
     } catch (error) {
       toast.error("Error", {
         description: "An error occurred while updating the reading list.",
-      })
+      });
     }
-  }
+  };
 
   // Clear a single recent search
   const clearRecentSearch = (search: string) => {
@@ -216,7 +260,7 @@ export default function Home() {
   };
 
   if (loading) {
-    return <LoadingComponent />
+    return <LoadingComponent />;
   }
 
   if (error) {
@@ -227,13 +271,19 @@ export default function Home() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-xl sm:text-2xl font-bold text-destructive">{error}</h2>
-          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+          <h2 className="text-xl sm:text-2xl font-bold text-destructive">
+            {error}
+          </h2>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
             Try Again
           </Button>
         </motion.div>
       </div>
-    )
+    );
   }
 
   return (
@@ -289,18 +339,29 @@ export default function Home() {
               </h1>
 
               <p className="text-base sm:text-lg text-muted-foreground mb-8 font-sans max-w-md">
-                Explore the beauty of poetry from renowned poets across different languages and traditions. Discover new
-                verses that speak to your soul.
+                Explore the beauty of poetry from renowned poets across
+                different languages and traditions. Discover new verses that
+                speak to your soul.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Button asChild variant="default" size="lg" className="text-sm font-sans">
+                <Button
+                  asChild
+                  variant="default"
+                  size="lg"
+                  className="text-sm font-sans"
+                >
                   <Link href="/library">
                     <BookOpen className="mr-2 h-4 w-4" />
                     Explore Poems
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="text-sm font-sans">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="text-sm font-sans"
+                >
                   <Link href="/poets">
                     <Star className="mr-2 h-4 w-4" />
                     Discover Poets
@@ -321,7 +382,8 @@ export default function Home() {
                   <SearchBar fullWidth />
                   <div className="mt-6 text-center">
                     <p className="text-sm text-muted-foreground mb-4">
-                      Discover over {poets.length} poets and {ghazals.length + shers.length + nazms.length} poems
+                      Discover over {poets.length} poets and{" "}
+                      {ghazals.length + shers.length + nazms.length} poems
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {recentSearches.length > 0 ? (
@@ -453,14 +515,16 @@ export default function Home() {
 
               <blockquote className="text-xl md:text-2xl lg:text-3xl font-sans leading-relaxed text-center mb-6">
                 <span className="text-4xl text-primary/40">"</span>
-                Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in
-                tranquility.
+                Poetry is the spontaneous overflow of powerful feelings: it
+                takes its origin from emotion recollected in tranquility.
                 <span className="text-4xl text-primary/40">"</span>
               </blockquote>
 
               <div className="flex flex-col items-center">
                 <div className="w-16 h-0.5 bg-primary/40 mb-4"></div>
-                <p className="text-lg font-sans text-primary font-medium">William Wordsworth</p>
+                <p className="text-lg font-sans text-primary font-medium">
+                  William Wordsworth
+                </p>
               </div>
             </motion.div>
           </div>
@@ -479,14 +543,22 @@ export default function Home() {
             >
               <Sparkles className="h-10 w-10 mx-auto mb-6" />
 
-              <h2 className="text-3xl md:text-4xl font-bold font-sans mb-6">Begin Your Poetic Journey</h2>
+              <h2 className="text-3xl md:text-4xl font-bold font-sans mb-6">
+                Begin Your Poetic Journey
+              </h2>
 
               <p className="text-lg md:text-xl font-sans mb-8 text-primary-foreground/90 max-w-2xl mx-auto">
-                Explore our vast collection of poems, discover new poets, and create your personal anthology.
+                Explore our vast collection of poems, discover new poets, and
+                create your personal anthology.
               </p>
 
               <div className="flex flex-wrap justify-center gap-4">
-                <Button asChild size="lg" variant="secondary" className="font-sans text-sm">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="font-sans text-sm"
+                >
                   <Link href="/library">Explore Collection</Link>
                 </Button>
 
@@ -508,5 +580,5 @@ export default function Home() {
 
       <Footer />
     </div>
-  )
+  );
 }

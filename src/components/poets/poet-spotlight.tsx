@@ -1,12 +1,13 @@
 "use client"
 
-import Link from "next/link"
 import { motion } from "framer-motion"
+import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { User, MapPin, Users, BookOpen, ChevronRight, Bookmark, FileText } from "lucide-react"
+import { BookOpen, Users, Bookmark, FileText, Sparkles } from "lucide-react"
+import { useState } from "react"
+import { useColorTransition } from "@/lib/color-transition-provider"
 
 interface Author {
   _id: string
@@ -14,10 +15,8 @@ interface Author {
   slug: string
   image?: string
   bio?: string
-  city?: string
   sherCount?: number
   ghazalCount?: number
-  otherCount?: number
   followerCount?: number
 }
 
@@ -26,13 +25,11 @@ interface PoetSpotlightProps {
 }
 
 export default function PoetSpotlight({ author }: PoetSpotlightProps) {
+  const [isHovered, setIsHovered] = useState(false)
+  const { currentPalette, transitionStyle } = useColorTransition()
+
   if (!author) {
     return null
-  }
-
-  const truncateBio = (bio: string, maxLength: number) => {
-    if (!bio || bio.length <= maxLength) return bio
-    return bio.slice(0, maxLength) + "..."
   }
 
   // Animation variants
@@ -41,9 +38,26 @@ export default function PoetSpotlight({ author }: PoetSpotlightProps) {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.1,
+        staggerChildren: 0.08,
+        delayChildren: 0.08,
       },
+    },
+  }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut",
+      },
+    },
+    hover: {
+      y: -8,
+      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1)",
+      transition: { duration: 0.2 },
     },
   }
 
@@ -56,125 +70,189 @@ export default function PoetSpotlight({ author }: PoetSpotlightProps) {
     },
   }
 
+  // Truncate bio
+  const truncateBio = (bio: string, maxLength: number) => {
+    if (!bio || bio.length <= maxLength) return bio
+    return bio.slice(0, maxLength) + "..."
+  }
+
   // Calculate total poems
-  const totalPoems = (author.sherCount || 0) + (author.ghazalCount || 0) + (author.otherCount || 0)
+  const totalPoems = (author.sherCount || 0) + (author.ghazalCount || 0)
 
   return (
-    <motion.section initial="hidden" animate="visible" variants={containerVariants} className="w-full mb-12">
-      <motion.div variants={itemVariants} className="flex items-center gap-2 mb-6">
-        <BookOpen className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Poet Spotlight</h2>
-      </motion.div>
+    <motion.section initial="hidden" animate="visible" variants={containerVariants} className="w-full mb-8 h-full">
+      <div className="h-full mt-4 sm:mt-6">
+        <div
+          className={`${currentPalette.background} ${currentPalette.darkBackground} rounded-xl border border-opacity-60 shadow-lg overflow-hidden h-full relative`}
+          style={transitionStyle}
+        >
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+            <div
+              className={`absolute top-0 left-0 w-32 h-32 bg-gradient-to-br ${currentPalette.primary} rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2`}
+              style={transitionStyle}
+            ></div>
+            <div
+              className={`absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tr ${currentPalette.secondary} rounded-full blur-3xl translate-y-1/2 translate-x-1/2`}
+              style={transitionStyle}
+            ></div>
+          </div>
 
-      <motion.div
-        variants={itemVariants}
-        className="w-full bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md"
-      >
-        <div className="p-6 sm:p-8 flex flex-col sm:flex-row gap-6 sm:gap-8 items-start">
-          {/* Avatar section */}
-          <motion.div variants={itemVariants} className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-white dark:border-gray-900 shadow-md">
-              {author.image ? (
-                <AvatarImage src={author.image || "/placeholder.svg"} alt={author.name} />
-              ) : (
-                <AvatarFallback className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                  <User className="h-12 w-12" />
-                </AvatarFallback>
-              )}
-            </Avatar>
-
-            <div className="mt-4 flex flex-col items-center">
-              <Badge
-                variant="outline"
-                className="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800 px-3 py-1 flex items-center gap-1.5"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                <span>Relevent Poet</span>
-              </Badge>
-
-              <div className="mt-3">
-                <Button
-                  size="sm"
-                  className="bg-black hover:bg-gray-800 text-white dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                  onClick={() => {
-                    console.log(`Follow ${author.name}`)
-                  }}
+          <div className="p-4 sm:p-6 flex flex-col h-full relative z-10">
+            <div className="relative mb-4">
+              <div
+                className={`absolute inset-0 bg-gradient-to-r ${currentPalette.primary} opacity-30 skew-x-12 rounded-lg -z-10`}
+                style={transitionStyle}
+              ></div>
+              <div className="py-2 px-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${currentPalette.primary} shadow-sm`}
+                    style={transitionStyle}
+                  >
+                    <BookOpen className={`h-3.5 w-3.5 ${currentPalette.accent}`} style={transitionStyle} />
+                  </div>
+                  <h2
+                    className={`text-sm sm:text-base font-semibold font-serif ${currentPalette.text} ${currentPalette.darkText}`}
+                    style={transitionStyle}
+                  >
+                    Poet Spotlight
+                  </h2>
+                </div>
+                <div
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gradient-to-r ${currentPalette.primary} bg-opacity-10 backdrop-blur-sm ${currentPalette.text} ${currentPalette.darkText} border border-opacity-30 shadow-sm`}
+                  style={transitionStyle}
                 >
-                  <Users className="h-3.5 w-3.5 mr-1.5" />
-                  Follow
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Content section */}
-          <motion.div variants={itemVariants} className="flex-1">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <Link href={`/poets/${author.slug}`} className="group">
-                <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
-                  {author.name}
-                </h3>
-              </Link>
-
-              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                {author.city && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                    {author.city}
-                  </span>
-                )}
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-gray-500" />
-                  {author.followerCount || 0} Followers
-                </span>
+                  <Sparkles className="h-3 w-3" />
+                  <span className="text-[10px] sm:text-xs font-medium">Featured Poet</span>
+                </div>
               </div>
             </div>
 
-            {author.bio && (
-              <div className="mb-6">
-                <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {truncateBio(author.bio, 200)}
-                </p>
-              </div>
-            )}
-
-            <Separator className="my-4 bg-gray-200 dark:bg-gray-800" />
-
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <Bookmark className="h-5 w-5 mb-1 text-gray-700 dark:text-gray-300" />
-                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{author.sherCount || 0}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Sher</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <FileText className="h-5 w-5 mb-1 text-gray-700 dark:text-gray-300" />
-                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{author.ghazalCount || 0}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Ghazal</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <BookOpen className="h-5 w-5 mb-1 text-gray-700 dark:text-gray-300" />
-                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{author.otherCount || 0}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Other</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                <BookOpen className="h-4 w-4 text-gray-500" />
-                <span>{totalPoems} Total Poems</span>
-              </div>
-
-              <Link
-                href={`/poets/${author.slug}`}
-                className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 font-medium flex items-center gap-1 transition-colors"
+            <motion.div
+              variants={cardVariants}
+             
+              onHoverStart={() => setIsHovered(true)}
+              onHoverEnd={() => setIsHovered(false)}
+              className="flex-grow flex flex-col"
+            >
+              <div
+                className={`relative h-24 sm:h-32 bg-gradient-to-r ${currentPalette.primary} bg-opacity-20 rounded-lg mb-12`}
+                style={transitionStyle}
               >
-                View Profile
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </motion.div>
+                <div
+                  className="absolute -bottom-10 sm:-bottom-12 left-4 border-4 border-white dark:border-slate-800 rounded-full overflow-hidden ring-2 shadow-md"
+                  style={transitionStyle}
+                >
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24">
+                    <Image
+                      src={author.image || `/placeholder.svg?height=200&width=200`}
+                      alt={author.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 pb-4 relative z-10">
+                <div className="flex flex-row items-center justify-between gap-2 mb-4 flex-wrap sm:flex-nowrap">
+                  <Link href={`/poets/${author.slug}`} className="group">
+                    <h3
+                      className={`text-xl sm:text-2xl font-bold font-serif ${currentPalette.text} ${currentPalette.darkText} group-hover:opacity-80 transition-colors`}
+                      style={transitionStyle}
+                    >
+                      {author.name}
+                    </h3>
+                    <div
+                      className={`w-full h-0.5 bg-gradient-to-r from-transparent via-current to-transparent rounded-full mt-1`}
+                      style={transitionStyle}
+                    ></div>
+                  </Link>
+
+                  <div className="sm:hidden">
+                    <Button
+                      size="sm"
+                      className={`h-8 gap-1 text-[10px] sm:text-xs font-serif bg-white/80 dark:bg-slate-800/80 ${currentPalette.text} ${currentPalette.darkText} hover:bg-opacity-50 backdrop-blur-sm`}
+                      style={transitionStyle}
+                      onClick={() => {
+                        console.log(`Follow ${author.name}`)
+                      }}
+                    >
+                      <Users className="h-3 w-3 mr-0.5" />
+                      <span>Follow</span>
+                    </Button>
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className={`h-8 gap-1 text-[10px] sm:text-xs font-serif bg-white/80 dark:bg-slate-800/80 ${currentPalette.text} ${currentPalette.darkText} hover:bg-opacity-50 backdrop-blur-sm`}
+                      style={transitionStyle}
+                      onClick={() => {
+                        console.log(`Follow ${author.name}`)
+                      }}
+                    >
+                      <Users className="h-3 w-3 mr-0.5" />
+                      <span>Follow</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 mb-4">
+                  <span
+                    className={`flex items-center gap-1.5 px-2 py-1 bg-white/80 dark:bg-slate-800/80 rounded-md border border-opacity-40 ${currentPalette.text} ${currentPalette.darkText}`}
+                    style={transitionStyle}
+                  >
+                    <Users className="h-3 w-3" />
+                    <span className="font-medium">{author.followerCount || 0} Followers</span>
+                  </span>
+                  <span
+                    className={`flex items-center gap-1.5 px-2 py-1 bg-white/80 dark:bg-slate-800/80 rounded-md border border-opacity-40 ${currentPalette.text} ${currentPalette.darkText}`}
+                    style={transitionStyle}
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    <span className="font-medium">{totalPoems} Poems</span>
+                  </span>
+                </div>
+
+                {author.bio && (
+                  <div className="mb-6">
+                    <p className="text-sm sm:text-base font-serif text-slate-800 dark:text-slate-200 leading-relaxed bg-gradient-to-b from-white/80 to-white/30 dark:from-slate-800/80 dark:to-slate-800/30 rounded-xl border border-opacity-40 shadow-inner backdrop-blur-sm p-4">
+                      {truncateBio(author.bio, 200)}
+                    </p>
+                  </div>
+                )}
+
+                <Separator className="my-4 bg-opacity-50" style={transitionStyle} />
+
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  {(author.sherCount || 0) > 0 && (
+                    <motion.div
+                      variants={itemVariants}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-white/80 dark:bg-slate-800/80 rounded-md border border-opacity-40 ${currentPalette.text} ${currentPalette.darkText}`}
+                      style={transitionStyle}
+                    >
+                      <Bookmark className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium font-serif">{author.sherCount} Sher</span>
+                    </motion.div>
+                  )}
+                  {(author.ghazalCount || 0) > 0 && (
+                    <motion.div
+                      variants={itemVariants}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-white/80 dark:bg-slate-800/80 rounded-md border border-opacity-40 ${currentPalette.text} ${currentPalette.darkText}`}
+                      style={transitionStyle}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium font-serif">{author.ghazalCount} Ghazal</span>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </motion.div>
+      </div>
     </motion.section>
   )
 }

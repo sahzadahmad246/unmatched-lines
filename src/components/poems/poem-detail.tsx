@@ -611,8 +611,8 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     className="w-full px-4 sm:px-6 text-center"
                   >
                     <h1
-                      className={`text-2xl sm:text-3xl md:text-4xl font-bold text-white drop-shadow-md ${
-                        language === "ur" ? "urdu-text" : "font-serif"
+                      className={`text-xl sm:text-3xl md:text-4xl font-medium text-white drop-shadow-md ${
+                        language === "ur" ? "urdu-text" : "font-sans"
                       }`}
                     >
                       {poem.title?.[language] || "Untitled"}
@@ -1081,34 +1081,27 @@ export default function PoemDetail({ poem, language }: PoemDetailProps) {
                     </div>
                   </motion.div>
                 </section>
-
-                <Separator className="my-2" />
-
-                {/* Poet Spotlight Section */}
-                <PoetSpotlight author={authorData} />
-
-                <Separator className="my-2" />
-
-                <section>
-                  <h2 className="text-lg sm:text-xl font-bold mb-4">
-                    {language === "en"
-                      ? "Related Poems"
-                      : language === "hi"
-                      ? "संबंधित कविताएँ"
-                      : "متعلقہ نظمیں"}
-                  </h2>
-                  <RelatedPoems
-                    currentPoem={poem}
-                    language={language}
-                    hideTitle={true}
-                    readList={readList}
-                    handleReadlistToggle={handleReadlistToggle}
-                  />
-                </section>
               </div>
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Poet Spotlight Section */}
+
+        <section>
+          <PoetSpotlight author={authorData} />
+        </section>
+
+        <section>
+         
+          <RelatedPoems
+            currentPoem={poem}
+            language={language}
+            hideTitle={true}
+            readList={readList}
+            handleReadlistToggle={handleReadlistToggle}
+          />
+        </section>
       </div>
 
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
