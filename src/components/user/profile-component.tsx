@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useSession, signOut, signIn } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { useSession, signOut, signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
 import {
   LogOut,
   BookOpen,
@@ -15,38 +15,62 @@ import {
   BookmarkMinus,
   Loader2,
   Feather,
+  Grid3X3,
   BookHeart,
   Sparkles,
-  Grid3X3,
   BookMarked,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { motion, AnimatePresence } from "framer-motion"
-import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
+import { FollowListDialog } from "@/components/ui/FollowListDialog";
+import { AlertDialogFooter } from "@/components/ui/alert-dialog";
+
+interface FollowEntry {
+  id: string;
+  name: string;
+  image?: string;
+  slug: string;
+  followedAt: string;
+}
+
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  image?: string;
+  role: string;
+  readList: Array<{ _id: string; title: { en: string }; slug: { en: string } }>;
+  followingCount: number;
+  following: FollowEntry[];
+}
+
+interface ProfileComponentProps {
+  initialUserData: UserData | null;
+}
 
 const fadeIn = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-}
+};
 
 const slideUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
-}
+};
 
 const staggerChildren = {
   hidden: { opacity: 0 },
@@ -56,122 +80,112 @@ const staggerChildren = {
       staggerChildren: 0.1,
     },
   },
-}
+};
 
-export default function ProfileComponent() {
-  const { data: session, status } = useSession()
-  const [userData, setUserData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [poemToRemove, setPoemToRemove] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("saved")
-  const router = useRouter()
+export default function ProfileComponent({ initialUserData }: ProfileComponentProps) {
+  const { data: session, status } = useSession();
+  const [userData, setUserData] = useState<UserData | null>(initialUserData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [poemToRemove, setPoemToRemove] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("saved");
+  const [showFollowingDialog, setShowFollowingDialog] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (session) {
-      setIsLoading(true)
-      fetch("/api/user")
+    if (session && !initialUserData) {
+      setIsLoading(true);
+      fetch("/api/user", { credentials: "include" })
         .then((res) => res.json())
         .then((data) => {
-          setUserData(data)
-          setIsLoading(false)
+          const user = {
+            ...data.user,
+            followingCount: Number(data.user.followingCount) || 0,
+          };
+          setUserData(user);
+          setIsLoading(false);
         })
         .catch((err) => {
-          setIsLoading(false)
+          setIsLoading(false);
           toast.error("Failed to load profile", {
             description: "The verses of your profile couldn't be retrieved",
             icon: <Feather className="h-4 w-4" />,
-          })
-        })
+          });
+        });
     }
-  }, [session])
+  }, [session, initialUserData]);
 
   const handleRemoveFromReadlist = async (poemId: string, poemTitle: string) => {
     try {
-      setIsLoading(true)
+      setIsLoading(true);
       const res = await fetch("/api/user/readlist/remove", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
-      })
+        credentials: "include",
+      });
       if (res.ok) {
         setUserData((prev: any) => ({
           ...prev,
-          user: {
-            ...prev.user,
-            readList: prev.user.readList.filter((p: any) => p._id !== poemId),
-          },
-        }))
-
+          readList: prev.readList.filter((p: any) => p._id !== poemId),
+        }));
         toast.success("Poem removed", {
           description: `"${poemTitle}" has been removed from your reading list.`,
           icon: <BookmarkMinus className="h-4 w-4" />,
-          duration: 3000,
-          position: "bottom-right",
-          className: "border border-primary/20",
-        })
+        });
       }
-      setIsLoading(false)
-      setPoemToRemove(null)
+      setIsLoading(false);
+      setPoemToRemove(null);
     } catch (error) {
-      setIsLoading(false)
-      setPoemToRemove(null)
-
+      setIsLoading(false);
+      setPoemToRemove(null);
       toast.error("Error", {
         description: "Failed to remove the poem. Please try again.",
         icon: <Feather className="h-4 w-4" />,
-        duration: 3000,
-      })
+      });
     }
-  }
+  };
 
   const handlePoemClick = async (poemId: string) => {
     try {
-      setIsLoading(true)
-      const res = await fetch(`/api/poem/${poemId}`)
+      setIsLoading(true);
+      const res = await fetch(`/api/poem/${poemId}`, { credentials: "include" });
       if (res.ok) {
-        const data = await res.json()
-        const poem = data.poem
-
-        // Determine the language to use (defaulting to English)
-        const language = poem.content?.en ? "en" : poem.content?.hi ? "hi" : "ur"
-        const slug = poem.slug[language] || poem.slug.en || poem._id
-
-        // Navigate to the poem details page
-        router.push(`/poems/${language}/${slug}`)
+        const data = await res.json();
+        const poem = data.poem;
+        const language = poem.content?.en ? "en" : poem.content?.hi ? "hi" : "ur";
+        const slug = poem.slug[language] || poem.slug.en || poem._id;
+        router.push(`/poems/${language}/${slug}`);
       } else {
         toast.error("Error", {
           description: "Failed to fetch poem details. Please try again.",
           icon: <Feather className="h-4 w-4" />,
-          duration: 3000,
-        })
+        });
       }
-      setIsLoading(false)
+      setIsLoading(false);
     } catch (error) {
-      setIsLoading(false)
+      setIsLoading(false);
       toast.error("Error", {
         description: "Failed to navigate to poem details. Please try again.",
         icon: <Feather className="h-4 w-4" />,
-        duration: 3000,
-      })
+      });
     }
-  }
+  };
 
   const handleSignOut = () => {
     toast.success("Signed out successfully", {
       description: "We hope to see you again soon",
       icon: <Feather className="h-4 w-4" />,
-      duration: 3000,
-    })
-    signOut()
-  }
+    });
+    signOut();
+  };
 
   const handleSignIn = () => {
     toast.loading("Signing you in...", {
       description: "Opening the door to poetry",
       duration: 3000,
-    })
-    signIn("google")
-  }
+    });
+    signIn("google");
+  };
 
   if (status === "loading") {
     return (
@@ -215,7 +229,7 @@ export default function ProfileComponent() {
           className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
         />
       </motion.div>
-    )
+    );
   }
 
   if (!session) {
@@ -280,7 +294,16 @@ export default function ProfileComponent() {
           </Card>
         </motion.div>
       </div>
-    )
+    );
+  }
+
+  if (!userData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
+        <Loader2 className="h-12 w-12 text-primary/70 animate-spin" />
+        <p className="text-xl font-medium">Loading user profile...</p>
+      </div>
+    );
   }
 
   return (
@@ -305,19 +328,27 @@ export default function ProfileComponent() {
               </Avatar>
 
               <div className="mt-14 space-y-3">
-                <h3 className="text-xl font-semibold">{session.user?.name}</h3>
-
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-semibold">{session.user?.name}</h3>
+                </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="h-4 w-4 flex-shrink-0" />
                   <span className="text-xs truncate">{session.user?.email}</span>
                 </div>
-
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span
+                    className="follow-count cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setShowFollowingDialog(true)}
+                  >
+                    {Number(userData.followingCount) || 0} Following
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="gap-1">
                     <User className="h-3 w-3" />
                     <span className="text-xs">Reader</span>
                   </Badge>
-                  {userData?.user?.role === "admin" && (
+                  {userData.role === "admin" && (
                     <Badge className="bg-primary/90 gap-1">
                       <Shield className="h-3 w-3" />
                       <span>Curator</span>
@@ -328,7 +359,7 @@ export default function ProfileComponent() {
                 <Separator className="my-4" />
 
                 <div className="space-y-2">
-                  {userData?.user?.role === "admin" && (
+                  {userData.role === "admin" && (
                     <Link
                       href="/admin"
                       className="flex items-center gap-2 text-sm p-2 rounded-md hover:bg-muted transition-colors"
@@ -340,7 +371,7 @@ export default function ProfileComponent() {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start gap-2 mt-2 text-sm">
+                      <Button variant="outline" className="w-full justify-start gap-2 text-sm">
                         <LogOut className="h-4 w-4" />
                         Sign Out
                       </Button>
@@ -370,7 +401,7 @@ export default function ProfileComponent() {
               <h4 className="text-sm font-medium mb-2">Activity Stats</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-muted/50 p-3 rounded-md text-center">
-                  <p className="text-2xl font-bold text-primary">{userData?.user?.readList?.length || 0}</p>
+                  <p className="text-2xl font-bold text-primary">{userData.readList?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Saved Poems</p>
                 </div>
                 <div className="bg-muted/50 p-3 rounded-md text-center">
@@ -410,7 +441,7 @@ export default function ProfileComponent() {
                 <TabsContent value="saved" className="space-y-4 mt-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium">Your Saved Poems</h3>
-                    <Badge variant="secondary">{userData?.user?.readList?.length || 0} Poems</Badge>
+                    <Badge variant="secondary">{userData.readList?.length || 0} Poems</Badge>
                   </div>
 
                   {isLoading ? (
@@ -421,8 +452,8 @@ export default function ProfileComponent() {
                   ) : (
                     <div className="space-y-3">
                       <AnimatePresence mode="popLayout">
-                        {userData?.user?.readList?.length ? (
-                          userData.user.readList.map((poem: any, index: number) => (
+                        {userData.readList?.length ? (
+                          userData.readList.map((poem: any, index: number) => (
                             <motion.div
                               key={poem._id}
                               initial={{ opacity: 0, y: 10 }}
@@ -458,8 +489,8 @@ export default function ProfileComponent() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={(e) => {
-                                        e.stopPropagation()
-                                        setPoemToRemove(poem._id)
+                                        e.stopPropagation();
+                                        setPoemToRemove(poem._id);
                                       }}
                                       className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10 gap-1"
                                     >
@@ -482,7 +513,7 @@ export default function ProfileComponent() {
                                         onClick={() =>
                                           handleRemoveFromReadlist(
                                             poem._id,
-                                            typeof poem.title === "object" ? poem.title.en || "Untitled" : poem.title,
+                                            typeof poem.title === "object" ? poem.title.en || "Untitled" : poem.title
                                           )
                                         }
                                         className="bg-destructive hover:bg-destructive/90 text-sm"
@@ -553,6 +584,15 @@ export default function ProfileComponent() {
           </div>
         </motion.div>
       </div>
+
+      <FollowListDialog
+        open={showFollowingDialog}
+        onOpenChange={setShowFollowingDialog}
+        target={userData.id} // Use user ID
+        type="user"
+        listType="following"
+        preFetchedList={userData.following}
+      />
     </div>
-  )
+  );
 }

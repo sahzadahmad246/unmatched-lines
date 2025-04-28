@@ -1,4 +1,3 @@
-// src/app/api/authors/[id]/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -19,7 +18,7 @@ async function generateUniqueSlug(name: string, existingId?: string): Promise<st
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
-  
+
   let slug = baseSlug;
   let counter = 1;
   while (await Author.findOne({ slug, _id: { $ne: existingId } })) {
@@ -34,25 +33,37 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    console.log("Received id/slug:", id);
-
     const isObjectId = mongoose.Types.ObjectId.isValid(id);
-    console.log("Is valid ObjectId:", isObjectId);
 
     let author;
     if (isObjectId) {
-      author = await Author.findById(id).populate("poems", "title category");
+      author = await Author.findById(id)
+        .populate("poems.poemId", "title category")
+        .populate("followers.userId", "name image");
     } else {
-      author = await Author.findOne({ slug: id }).populate("poems", "title category");
+      author = await Author.findOne({ slug: id })
+        .populate("poems.poemId", "title category")
+        .populate("followers.userId", "name image");
     }
 
     if (!author) {
-      console.log("Author not found for:", id);
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
 
-    console.log("Fetched author:", author);
-    return NextResponse.json({ author });
+    const response = {
+      author: {
+        ...author.toObject(),
+        followerCount: author.followerCount,
+        followers: author.followers.map((f: any) => ({
+          id: f.userId._id,
+          name: f.userId.name,
+          image: f.userId.image,
+          followedAt: f.followedAt,
+        })),
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error fetching author:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -81,7 +92,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const bio = formData.get("bio") as string;
     const image = formData.get("image") as File | null;
 
-    const author = await Author.findById(id);
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const author = isObjectId
+      ? await Author.findById(id)
+      : await Author.findOne({ slug: id });
+
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }
@@ -103,11 +118,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     let slug = author.slug;
     if (name && name !== author.name) {
-      slug = await generateUniqueSlug(name, id); // Pass id to exclude current author
+      slug = await generateUniqueSlug(name, author._id.toString());
     }
 
     const updatedAuthor = await Author.findByIdAndUpdate(
-      id,
+      author._id,
       {
         name,
         slug,
@@ -141,7 +156,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { id } = await params;
-    const author = await Author.findById(id);
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const author = isObjectId
+      ? await Author.findById(id)
+      : await Author.findOne({ slug: id });
+
     if (!author) {
       return NextResponse.json({ error: "Author not found" }, { status: 404 });
     }

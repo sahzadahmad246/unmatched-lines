@@ -1,47 +1,36 @@
-// app/api/user/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
-import Poem from "@/models/Poem"; // This import is crucial for registering the model
+import Poem from "@/models/Poem";
 import cloudinary from "@/lib/cloudinary";
 import mongoose from "mongoose";
 
-
-
-// Ensure the model is registered
 if (!mongoose.models.Poem) {
-  mongoose.model('Poem', Poem.schema);
+  mongoose.model("Poem", Poem.schema);
 }
 
-// GET: Fetch user data
 export async function GET() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session || !session.user?.id) {
-  
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-
-
   try {
     await dbConnect();
-   
-
-    // Verify models are registered
-    
-   
 
     const user = await User.findById(session.user.id)
       .populate({
-        path: 'readList',
-        model: 'Poem',
-        select: 'title content slug coverImage category'
+        path: "readList",
+        model: "Poem",
+        select: "title content slug coverImage category",
+      })
+      .populate({
+        path: "following.authorId",
+        select: "name image slug",
       });
-
-    
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -55,19 +44,24 @@ export async function GET() {
         image: user.image,
         role: user.role,
         readList: user.readList,
+        followingCount: user.followingCount,
+        following: user.following.map((f: any) => ({
+          id: f.authorId._id,
+          name: f.authorId.name,
+          image: f.authorId.image,
+          slug: f.authorId.slug,
+          followedAt: f.followedAt,
+        })),
       },
     };
 
-
     return NextResponse.json(response);
   } catch (error) {
-   
+    console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// ... rest of your existing PUT method remains the same
-// PUT: Update user data
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -112,6 +106,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ message: "User updated", user: updatedUser });
   } catch (error) {
+    console.error("Error updating user:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

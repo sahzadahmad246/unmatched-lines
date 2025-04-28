@@ -1,4 +1,3 @@
-// src/app/api/authors/route.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -13,8 +12,7 @@ async function generateUniqueSlug(name: string): Promise<string> {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
-  
-  // Check if base slug is unique
+
   let slug = baseSlug;
   let counter = 1;
   while (await Author.findOne({ slug })) {
@@ -32,15 +30,45 @@ export async function GET(request: NextRequest) {
     const slug = searchParams.get("slug");
 
     if (slug) {
-      const author = await Author.findOne({ slug });
+      const author = await Author.findOne({ slug })
+        .populate("poems.poemId", "title.en category")
+        .populate("followers.userId", "name image");
+
       if (!author) {
         return NextResponse.json({ error: "Author not found" }, { status: 404 });
       }
-      return NextResponse.json({ author });
+
+      const authorResponse = {
+        ...author.toObject(),
+        followerCount: Number(author.followerCount) || 0,
+        followers: author.followers.map((f: any) => ({
+          id: f.userId._id,
+          name: f.userId.name,
+          image: f.userId.image,
+          followedAt: f.followedAt,
+        })),
+      };
+
+      return NextResponse.json({ author: authorResponse });
     }
 
-    const authors = await Author.find().sort({ name: 1 });
-    return NextResponse.json({ authors });
+    const authors = await Author.find()
+      .select("name slug image bio followerCount")
+      .populate("followers.userId", "name image")
+      .sort({ name: 1 });
+
+    const authorsWithDefaults = authors.map((author) => ({
+      ...author.toObject(),
+      followerCount: Number(author.followerCount) || 0,
+      followers: author.followers.map((f: any) => ({
+        id: f.userId._id,
+        name: f.userId.name,
+        image: f.userId.image,
+        followedAt: f.followedAt,
+      })),
+    }));
+
+    return NextResponse.json({ authors: authorsWithDefaults });
   } catch (error) {
     console.error("Error fetching authors:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -68,6 +96,10 @@ export async function POST(request: Request) {
     const bio = formData.get("bio") as string;
     const image = formData.get("image") as File | null;
 
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
     let imageUrl = "";
     if (image) {
       const arrayBuffer = await image.arrayBuffer();
@@ -85,15 +117,15 @@ export async function POST(request: Request) {
 
     const author = new Author({
       name,
+      slug: await generateUniqueSlug(name),
       dob: dob ? new Date(dob) : undefined,
       city,
       bio,
-      image: imageUrl || "",
+      image: imageUrl || undefined,
+      followerCount: 0,
+      followers: [],
     });
 
-    // Generate unique slug
-    author.slug = await generateUniqueSlug(name);
-    
     await author.save();
 
     return NextResponse.json({ message: "Author added", author }, { status: 201 });

@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import Link from "next/link"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   Search,
   BookOpen,
@@ -17,37 +17,50 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { PoemListItem } from "@/components/poems/poem-list-item"
-import { toast } from "sonner"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { Poem, CoverImage } from "@/types/poem"
+  UserPlus,
+  UserMinus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { PoemListItem } from "@/components/poems/poem-list-item";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { Poem, CoverImage } from "@/types/poem";
+import { useSession } from "next-auth/react";
+import { FollowListDialog } from "@/components/ui/FollowListDialog";
+
+interface FollowEntry {
+  id: string;
+  name: string;
+  image?: string;
+  followedAt: string;
+}
 
 interface Poet {
-  _id: string
-  name: string
-  bio?: string
-  image?: string
-  dob?: string
-  city?: string
-  ghazalCount?: number
-  sherCount?: number
-  otherCount?: number
-  createdAt: string
-  updatedAt: string
-  slug: string
+  _id: string;
+  name: string;
+  bio?: string;
+  image?: string;
+  dob?: string;
+  city?: string;
+  ghazalCount?: number;
+  sherCount?: number;
+  otherCount?: number;
+  createdAt: string;
+  updatedAt: string;
+  slug: string;
+  followerCount: number;
+  followers: FollowEntry[];
 }
 
 interface PoetProfileProps {
-  slug: string
-  poet: Poet
+  slug: string;
+  poet: Poet;
 }
 
 const customStyles = `
@@ -130,23 +143,91 @@ const customStyles = `
   .poem-content {
     width: 100%;
   }
-`
+  
+  .follow-count {
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .follow-count:hover {
+    color: var(--primary);
+  }
+
+  .follow-button {
+    position: relative;
+    overflow: hidden;
+  }
+  .follow-button span {
+    transition: opacity 0.2s ease;
+  }
+  .follow-button .following-text {
+    opacity: 1;
+  }
+  .follow-button .unfollow-text {
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .follow-button:hover .following-text {
+    opacity: 0;
+  }
+  .follow-button:hover .unfollow-text {
+    opacity: 1;
+  }
+`;
 
 export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
-  const router = useRouter()
-  const [poems, setPoems] = useState<Poem[]>([])
-  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [readList, setReadList] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("all")
-  const [showFullBio, setShowFullBio] = useState(false)
-  const [profileImageOpen, setProfileImageOpen] = useState(false)
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [poems, setPoems] = useState<Poem[]>([]);
+  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [readList, setReadList] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [showFullBio, setShowFullBio] = useState(false);
+  const [profileImageOpen, setProfileImageOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(Number(poet.followerCount) || 0);
+  const [followers, setFollowers] = useState<FollowEntry[]>(poet.followers || []);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [showFollowersDialog, setShowFollowersDialog] = useState(false);
 
-  const PREVIEW_LIMIT = 3 // Show only 3 poems per category as a preview
+  const PREVIEW_LIMIT = 3;
+
+  useEffect(() => {
+    if (!poet?._id) {
+      console.error("Invalid poet prop:", poet);
+      setError("Invalid poet data");
+      setLoading(false);
+    } else {
+      console.log("Poet Prop:", poet);
+      console.log("Followers:", poet.followers);
+      console.log("Follower Count:", poet.followerCount);
+    }
+  }, [poet]);
+
+  useEffect(() => {
+    setFollowerCount(Number(poet.followerCount) || 0);
+    setFollowers(poet.followers || []);
+  }, [poet.followerCount, poet.followers]);
+
+  // Check if user is following the poet using poet.followers
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id) {
+      console.log("Not authenticated, setting isFollowing to false");
+      setIsFollowing(false);
+      return;
+    }
+
+    const isFollowingPoet = poet.followers.some((f) => f.id === session.user.id);
+    console.log("Checking isFollowing: userId=", session.user.id, "isFollowing=", isFollowingPoet);
+    setIsFollowing(isFollowingPoet);
+  }, [status, session?.user?.id, poet.followers]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -155,73 +236,76 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
           fetch(`/api/poem`, { credentials: "include" }),
           fetch("/api/user", { credentials: "include" }),
           fetch("/api/cover-images", { credentials: "include" }),
-        ])
+        ]);
 
-        if (!poemRes.ok) throw new Error(`Failed to fetch poems`)
-        const poemData = await poemRes.json()
+        if (!poemRes.ok) throw new Error(`Failed to fetch poems: ${poemRes.status}`);
+        const poemData = await poemRes.json();
         const poetPoems = poemData.poems
           .filter((poem: Poem) => poem.author?._id.toString() === poet._id.toString())
           .map((poem: Poem) => ({
             ...poem,
-            viewsCount: poem.viewsCount ?? 0, // Default for required field
-            readListCount: poem.readListCount ?? 0, // Default for required field
-            category: poem.category ?? "Uncategorized", // Ensure required field
-            summary: poem.summary ?? { en: "" }, // Default for optional field
-            didYouKnow: poem.didYouKnow ?? { en: "" }, // Default for optional field
-            faqs: poem.faqs ?? [], // Default for optional field
-            createdAt: poem.createdAt ?? new Date().toISOString(), // Default for optional field
-            tags: poem.tags ?? [], // Default for optional field
-            categories: poem.categories ?? [], // Default for optional field
-            coverImage: poem.coverImage ?? "/placeholder.svg", // Default for optional field
-          }))
-        setPoems(poetPoems)
-        setFilteredPoems(poetPoems)
+            viewsCount: poem.viewsCount ?? 0,
+            readListCount: poem.readListCount ?? 0,
+            category: poem.category ?? "Uncategorized",
+            summary: poem.summary ?? { en: "" },
+            didYouKnow: poem.didYouKnow ?? { en: "" },
+            faqs: poem.faqs ?? [],
+            createdAt: poem.createdAt ?? new Date().toISOString(),
+            tags: poem.tags ?? [],
+            categories: poem.categories ?? [],
+            coverImage: poem.coverImage ?? "/placeholder.svg",
+          }));
+        setPoems(poetPoems);
+        setFilteredPoems(poetPoems);
 
-        const uniqueCategories = Array.from(new Set(poetPoems.map((poem: Poem) => poem.category.toLowerCase()))).filter(
-          (cat): cat is string => !!cat,
-        )
-        setCategories(uniqueCategories)
+        const uniqueCategories = Array.from(
+          new Set(poetPoems.map((poem: Poem) => poem.category.toLowerCase()))
+        ).filter((cat): cat is string => !!cat);
+        setCategories(uniqueCategories);
 
         if (userRes.ok) {
-          const userData = await userRes.json()
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()))
+          const userData = await userRes.json();
+          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
+        } else {
+          console.error("Failed to fetch user data for readlist:", userRes.status);
         }
 
         if (coverImagesRes.ok) {
-          const coverImagesData = await coverImagesRes.json()
-          setCoverImages(coverImagesData.coverImages || [])
+          const coverImagesData = await coverImagesRes.json();
+          setCoverImages(coverImagesData.coverImages || []);
         }
       } catch (err) {
-        setError("Failed to load poems")
+        setError("Failed to load poems");
+        console.error("Error fetching data:", err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [poet._id])
+    fetchData();
+  }, [poet._id]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category.toLowerCase() === activeTab))
+      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category.toLowerCase() === activeTab));
     } else {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       const results = poems
         .filter((poem) => (activeTab === "all" ? true : poem.category.toLowerCase() === activeTab))
         .filter(
           (poem) =>
             poem.title.en.toLowerCase().includes(query) ||
-            poem.summary?.en.toLowerCase().includes(query) || // Use summary instead of excerpt
-            poem.category.toLowerCase().includes(query),
-        )
-      setFilteredPoems(results)
+            poem.summary?.en.toLowerCase().includes(query) ||
+            poem.category.toLowerCase().includes(query)
+        );
+      setFilteredPoems(results);
     }
-  }, [searchQuery, poems, activeTab])
+  }, [searchQuery, poems, activeTab]);
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
-    const isInReadlist = readList.includes(poemId)
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add"
-    const method = isInReadlist ? "DELETE" : "POST"
+    const isInReadlist = readList.includes(poemId);
+    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const method = isInReadlist ? "DELETE" : "POST";
 
     try {
       const res = await fetch(url, {
@@ -229,10 +313,10 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poemId }),
         credentials: "include",
-      })
+      });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]))
+        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
         setPoems((prevPoems) =>
           prevPoems.map((poem) =>
             poem._id === poemId
@@ -240,39 +324,127 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                   ...poem,
                   readListCount: isInReadlist ? poem.readListCount - 1 : poem.readListCount + 1,
                 }
-              : poem,
-          ),
-        )
+              : poem
+          )
+        );
         toast(isInReadlist ? "Removed from reading list" : "Added to reading list", {
           description: `"${poemTitle}" has been ${isInReadlist ? "removed from" : "added to"} your reading list.`,
-        })
+        });
       } else if (res.status === 401) {
         toast("Authentication required", {
           description: "Please sign in to manage your reading list.",
-        })
+        });
       }
     } catch (error) {
       toast("Error", {
         description: "An error occurred while updating the reading list.",
-      })
+      });
     }
-  }
+  };
+
+  const handleFollowToggle = async () => {
+    if (status !== "authenticated" || !session?.user?.id) {
+      toast("Authentication required", {
+        description: "Please sign in to follow poets.",
+      });
+      return;
+    }
+
+    setIsFollowLoading(true);
+    const method = isFollowing ? "DELETE" : "POST";
+    console.log(`Sending ${method} to /api/follow for poet slug: ${poet.slug}, isFollowing: ${isFollowing}`);
+    try {
+      const res = await fetch("/api/follow", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: poet.slug, type: "author" }),
+        credentials: "include",
+      });
+
+      console.log("Follow API response status:", res.status);
+      if (res.ok) {
+        // Update local state
+        const newIsFollowing = !isFollowing;
+        setIsFollowing(newIsFollowing);
+        setFollowerCount((prev) => (isFollowing ? prev - 1 : prev + 1));
+        setFollowers((prev) =>
+          isFollowing
+            ? prev.filter((f) => f.id !== session.user.id)
+            : [
+                ...prev,
+                {
+                  id: session.user.id,
+                  name: session.user.name || "Unknown",
+                  image: session.user.image || undefined,
+                  followedAt: new Date().toISOString(),
+                },
+              ]
+        );
+        toast(isFollowing ? "Unfollowed" : "Followed", {
+          description: `You have ${isFollowing ? "unfollowed" : "followed"} ${poet.name}.`,
+        });
+
+        // Re-fetch poet data to update followerCount and followers
+        try {
+          const poetRes = await fetch(`/api/authors/${encodeURIComponent(slug)}`, {
+            credentials: "include",
+          });
+          if (poetRes.ok) {
+            const poetData = await poetRes.json();
+            const updatedPoet = poetData.author;
+            if (updatedPoet) {
+              setFollowerCount(Number(updatedPoet.followerCount) || 0);
+              setFollowers(
+                updatedPoet.followers.map((f: any) => ({
+                  id: f.id,
+                  name: f.name,
+                  image: f.image,
+                  followedAt: f.followedAt,
+                })) || []
+              );
+              console.log("Updated followerCount:", updatedPoet.followerCount);
+            }
+          } else {
+            console.error("Failed to re-fetch poet data:", poetRes.status);
+          }
+        } catch (error) {
+          console.error("Error re-fetching poet data:", error);
+        }
+      } else if (res.status === 401) {
+        toast("Authentication required", {
+          description: "Please sign in to follow poets.",
+        });
+      } else {
+        const data = await res.json();
+        console.error("Follow API error:", data.error);
+        toast("Error", {
+          description: data.error || "Failed to update follow status.",
+        });
+      }
+    } catch (error) {
+      console.error("Error in follow toggle:", error);
+      toast("Error", {
+        description: "An error occurred while updating follow status.",
+      });
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
 
   const getCoverImage = (index?: number) => {
-    if (coverImages.length === 0) return "/placeholder.svg"
+    if (coverImages.length === 0) return "/placeholder.svg";
     if (index !== undefined && coverImages.length > 1) {
-      // Use the index to get a different image for each card
-      const safeIndex = index % coverImages.length
-      return coverImages[safeIndex]?.url || "/placeholder.svg"
+      const safeIndex = index % coverImages.length;
+      return coverImages[safeIndex]?.url || "/placeholder.svg";
     }
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex]?.url || "/placeholder.svg"
-  }
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex]?.url || "/placeholder.svg";
+  };
 
   const truncateBio = (bio: string, maxLength = 120) => {
-    if (!bio || bio.length <= maxLength) return bio
-    return bio.substring(0, maxLength) + "..."
-  }
+    if (!bio || bio.length <= maxLength) return bio;
+    return bio.substring(0, maxLength) + "...";
+  };
 
   if (loading) {
     return (
@@ -280,7 +452,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         <Loader2 className="h-12 w-12 text-primary/70 animate-spin" />
         <p className="text-xl font-medium">Loading poet profile...</p>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -292,8 +464,10 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
           <Button className="mt-4">Back to Profiles</Button>
         </Link>
       </div>
-    )
+    );
   }
+
+  console.log("Rendering with isFollowing:", isFollowing, "followerCount:", followerCount);
 
   return (
     <>
@@ -326,12 +500,43 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                 </div>
 
                 <div className="mt-14 space-y-3">
-                  <h1 className="text-xl font-semibold">{poet.name}</h1>
+                  <div className="flex justify-between items-center">
+                    <h1 className="text-xl font-semibold">{poet.name}</h1>
+                    {status === "authenticated" && (
+                      <Button
+                        variant={isFollowing ? "outline" : "default"}
+                        size="sm"
+                        onClick={handleFollowToggle}
+                        disabled={isFollowLoading}
+                        className={`gap-2 ${isFollowing ? "follow-button" : ""}`}
+                      >
+                        {isFollowLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isFollowing ? (
+                          <>
+                            <UserMinus className="h-4 w-4" />
+                            <span className="following-text">Following</span>
+                            <span className="unfollow-text">Unfollow</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4" />
+                            Follow
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="gap-1">
                       <User className="h-3 w-3" />
                       <span className="text-xs">Poet</span>
                     </Badge>
+                  </div>
+                  <div className="flex gap-4 text-sm text-muted-foreground">
+                    <span className="follow-count" onClick={() => setShowFollowersDialog(true)}>
+                      {followerCount} Followers
+                    </span>
                   </div>
                   <Separator className="my-4" />
                   {poet.bio && (
@@ -468,9 +673,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                     {filteredPoems.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredPoems.map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled"
-                          const englishSlug = poem.slug?.en || poem._id
-                          const isInReadlist = readList.includes(poem._id)
+                          const poemTitle = poem.title?.en || "Untitled";
+                          const englishSlug = poem.slug?.en || poem._id;
+                          const isInReadlist = readList.includes(poem._id);
                           return (
                             <motion.div
                               key={poem._id}
@@ -487,7 +692,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                                 handleReadlistToggle={handleReadlistToggle}
                               />
                             </motion.div>
-                          )
+                          );
                         })}
                       </div>
                     ) : (
@@ -504,9 +709,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                               .filter((p) => p.category.toLowerCase() === category)
                               .slice(0, PREVIEW_LIMIT)
                               .map((poem, index) => {
-                                const poemTitle = poem.title?.en || "Untitled"
-                                const englishSlug = poem.slug?.en || poem._id
-                                const isInReadlist = readList.includes(poem._id)
+                                const poemTitle = poem.title?.en || "Untitled";
+                                const englishSlug = poem.slug?.en || poem._id;
+                                const isInReadlist = readList.includes(poem._id);
                                 return (
                                   <motion.div
                                     key={poem._id}
@@ -526,7 +731,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                                       handleReadlistToggle={handleReadlistToggle}
                                     />
                                   </motion.div>
-                                )
+                                );
                               })}
                           </div>
                           <div className="mt-6 text-center">
@@ -567,14 +772,24 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
             </div>
           </DialogContent>
         </Dialog>
+
+        <FollowListDialog
+          open={showFollowersDialog}
+          onOpenChange={setShowFollowersDialog}
+          target={poet.slug}
+          type="author"
+          listType="followers"
+          preFetchedList={followers}
+          slug={slug}
+        />
       </div>
     </>
-  )
+  );
 }
 
 interface EmptyStateProps {
-  category?: string
-  query?: string
+  category?: string;
+  query?: string;
 }
 
 function EmptyState({ category = "works", query }: EmptyStateProps) {
@@ -590,5 +805,5 @@ function EmptyState({ category = "works", query }: EmptyStateProps) {
           : `There are no ${category} available at the moment.`}
       </p>
     </div>
-  )
+  );
 }
