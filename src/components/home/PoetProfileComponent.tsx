@@ -71,12 +71,12 @@ const customStyles = `
     background: transparent;
   }
   .tabs-scrollable::-webkit-scrollbar-thumb {
-    background-color: rgba(var(--primary), 0.2);
+    background-color: rgba(139, 92, 246, 0.2); /* purple-500 */
     border-radius: 20px;
   }
   .tabs-scrollable {
     scrollbar-width: thin;
-    scrollbar-color: rgba(var(--primary), 0.2) transparent;
+    scrollbar-color: rgba(139, 92, 246, 0.2) transparent;
   }
   
   @media (max-width: 767px) {
@@ -149,7 +149,7 @@ const customStyles = `
     transition: color 0.2s;
   }
   .follow-count:hover {
-    color: var(--primary);
+    color: #8b5cf6; /* purple-500 */
   }
 
   .follow-button {
@@ -216,7 +216,6 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
     setFollowers(poet.followers || []);
   }, [poet.followerCount, poet.followers]);
 
-  // Check if user is following the poet using poet.followers
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id) {
       console.log("Not authenticated, setting isFollowing to false");
@@ -352,7 +351,6 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
     setIsFollowLoading(true);
     const method = isFollowing ? "DELETE" : "POST";
-    console.log(`Sending ${method} to /api/follow for poet slug: ${poet.slug}, isFollowing: ${isFollowing}`);
     try {
       const res = await fetch("/api/follow", {
         method,
@@ -361,9 +359,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         credentials: "include",
       });
 
-      console.log("Follow API response status:", res.status);
       if (res.ok) {
-        // Update local state
         const newIsFollowing = !isFollowing;
         setIsFollowing(newIsFollowing);
         setFollowerCount((prev) => (isFollowing ? prev - 1 : prev + 1));
@@ -384,7 +380,6 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
           description: `You have ${isFollowing ? "unfollowed" : "followed"} ${poet.name}.`,
         });
 
-        // Re-fetch poet data to update followerCount and followers
         try {
           const poetRes = await fetch(`/api/authors/${encodeURIComponent(slug)}`, {
             credentials: "include",
@@ -402,10 +397,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                   followedAt: f.followedAt,
                 })) || []
               );
-              console.log("Updated followerCount:", updatedPoet.followerCount);
             }
-          } else {
-            console.error("Failed to re-fetch poet data:", poetRes.status);
           }
         } catch (error) {
           console.error("Error re-fetching poet data:", error);
@@ -416,7 +408,6 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         });
       } else {
         const data = await res.json();
-        console.error("Follow API error:", data.error);
         toast("Error", {
           description: data.error || "Failed to update follow status.",
         });
@@ -449,8 +440,8 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
-        <Loader2 className="h-12 w-12 text-primary/70 animate-spin" />
-        <p className="text-xl font-medium">Loading poet profile...</p>
+        <Loader2 className="h-12 w-12 text-purple-500 animate-spin" />
+        <p className="text-xl font-medium text-purple-700 dark:text-pink-300">Loading poet profile...</p>
       </div>
     );
   }
@@ -459,23 +450,33 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
         <div className="text-4xl">😕</div>
-        <h2 className="text-2xl font-bold">{error}</h2>
+        <h2 className="text-2xl font-bold text-purple-700 dark:text-pink-300">{error}</h2>
         <Link href="/poets">
-          <Button className="mt-4">Back to Profiles</Button>
+          <Button className="mt-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-700 dark:text-pink-300 border border-purple-300/30 dark:border-pink-600/30 hover:bg-purple-50 dark:hover:bg-pink-950/50">
+            Back to Profiles
+          </Button>
         </Link>
       </div>
     );
   }
 
-  console.log("Rendering with isFollowing:", isFollowing, "followerCount:", followerCount);
-
   return (
     <>
       <style>{customStyles}</style>
-      <div className="full-width-container mx-auto py-8 mb-20 w-full">
+      <div className="full-width-container mx-auto py-8 mb-20 w-full bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 relative">
+        {/* Decorative elements */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-300 via-pink-300 to-rose-300 dark:from-purple-700 dark:via-pink-700 dark:to-rose-700 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-amber-300 via-yellow-300 to-orange-300 dark:from-amber-700 dark:via-yellow-700 dark:to-orange-700 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+          <div className="absolute bottom-1/2 right-1/4 w-48 h-48 bg-gradient-to-bl from-emerald-300 via-sky-300 to-teal-300 dark:from-emerald-700 dark:via-sky-700 dark:to-teal-700 rounded-full blur-3xl"></div>
+        </div>
+
         <div className="mb-6">
           <Link href="/poets">
-            <Button variant="ghost" className="gap-2">
+            <Button
+              variant="ghost"
+              className="gap-2 text-purple-700 dark:text-pink-300 hover:bg-purple-50 dark:hover:bg-pink-950/50"
+            >
               <ArrowLeft className="h-4 w-4" />
               Back to Poets
             </Button>
@@ -489,26 +490,28 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
             transition={{ duration: 0.6 }}
             className="poet-sidebar"
           >
-            <Card className="overflow-hidden border shadow-md bg-background">
-              <div className="h-24 bg-gradient-to-r from-primary/10 via-primary/20 to-primary/10 relative" />
+            <Card className="overflow-hidden border border-purple-200/60 dark:border-pink-700/20 shadow-md bg-gradient-to-br from-purple-50 via-fuchsia-50 to-pink-50 dark:from-purple-950 dark:via-fuchsia-950 dark:to-pink-950">
+              <div className="h-24 bg-gradient-to-r from-rose-200/30 via-pink-200/30 to-purple-200/30 dark:from-rose-800/30 dark:via-pink-800/30 dark:to-purple-800/30 relative" />
               <CardContent className="px-4 pt-0 pb-5 relative">
                 <div onClick={() => setProfileImageOpen(true)} className="cursor-pointer">
-                  <Avatar className="h-20 w-20 border-4 border-background absolute -top-20 left-4">
+                  <Avatar className="h-20 w-20 border-4 border-white dark:border-slate-900 absolute -top-20 left-4 ring-2 ring-white dark:ring-slate-950">
                     <AvatarImage src={poet.image || "/placeholder.svg?height=400&width=400"} alt={poet.name} />
-                    <AvatarFallback className="text-2xl bg-primary/10">{poet.name?.charAt(0) || "P"}</AvatarFallback>
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 text-purple-700 dark:text-pink-300">
+                      {poet.name?.charAt(0) || "P"}
+                    </AvatarFallback>
                   </Avatar>
                 </div>
 
                 <div className="mt-14 space-y-3">
                   <div className="flex justify-between items-center">
-                    <h1 className="text-xl font-semibold">{poet.name}</h1>
+                    <h1 className="text-xl font-semibold text-purple-700 dark:text-pink-300">{poet.name}</h1>
                     {status === "authenticated" && (
                       <Button
                         variant={isFollowing ? "outline" : "default"}
                         size="sm"
                         onClick={handleFollowToggle}
                         disabled={isFollowLoading}
-                        className={`gap-2 ${isFollowing ? "follow-button" : ""}`}
+                        className={`gap-2 bg-white/80 dark:bg-slate-900/80 border border-purple-200/40 dark:border-pink-700/20 text-purple-700 dark:text-pink-300 hover:bg-purple-50 dark:hover:bg-pink-950/50 ${isFollowing ? "follow-button" : ""}`}
                       >
                         {isFollowLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -528,29 +531,37 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="gap-1">
+                    <Badge
+                      variant="outline"
+                      className="gap-1 bg-white/80 dark:bg-slate-900/80 border-purple-200/40 dark:border-pink-700/20 text-purple-700 dark:text-pink-300"
+                    >
                       <User className="h-3 w-3" />
                       <span className="text-xs">Poet</span>
                     </Badge>
                   </div>
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span className="follow-count" onClick={() => setShowFollowersDialog(true)}>
+                  <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <span
+                      className="follow-count text-purple-700 dark:text-pink-300"
+                      onClick={() => setShowFollowersDialog(true)}
+                    >
                       {followerCount} Followers
                     </span>
                   </div>
-                  <Separator className="my-4" />
+                  <Separator className="my-4 bg-purple-200/50 dark:bg-pink-700/50" />
                   {poet.bio && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-950 dark:via-yellow-950 dark:to-orange-950 rounded-lg p-4 border border-amber-200/40 dark:border-orange-700/20">
                       <div className="flex gap-2 text-sm">
-                        <Feather className="h-4 w-4 flex-shrink-0 mt-1 text-primary/70" />
-                        <p className="text-muted-foreground">{showFullBio ? poet.bio : truncateBio(poet.bio)}</p>
+                        <Feather className="h-4 w-4 flex-shrink-0 mt-1 text-amber-600 dark:text-orange-400" />
+                        <p className="text-gray-600 dark:text-gray-400">
+                          {showFullBio ? poet.bio : truncateBio(poet.bio)}
+                        </p>
                       </div>
                       {poet.bio.length > 120 && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowFullBio(!showFullBio)}
-                          className="text-xs w-full"
+                          className="text-xs w-full text-amber-700 dark:text-orange-300 hover:bg-amber-50 dark:hover:bg-orange-950/50"
                         >
                           {showFullBio ? (
                             <>
@@ -565,8 +576,8 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                       )}
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4 flex-shrink-0 text-primary/70" />
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Calendar className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-orange-400" />
                     <span>
                       {poet.dob
                         ? new Date(poet.dob).toLocaleDateString("en-US", {
@@ -578,28 +589,26 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                     </span>
                   </div>
                   {poet.city && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 flex-shrink-0 text-primary/70" />
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <MapPin className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-orange-400" />
                       <span>{poet.city}</span>
                     </div>
                   )}
-                  <Separator className="my-4" />
+                  <Separator className="my-4 bg-amber-200/50 dark:bg-orange-700/50" />
                   <div className="grid grid-cols-3 gap-2 text-center">
                     {categories.map((category) => (
                       <Button
                         key={category}
                         variant="ghost"
-                        className="bg-muted/50 p-3 rounded-md h-auto flex flex-col hover:bg-muted"
+                        className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-md h-auto flex flex-col hover:bg-sky-50 dark:hover:bg-rose-950/50 border border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300"
                         onClick={() => router.push(`/poets/${slug}/${category}`)}
                       >
-                        <p className="text-xl font-bold text-primary">
-                          {poems.filter((p) => p.category.toLowerCase() === category).length}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{category}</p>
+                        <p className="text-xl font-bold">{poems.filter((p) => p.category.toLowerCase() === category).length}</p>
+                        <p className="text-xs capitalize">{category}</p>
                       </Button>
                     ))}
                   </div>
-                  <div className="text-xs text-muted-foreground space-y-1 mt-4">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-4">
                     <p>
                       <span className="font-medium">Added:</span>{" "}
                       {new Date(poet.createdAt).toLocaleDateString("en-US", {
@@ -622,10 +631,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                 </div>
               </CardContent>
             </Card>
-            <div className="mt-4 p-4 text-center text-muted-foreground italic text-sm bg-muted/30 rounded-lg border border-primary/5">
-              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in
-              tranquility."
-              <div className="mt-1 font-medium text-xs">— William Wordsworth</div>
+            <div className="mt-4 p-4 text-center text-gray-600 dark:text-gray-400 italic text-sm bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-pink-950 dark:via-rose-950 dark:to-purple-950 rounded-lg border border-pink-200/40 dark:border-rose-700/20">
+              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in tranquility."
+              <div className="mt-1 font-medium text-xs text-purple-700 dark:text-pink-300">— William Wordsworth</div>
             </div>
           </motion.div>
 
@@ -635,21 +643,26 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="poem-content"
           >
-            <Card className="shadow-md">
+            <Card className="shadow-md border border-emerald-200/60 dark:border-teal-700/20 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950 dark:via-green-950 dark:to-teal-950">
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-semibold">Works by {poet.name}</h2>
-                    <Badge variant="secondary">{poems.length} Poems</Badge>
+                    <h2 className="text-xl font-semibold text-emerald-700 dark:text-teal-300">Works by {poet.name}</h2>
+                    <Badge
+                      variant="secondary"
+                      className="bg-white/80 dark:bg-slate-900/80 border-emerald-200/40 dark:border-teal-700/20 text-emerald-700 dark:text-teal-300"
+                    >
+                      {poems.length} Poems
+                    </Badge>
                   </div>
                   <div className="relative w-full sm:w-auto sm:min-w-[240px]">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-gray-400" />
                     <Input
                       type="text"
                       placeholder="Search poems..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8"
+                      className="pl-8 bg-white/80 dark:bg-slate-900/80 border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300"
                       aria-label="Search poems by title or category"
                     />
                   </div>
@@ -657,12 +670,19 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <div className="relative w-full mb-6">
-                    <TabsList className="w-full overflow-x-auto flex tabs-scrollable pb-1 h-auto">
-                      <TabsTrigger value="all" className="tab-trigger">
+                    <TabsList className="w-full overflow-x-auto flex tabs-scrollable pb-1 h-auto bg-gradient-to-r from-sky-100 via-rose-100 to-sky-100 dark:from-sky-900/50 dark:via-rose-900/50 dark:to-sky-900/50 border border-sky-200/40 dark:border-rose-700/20">
+                      <TabsTrigger
+                        value="all"
+                        className="tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50 data-[state=active]:text-sky-700 data-[state=active]:dark:text-rose-300"
+                      >
                         All Works
                       </TabsTrigger>
                       {categories.map((category) => (
-                        <TabsTrigger key={category} value={category} className="capitalize tab-trigger">
+                        <TabsTrigger
+                          key={category}
+                          value={category}
+                          className="capitalize tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50 data-[state=active]:text-sky-700 data-[state=active]:dark:text-rose-300"
+                        >
                           {category}
                         </TabsTrigger>
                       ))}
@@ -717,10 +737,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                                     key={poem._id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                      delay: 0.05 * index,
-                                      duration: 0.3,
-                                    }}
+                                    transition={{ delay: 0.05 * index, duration: 0.3 }}
                                   >
                                     <PoemListItem
                                       poem={poem}
@@ -735,7 +752,11 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                               })}
                           </div>
                           <div className="mt-6 text-center">
-                            <Button variant="outline" onClick={() => router.push(`/poets/${slug}/${category}`)}>
+                            <Button
+                              variant="outline"
+                              className="bg-white/80 dark:bg-slate-900/80 border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300 hover:bg-sky-50 dark:hover:bg-rose-950/50"
+                              onClick={() => router.push(`/poets/${slug}/${category}`)}
+                            >
                               See All {category.charAt(0).toUpperCase() + category.slice(1)}
                             </Button>
                           </div>
@@ -752,11 +773,16 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
         </div>
 
         <Dialog open={profileImageOpen} onOpenChange={setProfileImageOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md bg-gradient-to-br from-purple-50 via-fuchsia-50 to-pink-50 dark:from-purple-950 dark:via-fuchsia-950 dark:to-pink-950 border border-purple-200/60 dark:border-pink-700/20">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
+              <DialogTitle className="flex items-center justify-between text-purple-700 dark:text-pink-300">
                 <span>{poet.name}</span>
-                <Button variant="ghost" size="icon" onClick={() => setProfileImageOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setProfileImageOpen(false)}
+                  className="text-purple-700 dark:text-pink-300 hover:bg-purple-50 dark:hover:bg-pink-950/50"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </DialogTitle>
@@ -794,12 +820,12 @@ interface EmptyStateProps {
 
 function EmptyState({ category = "works", query }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">
+    <div className="flex flex-col items-center justify-center py-12 text-center bg-white/80 dark:bg-slate-900/80 rounded-xl border border-emerald-200/40 dark:border-teal-700/20">
+      <BookOpen className="h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
+      <h3 className="text-lg font-medium text-emerald-700 dark:text-teal-300 mb-2">
         {query ? `No results found for "${query}"` : `No ${category} available`}
       </h3>
-      <p className="text-sm text-muted-foreground max-w-md">
+      <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
         {query
           ? "Try adjusting your search terms or browse all works"
           : `There are no ${category} available at the moment.`}

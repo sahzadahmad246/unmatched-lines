@@ -8,6 +8,8 @@ import cloudinary from "@/lib/cloudinary";
 import User from "@/models/User";
 import mongoose from "mongoose";
 
+
+
 export async function GET(request: NextRequest) {
   await dbConnect();
 
@@ -15,15 +17,27 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const slug = url.searchParams.get("slug");
     const category = url.searchParams.get("category")?.toLowerCase();
-    const authorSlug = url.searchParams.get("authorSlug");
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const authorId = url.searchParams.get("authorId");
+    const sort = url.searchParams.get("sort") || "createdAt"; // Default to createdAt
+    const order = url.searchParams.get("order") || "desc"; // Default to descending
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = parseInt(url.searchParams.get("limit") || "10", 10);
+
+    // Validate sort and order
+    const validSortFields = ["createdAt", "viewsCount"];
+    const validOrders = ["asc", "desc"];
+    if (!validSortFields.includes(sort)) {
+      return NextResponse.json({ error: `Invalid sort field: ${sort}` }, { status: 400 });
+    }
+    if (!validOrders.includes(order)) {
+      return NextResponse.json({ error: `Invalid order: ${order}` }, { status: 400 });
+    }
 
     // Fetch a single poem by slug
     if (slug) {
       const poem = await Poem.findOne({
         $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
-      }).populate("author", "name");
+      }).populate("author", "name slug");
 
       if (!poem) {
         return NextResponse.json({ error: "Poem not found" }, { status: 404 });
@@ -35,51 +49,61 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ poem });
     }
 
-    // Fetch poems by category and author
-    if (category && authorSlug) {
-      const author = await Author.findOne({ slug: authorSlug });
-      if (!author) {
-        return NextResponse.json({ error: "Author not found" }, { status: 404 });
+    // Build query
+    const query: any = { status: "published" };
+    if (category) {
+      query.category = category.toLowerCase();
+    }
+    if (authorId) {
+      if (!mongoose.Types.ObjectId.isValid(authorId)) {
+        return NextResponse.json({ error: "Invalid authorId" }, { status: 400 });
       }
-
-      const poems = await Poem.find({
-        category: category.toLowerCase(),
-        author: author._id,
-        status: "published",
-      })
-        .populate("author", "name")
-        .sort({ createdAt: -1 });
-
-      if (!poems.length) {
-        return NextResponse.json(
-          { error: `No ${category} poems found for author: ${author.name}` },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        poems,
-        author: { name: author.name, slug: author.slug },
-      });
+      query.author = authorId;
     }
 
-    // Default: fetch all published poems with pagination
+    // Pagination
     const skip = (page - 1) * limit;
-    const poems = await Poem.find({ status: "published" })
-      .populate("author", "name")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const totalPoems = await Poem.countDocuments(query);
 
-    const totalPoems = await Poem.countDocuments({ status: "published" });
+    // Fetch poems
+    const poems = await Poem.find(query)
+      .populate("author", "name slug")
+      .sort({ [sort]: order === "desc" ? -1 : 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    if (!poems.length && page === 1) {
+      return NextResponse.json(
+        {
+          error: `No published poems found${category ? ` for category: ${category}` : ""}${authorId ? ` for author: ${authorId}` : ""}`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Transform poems (ensure defaults for viewsCount and readListCount)
+    const transformedPoems = poems.map((poem) => ({
+      ...poem,
+      viewsCount: poem.viewsCount ?? 0,
+      readListCount: poem.readListCount ?? 0,
+      category: poem.category ?? "Uncategorized",
+      summary: poem.summary ?? { en: "", hi: "", ur: "" },
+      didYouKnow: poem.didYouKnow ?? { en: "", hi: "", ur: "" },
+      faqs: poem.faqs ?? [],
+      createdAt: poem.createdAt ?? new Date(),
+      tags: poem.tags ?? [],
+      coverImage: poem.coverImage ?? "/placeholder.svg",
+    }));
 
     return NextResponse.json({
-      poems,
+      poems: transformedPoems,
       totalPoems,
       currentPage: page,
       totalPages: Math.ceil(totalPoems / limit),
     });
   } catch (error) {
+    console.error("Error in /api/poem:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -89,6 +113,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 
 
