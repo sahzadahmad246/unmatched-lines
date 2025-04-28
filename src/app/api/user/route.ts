@@ -7,10 +7,6 @@ import Poem from "@/models/Poem";
 import cloudinary from "@/lib/cloudinary";
 import mongoose from "mongoose";
 
-if (!mongoose.models.Poem) {
-  mongoose.model("Poem", Poem.schema);
-}
-
 export async function GET() {
   const session = await getServerSession(authOptions);
 

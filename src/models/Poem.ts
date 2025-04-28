@@ -1,5 +1,38 @@
-// src/models/Poem.ts
-import mongoose, { Schema, model, Model } from "mongoose";
+import mongoose, { Schema, Model } from "mongoose";
+
+// Define interfaces for better type checking
+interface IPoemVerse {
+  verse: string;
+  meaning?: string;
+}
+
+interface IMultiLingual<T> {
+  en: T;
+  hi: T;
+  ur: T;
+}
+
+export interface IPoem {
+  title: IMultiLingual<string>;
+  content: IMultiLingual<IPoemVerse[]>;
+  author: mongoose.Types.ObjectId;
+  readListUsers: mongoose.Types.ObjectId[];
+  readListCount: number;
+  coverImage: string;
+  tags: string[];
+  category: string;
+  status: string;
+  slug: IMultiLingual<string>;
+  summary: IMultiLingual<string>;
+  didYouKnow: IMultiLingual<string>;
+  faqs: Array<{
+    question: IMultiLingual<string>;
+    answer: IMultiLingual<string>;
+  }>;
+  viewsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const PoemSchema = new Schema(
   {
@@ -91,5 +124,13 @@ PoemSchema.pre("save", function (next) {
   next();
 });
 
-const Poem: Model<any> = mongoose.models.Poem || model("Poem", PoemSchema);
+// Use this pattern to avoid model recompilation errors
+let Poem: Model<IPoem>;
+
+try {
+  Poem = mongoose.model<IPoem>("Poem");
+} catch {
+  Poem = mongoose.model<IPoem>("Poem", PoemSchema);
+}
+
 export default Poem;

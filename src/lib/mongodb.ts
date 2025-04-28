@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import models from "@/models"; // Ensure model registration
 
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
@@ -52,3 +53,5 @@ async function dbConnect(): Promise<mongoose.Connection> {
 }
 
 export default dbConnect;
+
+

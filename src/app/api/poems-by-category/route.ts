@@ -1,8 +1,42 @@
-// src/app/api/poems-by-category/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Poem from "@/models/Poem";
 import Author from "@/models/Author";
+
+// Define types based on Poem model
+interface IPoemVerse {
+  verse: string;
+  meaning?: string;
+}
+
+interface PoemContent {
+  en: IPoemVerse[];
+  hi: IPoemVerse[];
+  ur: IPoemVerse[];
+}
+
+interface PoemDocument {
+  _id: string;
+  title: { en: string; hi: string; ur: string };
+  content?: PoemContent;
+  author?: any;
+  category: string;
+  status: string;
+  slug: { en: string; hi: string; ur: string };
+  summary: { en: string; hi: string; ur: string };
+  didYouKnow: { en: string; hi: string; ur: string };
+  faqs: Array<{
+    question: { en: string; hi: string; ur: string };
+    answer: { en: string; hi: string; ur: string };
+  }>;
+  viewsCount: number;
+  readListUsers: string[];
+  readListCount: number;
+  coverImage: string;
+  tags: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,19 +71,15 @@ export async function GET(request: NextRequest) {
       query.author = author._id;
     }
 
-    // Calculate skip for pagination
     const skip = (page - 1) * limit;
-
-    // Fetch total count for pagination metadata
     const totalPoems = await Poem.countDocuments(query);
 
-    // Fetch poems with pagination
     const poems = await Poem.find(query)
       .populate("author", "name slug image bio")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean<PoemDocument[]>();
 
     if (!poems.length && page === 1) {
       return NextResponse.json(
@@ -60,34 +90,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform content (unchanged)
+    // Transform content
     const transformedPoems = poems.map((poem) => {
-      const transformedContent = {
-        en: poem.content?.en,
-        hi: poem.content?.hi,
-        ur: poem.content?.ur,
+      const transformedContent: PoemContent = {
+        en: [],
+        hi: [],
+        ur: [],
       };
 
       Object.keys(transformedContent).forEach((lang) => {
-        const content = transformedContent[lang as "en" | "hi" | "ur"];
-        if (content) {
-          if (Array.isArray(content) && typeof content[0] === "string") {
-            transformedContent[lang as "en" | "hi" | "ur"] = content.map((verse) => ({
-              verse,
-              meaning: "Default meaning",
-            }));
-          } else if (typeof content === "string") {
-            transformedContent[lang as "en" | "hi" | "ur"] = [
-              { verse: content, meaning: "Default meaning" },
-            ];
-          } else if (Array.isArray(content) && content[0]?.verse) {
-            transformedContent[lang as "en" | "hi" | "ur"] = content;
-          } else {
-            transformedContent[lang as "en" | "hi" | "ur"] = [];
-          }
-        } else {
-          transformedContent[lang as "en" | "hi" | "ur"] = [];
-        }
+        const content = poem.content?.[lang as "en" | "hi" | "ur"] || [];
+        transformedContent[lang as "en" | "hi" | "ur"] = content.map((item) => ({
+          verse: item.verse,
+          meaning: item.meaning || "Default meaning",
+        }));
       });
 
       return {
@@ -96,7 +112,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log(`API /poems-by-category - Category: ${category}, AuthorSlug: ${authorSlug}, Page: ${page}, Limit: ${limit}, Poems:`, JSON.stringify(transformedPoems, null, 2));
+    console.log(
+      `API /poems-by-category - Category: ${category}, AuthorSlug: ${authorSlug}, Page: ${page}, Limit: ${limit}, Poems:`,
+      JSON.stringify(transformedPoems, null, 2)
+    );
 
     return NextResponse.json({
       category,

@@ -1,6 +1,24 @@
 import mongoose, { Schema, model, Model } from "mongoose";
 
-const AuthorSchema = new Schema(
+// Define interface for Author
+export interface IAuthor {
+  name: string;
+  slug: string;
+  image?: string;
+  bio?: string;
+  dob?: Date;
+  city?: string;
+  sherCount: number;
+  ghazalCount: number;
+  otherCount: number;
+  poems: Array<{ poemId: mongoose.Types.ObjectId }>;
+  followers: Array<{ userId: mongoose.Types.ObjectId; followedAt: Date }>;
+  followerCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AuthorSchema = new Schema<IAuthor>(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, unique: true, required: true },
@@ -22,11 +40,12 @@ const AuthorSchema = new Schema(
         followedAt: { type: Date, default: Date.now },
       },
     ],
-    followerCount: { type: Number, default: 0 }, 
+    followerCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-const Author: Model<any> =
-  mongoose.models.Author || model("Author", AuthorSchema);
+const Author: Model<IAuthor> =
+  mongoose.models.Author || model<IAuthor>("Author", AuthorSchema);
+
 export default Author;
