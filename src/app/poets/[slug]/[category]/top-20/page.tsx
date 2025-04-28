@@ -1,22 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { PoetCategoryPoems } from "@/components/poems/category-poems-by-author";
+import { Top20Category } from "@/components/poems/top20Category";
 import { Poem, Author } from "@/types/poem";
 
-interface ApiResponse {
-  poems: Poem[];
-  total: number;
-  page: number;
-  pages: number;
-  authorSlug: string;
-  category: string;
-}
-
-interface PoetCategoryPageProps {
+interface Top20CategoryPageProps {
   params: Promise<{ slug: string; category: string }>;
 }
 
-export async function generateMetadata({ params }: PoetCategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: Top20CategoryPageProps): Promise<Metadata> {
   const { slug, category } = await params;
   const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
@@ -32,12 +23,12 @@ export async function generateMetadata({ params }: PoetCategoryPageProps): Promi
   }
 
   return {
-    title: `${capitalizedCategory} by ${authorName} | Unmatched Lines`,
-    description: `Explore a curated collection of ${category} poems by ${authorName} in English, Hindi, and Urdu.`,
+    title: `Top 20 ${capitalizedCategory} by ${authorName} | Unmatched Lines`,
+    description: `Discover the top 20 ${category} poems by ${authorName} in English, Hindi, and Urdu.`,
     keywords: [
       authorName,
       category,
-      "poems",
+      "top 20 poems",
       "poetry",
       "ghazals",
       "shers",
@@ -48,9 +39,9 @@ export async function generateMetadata({ params }: PoetCategoryPageProps): Promi
       "multilingual poetry",
     ].join(", "),
     openGraph: {
-      title: `${capitalizedCategory} by ${authorName} | Unmatched Lines`,
-      description: `Discover a collection of ${category} poems by ${authorName} in our multilingual poetry library.`,
-      url: `${baseUrl}/poets/${slug}/${category}`,
+      title: `Top 20 ${capitalizedCategory} by ${authorName} | Unmatched Lines`,
+      description: `Discover the top 20 ${category} poems by ${authorName} in our multilingual poetry library.`,
+      url: `${baseUrl}/poets/${slug}/${category}/top-20`,
       siteName: "Unmatched Lines",
       type: "website",
       locale: "en_US",
@@ -59,14 +50,14 @@ export async function generateMetadata({ params }: PoetCategoryPageProps): Promi
           url: "/public/images/image1.jpg",
           width: 800,
           height: 400,
-          alt: `${capitalizedCategory} Poems by ${authorName}`,
+          alt: `Top 20 ${capitalizedCategory} by ${authorName}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${capitalizedCategory} by ${authorName} | Unmatched Lines`,
-      description: `Discover a collection of ${category} poems by ${authorName} in our multilingual poetry library.`,
+      title: `Top 20 ${capitalizedCategory} by ${authorName} | Unmatched Lines`,
+      description: `Discover the top 20 ${category} poems by ${authorName} in our multilingual poetry library.`,
       images: ["/public/images/image1.jpg"],
     },
     robots: {
@@ -77,66 +68,60 @@ export async function generateMetadata({ params }: PoetCategoryPageProps): Promi
   };
 }
 
-async function generateStructuredData(category: string, poems: Poem[], author: Author) {
+async function generateStructuredData(slug: string, category: string, poems: Poem[]) {
   const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const authorRes = await fetch(`${baseUrl}/api/authors/${encodeURIComponent(slug)}`, { cache: "no-store" });
+  if (!authorRes.ok) throw new Error(`Failed to fetch author: ${authorRes.status}`);
+  const authorData = await authorRes.json();
+  const authorName = authorData.author?.name || "Unknown Author";
+
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${capitalizedCategory} Poems by ${author.name}`,
-    description: `Explore a curated collection of ${category} poems by ${author.name} in English, Hindi, and Urdu.`,
-    url: `${baseUrl}/poets/${author.slug}/${category}`,
+    name: `Top 20 ${capitalizedCategory} Poems by ${authorName}`,
+    description: `Explore the top 20 ${category} poems by ${authorName} in English, Hindi, and Urdu.`,
+    url: `${baseUrl}/poets/${slug}/${category}/top-20`,
     mainEntity: {
       "@type": "ItemList",
       itemListElement: poems.slice(0, 5).map((poem, index) => ({
         "@type": "CreativeWork",
         position: index + 1,
         name: poem.title?.en || "Untitled Poem",
-        author: poem.author?.name || "Unknown",
-        description: `A ${category} poem by ${author.name} in English.`,
+        author: poem.author?.name || authorName,
+        description: `A ${category} poem by ${authorName} in English.`,
         url: `${baseUrl}/poems/en/${poem.slug?.en || poem._id}`,
       })),
     },
   };
 }
 
-export default async function PoetCategoryPage({ params }: PoetCategoryPageProps) {
+export default async function Top20CategoryPage({ params }: Top20CategoryPageProps) {
   const { slug, category } = await params;
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
   const res = await fetch(
     `${baseUrl}/api/poems-by-category?category=${encodeURIComponent(category)}&authorSlug=${encodeURIComponent(
       slug
-    )}&page=1&limit=50`,
+    )}&top=20`,
     { cache: "no-store" }
   );
 
   if (!res.ok) {
-    if (res.status === 404) {
-      notFound();
-    }
-    throw new Error(`Failed to fetch poems: ${res.status}`);
+    if (res.status === 404) notFound();
+    throw new Error(`Failed to fetch top 20 poems: ${res.status}`);
   }
 
-  const data: ApiResponse = await res.json();
-
-  if (!data.category || !Array.isArray(data.poems)) {
+  const data = await res.json();
+  if (!Array.isArray(data.poems)) {
     throw new Error("Invalid API response format");
   }
 
-  // Fetch author data for structured data
-  const authorRes = await fetch(`${baseUrl}/api/authors/${encodeURIComponent(slug)}`, { cache: "no-store" });
-  if (!authorRes.ok) {
-    throw new Error(`Failed to fetch author: ${authorRes.status}`);
-  }
-  const authorData = await authorRes.json();
-  const author = authorData.author;
-
-  const structuredData = await generateStructuredData(category, data.poems, author);
+  const structuredData = await generateStructuredData(slug, category, data.poems);
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-      <PoetCategoryPoems slug={slug} category={category} initialPoems={data.poems} initialTotal={data.total} initialPages={data.pages} />
+      <Top20Category slug={slug} category={category} />
     </>
   );
 }

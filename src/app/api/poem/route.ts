@@ -14,16 +14,16 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const slug = url.searchParams.get("slug");
-    const category = url.searchParams.get("category")?.toLowerCase();
     const authorSlug = url.searchParams.get("authorSlug");
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const top = url.searchParams.get("top"); // e.g., top=50 for top 50 poems
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = parseInt(url.searchParams.get("limit") || "10", 10);
 
     // Fetch a single poem by slug
     if (slug) {
       const poem = await Poem.findOne({
         $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
-      }).populate("author", "name");
+      }).populate("author", "name slug");
 
       if (!poem) {
         return NextResponse.json({ error: "Poem not found" }, { status: 404 });
@@ -35,51 +35,79 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ poem });
     }
 
-    // Fetch poems by category and author
-    if (category && authorSlug) {
+    // Build query
+    const query: any = { status: "published" };
+    let sort: { [key: string]: 1 | -1 } = { createdAt: -1 }; // Default sort
+    let responseLimit = limit;
+
+    // Handle top 50 poems by authorSlug
+    if (authorSlug && top === "50") {
       const author = await Author.findOne({ slug: authorSlug });
       if (!author) {
-        return NextResponse.json({ error: "Author not found" }, { status: 404 });
-      }
-
-      const poems = await Poem.find({
-        category: category.toLowerCase(),
-        author: author._id,
-        status: "published",
-      })
-        .populate("author", "name")
-        .sort({ createdAt: -1 });
-
-      if (!poems.length) {
         return NextResponse.json(
-          { error: `No ${category} poems found for author: ${author.name}` },
+          { error: `Author not found for slug: ${authorSlug}` },
           { status: 404 }
         );
       }
-
-      return NextResponse.json({
-        poems,
-        author: { name: author.name, slug: author.slug },
-      });
+      query.author = author._id;
+      sort = { viewsCount: -1 }; // Sort by viewsCount descending
+      responseLimit = 50; // Override limit to 50
+    } else if (authorSlug) {
+      const author = await Author.findOne({ slug: authorSlug });
+      if (!author) {
+        return NextResponse.json(
+          { error: `Author not found for slug: ${authorSlug}` },
+          { status: 404 }
+        );
+      }
+      query.author = author._id;
     }
 
-    // Default: fetch all published poems with pagination
-    const skip = (page - 1) * limit;
-    const poems = await Poem.find({ status: "published" })
-      .populate("author", "name")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    // Pagination
+    const skip = (page - 1) * responseLimit;
+    const totalPoems = await Poem.countDocuments(query);
 
-    const totalPoems = await Poem.countDocuments({ status: "published" });
+    // Fetch poems
+    const poems = await Poem.find(query)
+      .populate("author", "name slug")
+      .sort(sort)
+      .skip(skip)
+      .limit(responseLimit)
+      .lean();
+
+    if (!poems.length && page === 1) {
+      return NextResponse.json(
+        {
+          error: `No published poems found${
+            authorSlug ? ` for author: ${authorSlug}` : ""
+          }`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Transform poems
+    const transformedPoems = poems.map((poem) => ({
+      ...poem,
+      viewsCount: poem.viewsCount ?? 0,
+      readListCount: poem.readListCount ?? 0,
+      category: poem.category ?? "Uncategorized",
+      summary: poem.summary ?? { en: "", hi: "", ur: "" },
+      didYouKnow: poem.didYouKnow ?? { en: "", hi: "", ur: "" },
+      faqs: poem.faqs ?? [],
+      createdAt: poem.createdAt ?? new Date(),
+      tags: poem.tags ?? [],
+      coverImage: poem.coverImage ?? "/placeholder.svg",
+    }));
 
     return NextResponse.json({
-      poems,
+      poems: transformedPoems,
       totalPoems,
       currentPage: page,
-      totalPages: Math.ceil(totalPoems / limit),
+      totalPages: Math.ceil(totalPoems / responseLimit),
     });
   } catch (error) {
+    console.error("Error in /api/poem:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -89,9 +117,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -148,15 +173,25 @@ export async function POST(request: NextRequest) {
 
     // Check slug uniqueness
     const slugCheck = await Poem.findOne({
-      $or: [{ "slug.en": slugEn }, { "slug.hi": slugHi }, { "slug.ur": slugUr }],
+      $or: [
+        { "slug.en": slugEn },
+        { "slug.hi": slugHi },
+        { "slug.ur": slugUr },
+      ],
     });
     if (slugCheck) {
-      return NextResponse.json({ error: "Slug already exists" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Slug already exists" },
+        { status: 400 }
+      );
     }
 
     // Validation
     if (!authorId) {
-      return NextResponse.json({ error: "Author ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Author ID is required" },
+        { status: 400 }
+      );
     }
 
     if (!titleEn || !titleHi || !titleUr) {
@@ -169,36 +204,54 @@ export async function POST(request: NextRequest) {
     if (
       !Array.isArray(contentEn) ||
       contentEn.length === 0 ||
-      contentEn.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentEn.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "English content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "English content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
     if (
       !Array.isArray(contentHi) ||
       contentHi.length === 0 ||
-      contentHi.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentHi.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "Hindi content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "Hindi content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
     if (
       !Array.isArray(contentUr) ||
       contentUr.length === 0 ||
-      contentUr.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentUr.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "Urdu content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "Urdu content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
 
     if (!category) {
-      return NextResponse.json({ error: "Category is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 }
+      );
     }
 
     const user = await User.findById(session.user.id);
@@ -217,10 +270,13 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(arrayBuffer);
       coverImageUrl = await new Promise((resolve, reject) => {
         cloudinary.uploader
-          .upload_stream({ folder: "unmatched_line/poems" }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result!.secure_url);
-          })
+          .upload_stream(
+            { folder: "unmatched_line/poems" },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result!.secure_url);
+            }
+          )
           .end(buffer);
       });
     }
@@ -235,8 +291,16 @@ export async function POST(request: NextRequest) {
       status,
       tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
       coverImage: coverImageUrl || "",
-      summary: { en: summaryEn || "", hi: summaryHi || "", ur: summaryUr || "" },
-      didYouKnow: { en: didYouKnowEn || "", hi: didYouKnowHi || "", ur: didYouKnowUr || "" },
+      summary: {
+        en: summaryEn || "",
+        hi: summaryHi || "",
+        ur: summaryUr || "",
+      },
+      didYouKnow: {
+        en: didYouKnowEn || "",
+        hi: didYouKnowHi || "",
+        ur: didYouKnowUr || "",
+      },
       faqs: faqs || [],
       viewsCount: 0,
     };
@@ -261,7 +325,10 @@ export async function POST(request: NextRequest) {
       { new: true }
     );
 
-    return NextResponse.json({ message: "Poem added", poem: newPoem }, { status: 201 });
+    return NextResponse.json(
+      { message: "Poem added", poem: newPoem },
+      { status: 201 }
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -350,30 +417,45 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (
       !Array.isArray(contentEn) ||
       contentEn.length === 0 ||
-      contentEn.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentEn.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "English content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "English content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
     if (
       !Array.isArray(contentHi) ||
       contentHi.length === 0 ||
-      contentHi.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentHi.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "Hindi content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "Hindi content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
     if (
       !Array.isArray(contentUr) ||
       contentUr.length === 0 ||
-      contentUr.some((v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim())
+      contentUr.some(
+        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
+      )
     ) {
       return NextResponse.json(
-        { error: "Urdu content must be a non-empty array of verses with meanings" },
+        {
+          error:
+            "Urdu content must be a non-empty array of verses with meanings",
+        },
         { status: 400 }
       );
     }
@@ -384,10 +466,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const buffer = Buffer.from(arrayBuffer);
       coverImageUrl = await new Promise((resolve, reject) => {
         cloudinary.uploader
-          .upload_stream({ folder: "unmatched_line/poems" }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result!.secure_url);
-          })
+          .upload_stream(
+            { folder: "unmatched_line/poems" },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result!.secure_url);
+            }
+          )
           .end(buffer);
       });
     }
@@ -402,8 +487,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         status,
         tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
         coverImage: coverImageUrl,
-        summary: { en: summaryEn || "", hi: summaryHi || "", ur: summaryUr || "" },
-        didYouKnow: { en: didYouKnowEn || "", hi: didYouKnowHi || "", ur: didYouKnowUr || "" },
+        summary: {
+          en: summaryEn || "",
+          hi: summaryHi || "",
+          ur: summaryUr || "",
+        },
+        didYouKnow: {
+          en: didYouKnowEn || "",
+          hi: didYouKnowHi || "",
+          ur: didYouKnowUr || "",
+        },
         faqs: faqs || [],
       },
       { new: true, runValidators: true }
@@ -435,7 +528,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
   } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -485,6 +581,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Poem deleted" });
   } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

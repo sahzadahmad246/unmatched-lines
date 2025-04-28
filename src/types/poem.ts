@@ -29,6 +29,14 @@ export interface Author {
   bio?: string;
 }
 
+export interface Poet {
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  bio?: string;
+}
+
 export interface CoverImage {
   _id: string;
   url: string;

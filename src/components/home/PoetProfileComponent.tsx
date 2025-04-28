@@ -28,7 +28,12 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { PoemListItem } from "@/components/poems/poem-list-item";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Poem, CoverImage } from "@/types/poem";
 import { useSession } from "next-auth/react";
@@ -192,8 +197,12 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
   const [showFullBio, setShowFullBio] = useState(false);
   const [profileImageOpen, setProfileImageOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [followerCount, setFollowerCount] = useState(Number(poet.followerCount) || 0);
-  const [followers, setFollowers] = useState<FollowEntry[]>(poet.followers || []);
+  const [followerCount, setFollowerCount] = useState(
+    Number(poet.followerCount) || 0
+  );
+  const [followers, setFollowers] = useState<FollowEntry[]>(
+    poet.followers || []
+  );
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [showFollowersDialog, setShowFollowersDialog] = useState(false);
 
@@ -223,8 +232,15 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
       return;
     }
 
-    const isFollowingPoet = poet.followers.some((f) => f.id === session.user.id);
-    console.log("Checking isFollowing: userId=", session.user.id, "isFollowing=", isFollowingPoet);
+    const isFollowingPoet = poet.followers.some(
+      (f) => f.id === session.user.id
+    );
+    console.log(
+      "Checking isFollowing: userId=",
+      session.user.id,
+      "isFollowing=",
+      isFollowingPoet
+    );
     setIsFollowing(isFollowingPoet);
   }, [status, session?.user?.id, poet.followers]);
 
@@ -237,10 +253,13 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
           fetch("/api/cover-images", { credentials: "include" }),
         ]);
 
-        if (!poemRes.ok) throw new Error(`Failed to fetch poems: ${poemRes.status}`);
+        if (!poemRes.ok)
+          throw new Error(`Failed to fetch poems: ${poemRes.status}`);
         const poemData = await poemRes.json();
         const poetPoems = poemData.poems
-          .filter((poem: Poem) => poem.author?._id.toString() === poet._id.toString())
+          .filter(
+            (poem: Poem) => poem.author?._id.toString() === poet._id.toString()
+          )
           .map((poem: Poem) => ({
             ...poem,
             viewsCount: poem.viewsCount ?? 0,
@@ -264,9 +283,14 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
         if (userRes.ok) {
           const userData = await userRes.json();
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
+          setReadList(
+            userData.user.readList.map((poem: any) => poem._id.toString())
+          );
         } else {
-          console.error("Failed to fetch user data for readlist:", userRes.status);
+          console.error(
+            "Failed to fetch user data for readlist:",
+            userRes.status
+          );
         }
 
         if (coverImagesRes.ok) {
@@ -286,11 +310,17 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredPoems(activeTab === "all" ? poems : poems.filter((p) => p.category.toLowerCase() === activeTab));
+      setFilteredPoems(
+        activeTab === "all"
+          ? poems
+          : poems.filter((p) => p.category.toLowerCase() === activeTab)
+      );
     } else {
       const query = searchQuery.toLowerCase();
       const results = poems
-        .filter((poem) => (activeTab === "all" ? true : poem.category.toLowerCase() === activeTab))
+        .filter((poem) =>
+          activeTab === "all" ? true : poem.category.toLowerCase() === activeTab
+        )
         .filter(
           (poem) =>
             poem.title.en.toLowerCase().includes(query) ||
@@ -303,7 +333,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
+    const url = isInReadlist
+      ? "/api/user/readlist/remove"
+      : "/api/user/readlist/add";
     const method = isInReadlist ? "DELETE" : "POST";
 
     try {
@@ -315,20 +347,29 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
       });
 
       if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
+        setReadList((prev) =>
+          isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]
+        );
         setPoems((prevPoems) =>
           prevPoems.map((poem) =>
             poem._id === poemId
               ? {
                   ...poem,
-                  readListCount: isInReadlist ? poem.readListCount - 1 : poem.readListCount + 1,
+                  readListCount: isInReadlist
+                    ? poem.readListCount - 1
+                    : poem.readListCount + 1,
                 }
               : poem
           )
         );
-        toast(isInReadlist ? "Removed from reading list" : "Added to reading list", {
-          description: `"${poemTitle}" has been ${isInReadlist ? "removed from" : "added to"} your reading list.`,
-        });
+        toast(
+          isInReadlist ? "Removed from reading list" : "Added to reading list",
+          {
+            description: `"${poemTitle}" has been ${
+              isInReadlist ? "removed from" : "added to"
+            } your reading list.`,
+          }
+        );
       } else if (res.status === 401) {
         toast("Authentication required", {
           description: "Please sign in to manage your reading list.",
@@ -377,13 +418,18 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
               ]
         );
         toast(isFollowing ? "Unfollowed" : "Followed", {
-          description: `You have ${isFollowing ? "unfollowed" : "followed"} ${poet.name}.`,
+          description: `You have ${isFollowing ? "unfollowed" : "followed"} ${
+            poet.name
+          }.`,
         });
 
         try {
-          const poetRes = await fetch(`/api/authors/${encodeURIComponent(slug)}`, {
-            credentials: "include",
-          });
+          const poetRes = await fetch(
+            `/api/authors/${encodeURIComponent(slug)}`,
+            {
+              credentials: "include",
+            }
+          );
           if (poetRes.ok) {
             const poetData = await poetRes.json();
             const updatedPoet = poetData.author;
@@ -441,7 +487,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
         <Loader2 className="h-12 w-12 text-purple-500 animate-spin" />
-        <p className="text-xl font-medium text-purple-700 dark:text-pink-300">Loading poet profile...</p>
+        <p className="text-xl font-medium text-purple-700 dark:text-pink-300">
+          Loading poet profile...
+        </p>
       </div>
     );
   }
@@ -450,7 +498,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
         <div className="text-4xl">😕</div>
-        <h2 className="text-2xl font-bold text-purple-700 dark:text-pink-300">{error}</h2>
+        <h2 className="text-2xl font-bold text-purple-700 dark:text-pink-300">
+          {error}
+        </h2>
         <Link href="/poets">
           <Button className="mt-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-700 dark:text-pink-300 border border-purple-300/30 dark:border-pink-600/30 hover:bg-purple-50 dark:hover:bg-pink-950/50">
             Back to Profiles
@@ -493,9 +543,17 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
             <Card className="overflow-hidden border border-purple-200/60 dark:border-pink-700/20 shadow-md bg-gradient-to-br from-purple-50 via-fuchsia-50 to-pink-50 dark:from-purple-950 dark:via-fuchsia-950 dark:to-pink-950">
               <div className="h-24 bg-gradient-to-r from-rose-200/30 via-pink-200/30 to-purple-200/30 dark:from-rose-800/30 dark:via-pink-800/30 dark:to-purple-800/30 relative" />
               <CardContent className="px-4 pt-0 pb-5 relative">
-                <div onClick={() => setProfileImageOpen(true)} className="cursor-pointer">
+                <div
+                  onClick={() => setProfileImageOpen(true)}
+                  className="cursor-pointer"
+                >
                   <Avatar className="h-20 w-20 border-4 border-white dark:border-slate-900 absolute -top-20 left-4 ring-2 ring-white dark:ring-slate-950">
-                    <AvatarImage src={poet.image || "/placeholder.svg?height=400&width=400"} alt={poet.name} />
+                    <AvatarImage
+                      src={
+                        poet.image || "/placeholder.svg?height=400&width=400"
+                      }
+                      alt={poet.name}
+                    />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 text-purple-700 dark:text-pink-300">
                       {poet.name?.charAt(0) || "P"}
                     </AvatarFallback>
@@ -504,14 +562,18 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                 <div className="mt-14 space-y-3">
                   <div className="flex justify-between items-center">
-                    <h1 className="text-xl font-semibold text-purple-700 dark:text-pink-300">{poet.name}</h1>
+                    <h1 className="text-xl font-semibold text-purple-700 dark:text-pink-300">
+                      {poet.name}
+                    </h1>
                     {status === "authenticated" && (
                       <Button
                         variant={isFollowing ? "outline" : "default"}
                         size="sm"
                         onClick={handleFollowToggle}
                         disabled={isFollowLoading}
-                        className={`gap-2 bg-white/80 dark:bg-slate-900/80 border border-purple-200/40 dark:border-pink-700/20 text-purple-700 dark:text-pink-300 hover:bg-purple-50 dark:hover:bg-pink-950/50 ${isFollowing ? "follow-button" : ""}`}
+                        className={`gap-2 bg-white/80 dark:bg-slate-900/80 border border-purple-200/40 dark:border-pink-700/20 text-purple-700 dark:text-pink-300 hover:bg-purple-50 dark:hover:bg-pink-950/50 ${
+                          isFollowing ? "follow-button" : ""
+                        }`}
                       >
                         {isFollowLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -601,9 +663,17 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                         key={category}
                         variant="ghost"
                         className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-md h-auto flex flex-col hover:bg-sky-50 dark:hover:bg-rose-950/50 border border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300"
-                        onClick={() => router.push(`/poets/${slug}/${category}`)}
+                        onClick={() =>
+                          router.push(`/poets/${slug}/${category}`)
+                        }
                       >
-                        <p className="text-xl font-bold">{poems.filter((p) => p.category.toLowerCase() === category).length}</p>
+                        <p className="text-xl font-bold">
+                          {
+                            poems.filter(
+                              (p) => p.category.toLowerCase() === category
+                            ).length
+                          }
+                        </p>
                         <p className="text-xs capitalize">{category}</p>
                       </Button>
                     ))}
@@ -632,8 +702,11 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
               </CardContent>
             </Card>
             <div className="mt-4 p-4 text-center text-gray-600 dark:text-gray-400 italic text-sm bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-pink-950 dark:via-rose-950 dark:to-purple-950 rounded-lg border border-pink-200/40 dark:border-rose-700/20">
-              "Poetry is the spontaneous overflow of powerful feelings: it takes its origin from emotion recollected in tranquility."
-              <div className="mt-1 font-medium text-xs text-purple-700 dark:text-pink-300">— William Wordsworth</div>
+              "Poetry is the spontaneous overflow of powerful feelings: it takes
+              its origin from emotion recollected in tranquility."
+              <div className="mt-1 font-medium text-xs text-purple-700 dark:text-pink-300">
+                — William Wordsworth
+              </div>
             </div>
           </motion.div>
 
@@ -647,7 +720,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-semibold text-emerald-700 dark:text-teal-300">Works by {poet.name}</h2>
+                    <h2 className="text-xl font-semibold text-emerald-700 dark:text-teal-300">
+                      Works by {poet.name}
+                    </h2>
                     <Badge
                       variant="secondary"
                       className="bg-white/80 dark:bg-slate-900/80 border-emerald-200/40 dark:border-teal-700/20 text-emerald-700 dark:text-teal-300"
@@ -668,12 +743,16 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                   </div>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
                   <div className="relative w-full mb-6">
                     <TabsList className="w-full overflow-x-auto flex tabs-scrollable pb-1 h-auto bg-gradient-to-r from-sky-100 via-rose-100 to-sky-100 dark:from-sky-900/50 dark:via-rose-900/50 dark:to-sky-900/50 border border-sky-200/40 dark:border-rose-700/20">
                       <TabsTrigger
                         value="all"
-                        className="tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50 data-[state=active]:text-sky-700 data-[state=active]:dark:text-rose-300"
+                        className="tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50"
                       >
                         All Works
                       </TabsTrigger>
@@ -681,7 +760,7 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                         <TabsTrigger
                           key={category}
                           value={category}
-                          className="capitalize tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50 data-[state=active]:text-sky-700 data-[state=active]:dark:text-rose-300"
+                          className="capitalize tab-trigger text-sky-700 dark:text-rose-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-200 data-[state=active]:to-rose-200 data-[state=active]:dark:from-sky-800/50 data-[state=active]:dark:to-rose-800/50"
                         >
                           {category}
                         </TabsTrigger>
@@ -691,29 +770,45 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                   <TabsContent value="all">
                     {filteredPoems.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredPoems.map((poem, index) => {
-                          const poemTitle = poem.title?.en || "Untitled";
-                          const englishSlug = poem.slug?.en || poem._id;
-                          const isInReadlist = readList.includes(poem._id);
-                          return (
-                            <motion.div
-                              key={poem._id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.05 * index, duration: 0.3 }}
-                            >
-                              <PoemListItem
-                                poem={poem}
-                                coverImage={getCoverImage(index)}
-                                englishSlug={englishSlug}
-                                isInReadlist={isInReadlist}
-                                poemTitle={poemTitle}
-                                handleReadlistToggle={handleReadlistToggle}
-                              />
-                            </motion.div>
-                          );
-                        })}
+                      <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {filteredPoems.map((poem, index) => {
+                            const poemTitle = poem.title?.en || "Untitled";
+                            const englishSlug = poem.slug?.en || poem._id;
+                            const isInReadlist = readList.includes(poem._id);
+                            return (
+                              <motion.div
+                                key={poem._id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{
+                                  delay: 0.05 * index,
+                                  duration: 0.3,
+                                }}
+                              >
+                                <PoemListItem
+                                  poem={poem}
+                                  coverImage={getCoverImage(index)}
+                                  englishSlug={englishSlug}
+                                  isInReadlist={isInReadlist}
+                                  poemTitle={poemTitle}
+                                  handleReadlistToggle={handleReadlistToggle}
+                                />
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-6 text-center">
+                          <Button
+                            variant="outline"
+                            className="bg-white/80 dark:bg-slate-900/80 border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300 hover:bg-sky-50 dark:hover:bg-rose-950/50"
+                            onClick={() =>
+                              router.push(`/poets/${slug}/all-writings`)
+                            }
+                          >
+                            See All Works
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <EmptyState query={searchQuery} />
@@ -722,22 +817,31 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
 
                   {categories.map((category) => (
                     <TabsContent key={category} value={category}>
-                      {filteredPoems.filter((p) => p.category.toLowerCase() === category).length > 0 ? (
+                      {filteredPoems.filter(
+                        (p) => p.category.toLowerCase() === category
+                      ).length > 0 ? (
                         <div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPoems
-                              .filter((p) => p.category.toLowerCase() === category)
+                              .filter(
+                                (p) => p.category.toLowerCase() === category
+                              )
                               .slice(0, PREVIEW_LIMIT)
                               .map((poem, index) => {
                                 const poemTitle = poem.title?.en || "Untitled";
                                 const englishSlug = poem.slug?.en || poem._id;
-                                const isInReadlist = readList.includes(poem._id);
+                                const isInReadlist = readList.includes(
+                                  poem._id
+                                );
                                 return (
                                   <motion.div
                                     key={poem._id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.05 * index, duration: 0.3 }}
+                                    transition={{
+                                      delay: 0.05 * index,
+                                      duration: 0.3,
+                                    }}
                                   >
                                     <PoemListItem
                                       poem={poem}
@@ -745,7 +849,9 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                                       englishSlug={englishSlug}
                                       isInReadlist={isInReadlist}
                                       poemTitle={poemTitle}
-                                      handleReadlistToggle={handleReadlistToggle}
+                                      handleReadlistToggle={
+                                        handleReadlistToggle
+                                      }
                                     />
                                   </motion.div>
                                 );
@@ -755,14 +861,21 @@ export function PoetProfileComponent({ slug, poet }: PoetProfileProps) {
                             <Button
                               variant="outline"
                               className="bg-white/80 dark:bg-slate-900/80 border-sky-200/40 dark:border-rose-700/20 text-sky-700 dark:text-rose-300 hover:bg-sky-50 dark:hover:bg-rose-950/50"
-                              onClick={() => router.push(`/poets/${slug}/${category}`)}
+                              onClick={() =>
+                                router.push(`/poets/${slug}/${category}`)
+                              }
                             >
-                              See All {category.charAt(0).toUpperCase() + category.slice(1)}
+                              See All{" "}
+                              {category.charAt(0).toUpperCase() +
+                                category.slice(1)}
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <EmptyState category={`${category}s`} query={searchQuery} />
+                        <EmptyState
+                          category={`${category}s`}
+                          query={searchQuery}
+                        />
                       )}
                     </TabsContent>
                   ))}

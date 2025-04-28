@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,41 +11,19 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import type { Poem, Poet } from "@/types/poem";
 
-interface PoetCategoryPoemsProps {
+interface Top20CategoryProps {
   slug: string;
   category: string;
-  initialPoems: Poem[];
-  initialTotal: number;
-  initialPages: number;
 }
 
-interface ApiResponse {
-  poems: Poem[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, initialPages }: PoetCategoryPoemsProps) {
+export function Top20Category({ slug, category }: Top20CategoryProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [poet, setPoet] = useState<Poet | null>(null);
-  const [poems, setPoems] = useState<Poem[]>(
-    initialPoems.map((p) => ({
-      ...p,
-      viewsCount: p.viewsCount ?? 0,
-      readListCount: p.readListCount ?? 0,
-      category: p.category ?? "Uncategorized",
-    }))
-  );
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialPages > 1);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [poems, setPoems] = useState<Poem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readList, setReadList] = useState<string[]>([]);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Reuse styles from PoetProfileComponent
   const customStyles = `
@@ -55,13 +33,29 @@ export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, 
   `;
 
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchData = async () => {
       try {
         // Fetch poet data
         const poetRes = await fetch(`/api/authors/${encodeURIComponent(slug)}`, { credentials: "include" });
         if (!poetRes.ok) throw new Error("Failed to fetch poet");
         const poetData = await poetRes.json();
         setPoet(poetData.author);
+
+        // Fetch top 20 poems for category
+        const poemRes = await fetch(
+          `/api/poems-by-category?category=${encodeURIComponent(category)}&authorSlug=${encodeURIComponent(slug)}&top=20`,
+          { credentials: "include" }
+        );
+        if (!poemRes.ok) throw new Error(`Failed to fetch top 20 ${category} poems`);
+        const poemData = await poemRes.json();
+        setPoems(
+          poemData.poems.map((p: Poem) => ({
+            ...p,
+            viewsCount: p.viewsCount ?? 0,
+            readListCount: p.readListCount ?? 0,
+            category: p.category ?? "Uncategorized",
+          }))
+        );
 
         // Fetch user readlist
         const userRes = await fetch("/api/user", { credentials: "include" });
@@ -73,63 +67,11 @@ export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, 
         setError("Failed to load data");
         console.error(err);
       } finally {
-        setInitialLoading(false);
+        setLoading(false);
       }
     };
-    fetchInitialData();
-  }, [slug]);
-
-  const fetchPoems = async (pageNum: number) => {
-    if (pageNum === 1) return; // Skip fetching for page 1 since we have initialPoems
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `/api/poems-by-category?category=${encodeURIComponent(category)}&authorSlug=${encodeURIComponent(
-          slug
-        )}&page=${pageNum}&limit=50`,
-        { credentials: "include" }
-      );
-      if (!res.ok) throw new Error(`Failed to fetch poems: ${res.status}`);
-      const data: ApiResponse = await res.json();
-      const newPoems = data.poems.map((p: Poem) => ({
-        ...p,
-        viewsCount: p.viewsCount ?? 0,
-        readListCount: p.readListCount ?? 0,
-        category: p.category ?? "Uncategorized",
-      }));
-      setPoems((prev) => [...prev, ...newPoems]);
-      setHasMore(pageNum < data.pages);
-      setPage(pageNum);
-    } catch (err) {
-      setError("Failed to load more poems");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!hasMore || initialLoading || loading) return;
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading) {
-          fetchPoems(page + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-
-    return () => {
-      if (observerRef.current && loadMoreRef.current) {
-        observerRef.current.unobserve(loadMoreRef.current);
-      }
-    };
-  }, [hasMore, loading, page, initialLoading]);
+    fetchData();
+  }, [slug, category]);
 
   const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
     const isInReadlist = readList.includes(poemId);
@@ -171,7 +113,7 @@ export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, 
     }
   };
 
-  if (initialLoading) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 w-full">
         <Loader2 className="h-12 w-12 text-purple-500 animate-spin" />
@@ -210,11 +152,15 @@ export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, 
           </Button>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
           <Card className="shadow-md border border-emerald-200/60 dark:border-teal-700/20 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950 dark:via-green-950 dark:to-teal-950">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold text-emerald-700 dark:text-teal-300 mb-6">
-                {category.charAt(0).toUpperCase() + category.slice(1)} by {poet.name}
+                Top 20 {category.charAt(0).toUpperCase() + category.slice(1)} by {poet.name}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {poems.map((poem, index) => (
@@ -235,14 +181,6 @@ export function PoetCategoryPoems({ slug, category, initialPoems, initialTotal, 
                   </motion.div>
                 ))}
               </div>
-              {hasMore && (
-                <div ref={loadMoreRef} className="flex justify-center mt-6">
-                  <Loader2 className="h-8 w-8 text-purple-500 animate-spin" />
-                </div>
-              )}
-              {!hasMore && poems.length > 0 && (
-                <p className="text-center text-gray-600 dark:text-gray-400 mt-6">No more poems to load</p>
-              )}
             </CardContent>
           </Card>
         </motion.div>
