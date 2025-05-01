@@ -1,51 +1,66 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BookOpen, Heart, Eye, User, Calendar, Copy, Check, Sparkles } from "lucide-react"
-import { VerseDownload } from "../home/verse-download"
-import type { Poem } from "@/types/poem"
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  BookOpen,
+  Heart,
+  Eye,
+  User,
+  Calendar,
+  Copy,
+  Check,
+  Sparkles,
+} from "lucide-react";
+import { VerseDownload } from "../home/verse-download";
+import type { Poem } from "@/types/poem";
 
 interface LineOfTheDayProps {
-  poems: Poem[]
-  coverImages: { url: string }[]
-  readList?: string[]
-  handleReadlistToggle?: (id: string, title: string) => void
+  poems: Poem[];
+  coverImages: { url: string }[];
+  readList?: string[];
+  handleReadlistToggle?: (id: string, title: string) => void;
 }
 
-export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlistToggle }: LineOfTheDayProps) {
-  const [lineOfTheDay, setLineOfTheDay] = useState<string>("")
-  const [lineAuthor, setLineAuthor] = useState<string>("")
-  const [poemOfTheDay, setPoemOfTheDay] = useState<Poem | null>(null)
-  const [authorImage, setAuthorImage] = useState<string | null>(null)
-  const [isCopied, setIsCopied] = useState(false)
+export function LineOfTheDay({
+  poems,
+  coverImages,
+  readList = [],
+  handleReadlistToggle,
+}: LineOfTheDayProps) {
+  const [lineOfTheDay, setLineOfTheDay] = useState<string>("");
+  const [lineAuthor, setLineAuthor] = useState<string>("");
+  const [poemOfTheDay, setPoemOfTheDay] = useState<Poem | null>(null);
+  const [authorImage, setAuthorImage] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const [todayDate] = useState(
     new Date().toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
-    }),
-  )
+    })
+  );
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=1080&width=1920"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=1080&width=1920";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   useEffect(() => {
-    if (poems.length === 0) return
+    if (poems.length === 0) return;
 
-    const dateStr = new Date().toISOString().split("T")[0]
-    let seed = 0
-    for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i)
+    const dateStr = new Date().toISOString().split("T")[0];
+    let seed = 0;
+    for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i);
 
-    const poemIndex = seed % poems.length
-    const selectedPoem = poems[poemIndex]
-    setPoemOfTheDay(selectedPoem)
+    const poemIndex = seed % poems.length;
+    const selectedPoem = poems[poemIndex];
+    setPoemOfTheDay(selectedPoem);
 
     // Fetch author image if available
     const fetchAuthorImage = async () => {
@@ -53,51 +68,69 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
         try {
           const res = await fetch(`/api/authors/${selectedPoem.author._id}`, {
             credentials: "include",
-          })
+          });
           if (res.ok) {
-            const data = await res.json()
+            const data = await res.json();
             if (data.author?.image) {
-              setAuthorImage(data.author.image)
+              setAuthorImage(data.author.image);
             }
           }
         } catch (error) {
-          console.error("Error fetching author image:", error)
+          console.error("Error fetching author image:", error);
         }
       }
-    }
-    fetchAuthorImage()
+    };
+    fetchAuthorImage();
 
     const verses = {
-      en: selectedPoem.content?.en?.map((item) => item.verse).filter(Boolean) || [],
-      hi: selectedPoem.content?.hi?.map((item) => item.verse).filter(Boolean) || [],
-      ur: selectedPoem.content?.ur?.map((item) => item.verse).filter(Boolean) || [],
-    }
+      en:
+        selectedPoem.content?.en?.map((item) => item.verse).filter(Boolean) ||
+        [],
+      hi:
+        selectedPoem.content?.hi?.map((item) => item.verse).filter(Boolean) ||
+        [],
+      ur:
+        selectedPoem.content?.ur?.map((item) => item.verse).filter(Boolean) ||
+        [],
+    };
 
     const verseArray =
-      verses.en.length > 0 ? verses.en : verses.hi.length > 0 ? verses.hi : verses.ur.length > 0 ? verses.ur : []
+      verses.en.length > 0
+        ? verses.en
+        : verses.hi.length > 0
+        ? verses.hi
+        : verses.ur.length > 0
+        ? verses.ur
+        : [];
     if (verseArray.length > 0) {
-      const verseIndex = seed % verseArray.length
-      setLineOfTheDay(verseArray[verseIndex] || selectedPoem.summary?.en || "No verse available")
+      const verseIndex = seed % verseArray.length;
+      setLineOfTheDay(
+        verseArray[verseIndex] ||
+          selectedPoem.summary?.en ||
+          "No verse available"
+      );
     } else {
-      setLineOfTheDay(selectedPoem.summary?.en || "No verse available")
+      setLineOfTheDay(selectedPoem.summary?.en || "No verse available");
     }
-    setLineAuthor(selectedPoem.author?.name || "Unknown Author")
-  }, [poems])
+    setLineAuthor(selectedPoem.author?.name || "Unknown Author");
+  }, [poems]);
 
   const formatVerseForDisplay = (verse: string) => {
-    if (!verse) return ["No verse available"]
-    const lines = verse.split("\n").filter(Boolean)
-    return lines.length > 0 ? lines : [verse]
-  }
+    if (!verse) return ["No verse available"];
+    const lines = verse.split("\n").filter(Boolean);
+    return lines.length > 0 ? lines : [verse];
+  };
 
   const handleCopy = () => {
-    const textToCopy = formatVerseForDisplay(lineOfTheDay).join("\n")
-    navigator.clipboard.writeText(textToCopy)
-    setIsCopied(true)
-    setTimeout(() => setIsCopied(false), 2000)
-  }
+    const textToCopy = formatVerseForDisplay(lineOfTheDay).join("\n");
+    navigator.clipboard.writeText(textToCopy);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
-  const isInReadlist = poemOfTheDay ? readList.includes(poemOfTheDay._id) : false
+  const isInReadlist = poemOfTheDay
+    ? readList.includes(poemOfTheDay._id)
+    : false;
 
   return (
     <div className="h-full">
@@ -122,7 +155,9 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
               </div>
               <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/10 via-violet-500/10 to-fuchsia-500/10 dark:from-indigo-500/20 dark:via-violet-500/20 dark:to-fuchsia-500/20 backdrop-blur-sm text-indigo-700 dark:text-violet-300 border border-indigo-300/30 dark:border-fuchsia-600/30 shadow-sm">
                 <Sparkles className="h-3 w-3 text-fuchsia-500 dark:text-fuchsia-400" />
-                <span className="text-[10px] sm:text-xs font-medium">{todayDate}</span>
+                <span className="text-[10px] sm:text-xs font-medium">
+                  {todayDate}
+                </span>
               </div>
             </div>
           </div>
@@ -151,7 +186,10 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
                 <div className="flex items-center justify-center gap-3 mb-5">
                   <Avatar className="h-10 w-10 border-2 border-indigo-200 dark:border-fuchsia-700 ring-2 ring-white dark:ring-slate-950 shadow-md">
                     {authorImage ? (
-                      <AvatarImage src={authorImage || "/placeholder.svg"} alt={lineAuthor} />
+                      <AvatarImage
+                        src={authorImage || "/placeholder.svg"}
+                        alt={lineAuthor}
+                      />
                     ) : (
                       <AvatarFallback className="bg-gradient-to-br from-indigo-100 via-violet-100 to-fuchsia-100 dark:from-indigo-900 dark:via-violet-900 dark:to-fuchsia-900 text-indigo-700 dark:text-violet-300">
                         <User className="h-4 w-4" />
@@ -174,9 +212,15 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
                     title="Line of the Day"
                     imageUrl={getRandomCoverImage()}
                     languages={{
-                      en: poemOfTheDay?.content?.en?.map((item) => item.verse) || [],
-                      hi: poemOfTheDay?.content?.hi?.map((item) => item.verse) || [],
-                      ur: poemOfTheDay?.content?.ur?.map((item) => item.verse) || [],
+                      en:
+                        poemOfTheDay?.content?.en?.map((item) => item.verse) ||
+                        [],
+                      hi:
+                        poemOfTheDay?.content?.hi?.map((item) => item.verse) ||
+                        [],
+                      ur:
+                        poemOfTheDay?.content?.ur?.map((item) => item.verse) ||
+                        [],
                     }}
                   />
 
@@ -187,9 +231,12 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
                       size="sm"
                       className="h-8 gap-1 text-[10px] sm:text-xs font-serif bg-white/80 dark:bg-slate-900/80 border-indigo-200 dark:border-fuchsia-800/40 text-indigo-700 dark:text-violet-300 hover:bg-indigo-50 dark:hover:bg-fuchsia-950/50 hover:text-indigo-800 dark:hover:text-violet-200 backdrop-blur-sm"
                     >
-                      <Link href={`/poems/en/${poemOfTheDay.slug?.en || poemOfTheDay._id}`}>
+                      <Link
+                        href={`/poems/en/${
+                          poemOfTheDay.slug?.en || poemOfTheDay._id
+                        }`}
+                      >
                         <BookOpen className="h-3 w-3 mr-0.5" />
-                        <span>Read</span>
                       </Link>
                     </Button>
                   )}
@@ -205,7 +252,12 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
 
                   {handleReadlistToggle && poemOfTheDay && (
                     <Button
-                      onClick={() => handleReadlistToggle(poemOfTheDay._id, poemOfTheDay.title?.en || "Untitled")}
+                      onClick={() =>
+                        handleReadlistToggle(
+                          poemOfTheDay._id,
+                          poemOfTheDay.title?.en || "Untitled"
+                        )
+                      }
                       variant="outline"
                       size="sm"
                       className={`h-8 gap-1 text-[10px] sm:text-xs font-serif bg-white/80 dark:bg-slate-900/80 border-indigo-200 dark:border-fuchsia-800/40 
@@ -216,9 +268,12 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
                         } backdrop-blur-sm`}
                     >
                       <Heart
-                        className={`h-3 w-3 mr-0.5 ${isInReadlist ? "fill-indigo-500 dark:fill-fuchsia-500 text-indigo-500 dark:text-fuchsia-500" : ""}`}
+                        className={`h-3 w-3 mr-0.5 ${
+                          isInReadlist
+                            ? "fill-indigo-500 dark:fill-fuchsia-500 text-indigo-500 dark:text-fuchsia-500"
+                            : ""
+                        }`}
                       />
-                      <span>{isInReadlist ? "Saved" : "Save"}</span>
                     </Button>
                   )}
 
@@ -231,12 +286,10 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
                     {isCopied ? (
                       <>
                         <Check className="h-3 w-3 mr-0.5 text-emerald-500" />
-                        <span>Copied</span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3 w-3 mr-0.5" />
-                        <span>Copy</span>
                       </>
                     )}
                   </Button>
@@ -253,5 +306,5 @@ export function LineOfTheDay({ poems, coverImages, readList = [], handleReadlist
         </div>
       </div>
     </div>
-  )
+  );
 }

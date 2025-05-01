@@ -1,122 +1,148 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
-import { ChevronLeft, ChevronRight, Sparkles, Heart, Eye, User, BookOpen, Copy, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VerseDownload } from "./verse-download"
-import type { Poem } from "@/types/poem"
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Heart,
+  Eye,
+  User,
+  BookOpen,
+  Copy,
+  Check,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VerseDownload } from "./verse-download";
+import type { Poem } from "@/types/poem";
 
 interface CoverImage {
-  _id: string
-  url: string
+  _id: string;
+  url: string;
 }
 
 interface TopFivePicksProps {
-  poems: Poem[]
-  coverImages: CoverImage[]
-  readList?: string[]
-  handleReadlistToggle?: (id: string, title: string) => void
+  poems: Poem[];
+  coverImages: CoverImage[];
+  readList?: string[];
+  handleReadlistToggle?: (id: string, title: string) => void;
 }
 
-export function TopFivePicks({ poems, coverImages, readList = [], handleReadlistToggle }: TopFivePicksProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [randomVerses, setRandomVerses] = useState<{ verse: string[]; poem: Poem }[]>([])
-  const [authorImages, setAuthorImages] = useState<Record<string, string>>({})
-  const [isCopied, setIsCopied] = useState(false)
+export function TopFivePicks({
+  poems,
+  coverImages,
+  readList = [],
+  handleReadlistToggle,
+}: TopFivePicksProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [randomVerses, setRandomVerses] = useState<
+    { verse: string[]; poem: Poem }[]
+  >([]);
+  const [authorImages, setAuthorImages] = useState<Record<string, string>>({});
+  const [isCopied, setIsCopied] = useState(false);
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=400&width=600"
-    const randomIndex = Math.floor(Math.random() * coverImages.length)
-    return coverImages[randomIndex].url
-  }
+    if (coverImages.length === 0)
+      return "/placeholder.svg?height=400&width=600";
+    const randomIndex = Math.floor(Math.random() * coverImages.length);
+    return coverImages[randomIndex].url;
+  };
 
   useEffect(() => {
     const getRandomVerses = () => {
-      const englishPoems = poems.filter((poem) => poem.content?.en && poem.content.en.length > 0)
+      const englishPoems = poems.filter(
+        (poem) => poem.content?.en && poem.content.en.length > 0
+      );
 
-      const shuffledPoems = [...englishPoems].sort(() => Math.random() - 0.5)
-      const verses: { verse: string[]; poem: Poem }[] = []
+      const shuffledPoems = [...englishPoems].sort(() => Math.random() - 0.5);
+      const verses: { verse: string[]; poem: Poem }[] = [];
 
       for (let i = 0; i < 5 && i < shuffledPoems.length; i++) {
-        const poem = shuffledPoems[i]
+        const poem = shuffledPoems[i];
         const lines =
           poem.content?.en
             ?.map((item) => item.verse)
             .filter((verse): verse is string => typeof verse === "string")
             .flatMap((verse) => verse.split("\n"))
-            .filter(Boolean) || []
+            .filter(Boolean) || [];
 
         if (lines.length > 0) {
-          const startIndex = Math.floor(Math.random() * (lines.length - 1))
-          const versePair = lines.slice(startIndex, startIndex + 2)
+          const startIndex = Math.floor(Math.random() * (lines.length - 1));
+          const versePair = lines.slice(startIndex, startIndex + 2);
           if (versePair.length > 0) {
-            verses.push({ verse: versePair, poem })
+            verses.push({ verse: versePair, poem });
           }
         }
       }
 
-      setRandomVerses(verses)
-    }
+      setRandomVerses(verses);
+    };
 
-    getRandomVerses()
-  }, [poems])
+    getRandomVerses();
+  }, [poems]);
 
   // Fetch author images
   useEffect(() => {
     const fetchAuthorImages = async () => {
-      const authorIds = [...new Set(randomVerses.map((item) => item.poem.author._id))]
-      const images: Record<string, string> = {}
+      const authorIds = [
+        ...new Set(randomVerses.map((item) => item.poem.author._id)),
+      ];
+      const images: Record<string, string> = {};
 
       await Promise.all(
         authorIds.map(async (authorId) => {
           try {
             const res = await fetch(`/api/authors/${authorId}`, {
               credentials: "include",
-            })
+            });
             if (res.ok) {
-              const data = await res.json()
+              const data = await res.json();
               if (data.author?.image) {
-                images[authorId] = data.author.image
+                images[authorId] = data.author.image;
               }
             }
           } catch (error) {
-            console.error("Error fetching author image:", error)
+            console.error("Error fetching author image:", error);
           }
-        }),
-      )
+        })
+      );
 
-      setAuthorImages(images)
-    }
+      setAuthorImages(images);
+    };
 
     if (randomVerses.length > 0) {
-      fetchAuthorImages()
+      fetchAuthorImages();
     }
-  }, [randomVerses])
+  }, [randomVerses]);
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % randomVerses.length)
-    setIsCopied(false) // Reset copy state on slide change
-  }
+    setCurrentIndex((prev) => (prev + 1) % randomVerses.length);
+    setIsCopied(false); // Reset copy state on slide change
+  };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + randomVerses.length) % randomVerses.length)
-    setIsCopied(false) // Reset copy state on slide change
-  }
+    setCurrentIndex(
+      (prev) => (prev - 1 + randomVerses.length) % randomVerses.length
+    );
+    setIsCopied(false); // Reset copy state on slide change
+  };
 
   const handleCopy = () => {
-    const textToCopy = randomVerses[currentIndex].verse.join("\n")
-    navigator.clipboard.writeText(textToCopy)
-    setIsCopied(true)
-    setTimeout(() => setIsCopied(false), 2000)
-  }
+    const textToCopy = randomVerses[currentIndex].verse.join("\n");
+    navigator.clipboard.writeText(textToCopy);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
-  if (randomVerses.length === 0) return null
+  if (randomVerses.length === 0) return null;
 
-  const currentVerse = randomVerses[currentIndex]
-  const isInReadlist = currentVerse ? readList.includes(currentVerse.poem._id) : false
+  const currentVerse = randomVerses[currentIndex];
+  const isInReadlist = currentVerse
+    ? readList.includes(currentVerse.poem._id)
+    : false;
 
   return (
     <div className="h-full">
@@ -136,7 +162,9 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
               </h2>
               <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-rose-500/10 to-amber-500/10 dark:from-rose-500/20 dark:to-amber-500/20 backdrop-blur-sm text-rose-700 dark:text-amber-300 border border-rose-300/30 dark:border-amber-600/30 shadow-sm">
                 <Sparkles className="h-3 w-3 text-amber-500 dark:text-amber-400" />
-                <span className="text-[10px] sm:text-xs font-medium">Daily Inspiration</span>
+                <span className="text-[10px] sm:text-xs font-medium">
+                  Daily Inspiration
+                </span>
               </div>
             </div>
           </div>
@@ -168,7 +196,10 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                   <Avatar className="h-10 w-10 border-2 border-rose-200 dark:border-amber-700 ring-2 ring-white dark:ring-slate-950 shadow-md">
                     {authorImages[currentVerse.poem.author._id] ? (
                       <AvatarImage
-                        src={authorImages[currentVerse.poem.author._id] || "/placeholder.svg"}
+                        src={
+                          authorImages[currentVerse.poem.author._id] ||
+                          "/placeholder.svg"
+                        }
                         alt={currentVerse.poem.author.name}
                       />
                     ) : (
@@ -193,9 +224,18 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                     title={currentVerse.poem.title.en}
                     imageUrl={getRandomCoverImage()}
                     languages={{
-                      en: currentVerse.poem.content?.en?.map((item) => item.verse) || [],
-                      hi: currentVerse.poem.content?.hi?.map((item) => item.verse) || [],
-                      ur: currentVerse.poem.content?.ur?.map((item) => item.verse) || [],
+                      en:
+                        currentVerse.poem.content?.en?.map(
+                          (item) => item.verse
+                        ) || [],
+                      hi:
+                        currentVerse.poem.content?.hi?.map(
+                          (item) => item.verse
+                        ) || [],
+                      ur:
+                        currentVerse.poem.content?.ur?.map(
+                          (item) => item.verse
+                        ) || [],
                     }}
                   />
 
@@ -205,9 +245,12 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                     size="sm"
                     className="h-8 gap-1 text-[10px] sm:text-xs font-serif bg-white/80 dark:bg-slate-900/80 border-rose-200 dark:border-amber-800/40 text-rose-700 dark:text-amber-300 hover:bg-rose-50 dark:hover:bg-amber-950/50 hover:text-rose-800 dark:hover:text-amber-200 backdrop-blur-sm"
                   >
-                    <Link href={`/poems/en/${currentVerse.poem.slug?.en || currentVerse.poem._id}`}>
+                    <Link
+                      href={`/poems/en/${
+                        currentVerse.poem.slug?.en || currentVerse.poem._id
+                      }`}
+                    >
                       <BookOpen className="h-3 w-3 mr-0.5" />
-                      <span>Read</span>
                     </Link>
                   </Button>
 
@@ -223,7 +266,10 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                   {handleReadlistToggle && (
                     <Button
                       onClick={() =>
-                        handleReadlistToggle(currentVerse.poem._id, currentVerse.poem.title?.en || "Untitled")
+                        handleReadlistToggle(
+                          currentVerse.poem._id,
+                          currentVerse.poem.title?.en || "Untitled"
+                        )
                       }
                       variant="outline"
                       size="sm"
@@ -235,9 +281,12 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                         } backdrop-blur-sm`}
                     >
                       <Heart
-                        className={`h-3 w-3 mr-0.5 ${isInReadlist ? "fill-rose-500 dark:fill-amber-500 text-rose-500 dark:text-amber-500" : ""}`}
+                        className={`h-3 w-3 mr-0.5 ${
+                          isInReadlist
+                            ? "fill-rose-500 dark:fill-amber-500 text-rose-500 dark:text-amber-500"
+                            : ""
+                        }`}
                       />
-                      <span>{isInReadlist ? "Saved" : "Save"}</span>
                     </Button>
                   )}
 
@@ -250,12 +299,10 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
                     {isCopied ? (
                       <>
                         <Check className="h-3 w-3 mr-0.5 text-emerald-500" />
-                        <span>Copied</span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3 w-3 mr-0.5" />
-                        <span>Copy</span>
                       </>
                     )}
                   </Button>
@@ -293,7 +340,11 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
 
             <div className="flex items-center gap-2">
               {randomVerses.map((_, index) => (
-                <button key={index} onClick={() => setCurrentIndex(index)} className="group focus:outline-none">
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className="group focus:outline-none"
+                >
                   <span
                     className={`block h-2 rounded-full transition-all duration-300 ${
                       index === currentIndex
@@ -317,5 +368,5 @@ export function TopFivePicks({ poems, coverImages, readList = [], handleReadlist
         </div>
       </div>
     </div>
-  )
+  );
 }
