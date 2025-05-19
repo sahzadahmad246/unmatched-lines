@@ -1,25 +1,24 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import Link from "next/link";
+import { useEffect, useRef, useState, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import Link from "next/link"
 import {
   BookOpen,
   AlertTriangle,
   ArrowRight,
   Sparkles,
-  BookHeart,
   Search,
   Filter,
   BookText,
   X,
-  Grid3X3,
-  List,
   Users,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
+  BookMarked,
+  RefreshCw,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -28,9 +27,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { LineOfTheDay } from "./line-of-the-day";
-import { PoetCard } from "@/components/home/poet-card";
+} from "@/components/ui/alert-dialog"
+import { LineOfTheDay } from "./line-of-the-day"
+import { PoetCard } from "@/components/home/poet-card"
 import {
   Drawer,
   DrawerClose,
@@ -39,417 +38,282 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { LoadingComponent } from "@/components/utils/LoadingComponent";
-import { PoemCard } from "./poem-card";
-import { PoemListItem } from "./poem-list-item";
-import { Poem } from "@/types/poem";
+} from "@/components/ui/drawer"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { PoemListItem } from "./poem-list-item"
+import type { Poem } from "@/types/poem"
+import { useStore } from "@/lib/store"
 
 interface CoverImage {
-  _id: string;
-  url: string;
-  uploadedBy: { name: string };
-  createdAt: string;
+  _id: string
+  url: string
+  uploadedBy: { name: string }
+  createdAt: string
 }
 
 const fadeIn = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-};
+}
 
 const slideUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
-};
+}
+
+// Custom debounce function
+const debounce = <T extends (...args: any[]) => any>(func: T, wait: number) => {
+  let timeout: NodeJS.Timeout
+  return (...args: Parameters<T>): Promise<ReturnType<T>> => {
+    clearTimeout(timeout)
+    return new Promise((resolve) => {
+      timeout = setTimeout(() => resolve(func(...args)), wait)
+    })
+  }
+}
 
 export default function Library() {
-  const [poets, setPoets] = useState<any[]>([]);
-  const [poemsByPoet, setPoemsByPoet] = useState<{ [key: string]: any[] }>({});
-  const [readList, setReadList] = useState<string[]>([]);
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null);
-  const [activeLang, setActiveLang] = useState<"en" | "hi" | "ur">("en");
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [allPoems, setAllPoems] = useState<Poem[]>([]);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredPoems, setFilteredPoems] = useState<Poem[]>([]);
-  const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"poems" | "poets">("poems");
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const loaderRef = useRef<HTMLDivElement>(null);
+  const {
+    poems,
+    nextCursor,
+    hasMore,
+    poets,
+    coverImages,
+    readList,
+    loading,
+    error,
+    searchQuery,
+    selectedCategories,
+    fetchPoems,
+    fetchPoets,
+    fetchCoverImages,
+    fetchReadList,
+    toggleReadList,
+    setSearchQuery,
+    setSelectedCategories,
+    clearCache,
+  } = useStore()
+
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [activeTab, setActiveTab] = useState<"poems" | "poets">("poems")
+  const [featuredPoem, setFeaturedPoem] = useState<Poem | null>(null)
+  const [showShareDialog, setShowShareDialog] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [isLazyLoading, setIsLazyLoading] = useState(false)
+  const [isSearchLoading, setIsSearchLoading] = useState(false)
+  const [navbarHeight, setNavbarHeight] = useState(64) // Default navbar height
+  const loaderRef = useRef<HTMLDivElement>(null)
+  const isFetchingRef = useRef(false)
+
+  // Debounced search handler
+  const debouncedFetchPoems = useCallback(
+    debounce((query: string, category: string | undefined) => {
+      setIsSearchLoading(true)
+      clearCache()
+      fetchPoems({
+        category,
+        search: query || undefined,
+        reset: true,
+      }).finally(() => {
+        setIsSearchLoading(false)
+      })
+    }, 500),
+    [fetchPoems, clearCache],
+  )
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
 
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
+    // Get navbar height
+    const navbar = document.querySelector("nav") || document.querySelector("header")
+    if (navbar) {
+      setNavbarHeight(navbar.clientHeight + 16) // Add some extra padding
+    }
 
-    return () => {
-      window.removeEventListener("resize", checkMobile);
-    };
-  }, []);
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch poets
-        const poetsRes = await fetch("/api/authors", { credentials: "include" });
-        if (!poetsRes.ok) throw new Error("Failed to fetch poets");
-        const poetsData = await poetsRes.json();
+    setIsInitialLoading(true)
+    fetchPoems({ reset: true }).finally(() => {
+      setIsInitialLoading(false)
+    })
+    fetchPoets()
+    fetchCoverImages()
+    fetchReadList()
+  }, [fetchPoems, fetchPoets, fetchCoverImages, fetchReadList])
 
-        const shuffledPoets = [...poetsData.authors];
-        for (let i = shuffledPoets.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffledPoets[i], shuffledPoets[j]] = [shuffledPoets[j], shuffledPoets[i]];
-        }
-        setPoets(shuffledPoets);
-
-        // Fetch poems with new schema
-        const poemsRes = await fetch(`/api/poem?page=1&limit=20`, { credentials: "include" });
-        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
-        const poemsData = await poemsRes.json();
-        const poems = poemsData.poems || [];
-        setAllPoems(poems);
-        setFilteredPoems(poems);
-        setHasMore(poemsData.hasMore || false);
-
-        const categories = Array.from(
-          new Set(poems.map((poem: Poem) => poem.category).filter(Boolean))
-        ) as string[];
-        setAvailableCategories(categories);
-
-        // Fetch cover images
-        const coverImagesRes = await fetch("/api/cover-images", { credentials: "include" });
-        if (!coverImagesRes.ok) throw new Error("Failed to fetch cover images");
-        const coverImagesData = await coverImagesRes.json();
-        setCoverImages(coverImagesData.coverImages || []);
-
-        // Group poems by poet
-        const poemsByPoetMap: { [key: string]: any[] } = {};
-        shuffledPoets.slice(0, 4).forEach((poet) => {
-          const poetPoems = poems.filter(
-            (poem: Poem) => poem.author?._id === poet._id || poem.author?.name === poet.name
-          );
-          const categorizedPoems: { [key: string]: any[] } = {};
-          poetPoems.forEach((poem: Poem) => {
-            if (!categorizedPoems[poem.category]) categorizedPoems[poem.category] = [];
-            categorizedPoems[poem.category].push(poem);
-          });
-
-          const poetPoemsWithCategory: any[] = [];
-          Object.entries(categorizedPoems).forEach(([category, poems]) => {
-            const shuffledCategoryPoems = [...poems];
-            for (let i = shuffledCategoryPoems.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [shuffledCategoryPoems[i], shuffledCategoryPoems[j]] = [
-                shuffledCategoryPoems[j],
-                shuffledCategoryPoems[i],
-              ];
-            }
-            shuffledCategoryPoems.slice(0, 4).forEach((poem) => {
-              poetPoemsWithCategory.push({
-                ...poem,
-                displayCategory: category,
-              });
-            });
-          });
-          if (poetPoemsWithCategory.length > 0) poemsByPoetMap[poet._id] = poetPoemsWithCategory;
-        });
-        setPoemsByPoet(poemsByPoetMap);
-
-        // Fetch user's readlist
-        const userRes = await fetch("/api/user", { credentials: "include" });
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setReadList(userData.user.readList.map((poem: any) => poem._id.toString()));
-        } else if (userRes.status === 401) {
-          setReadList([]);
-        } else {
-          throw new Error("Failed to fetch user data");
-        }
-      } catch (err) {
-        setError((err as Error).message || "Failed to load library content");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  useEffect(() => {
+    if (searchQuery || selectedCategories.length) {
+      debouncedFetchPoems(searchQuery, selectedCategories.length ? selectedCategories[0] : undefined)
+    } else {
+      setIsSearchLoading(true)
+      clearCache()
+      fetchPoems({ reset: true }).finally(() => {
+        setIsSearchLoading(false)
+      })
+    }
+  }, [searchQuery, selectedCategories, debouncedFetchPoems, fetchPoems, clearCache])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          fetchMorePoems();
+        if (entries[0].isIntersecting && hasMore && !isFetchingRef.current) {
+          isFetchingRef.current = true
+          setIsLazyLoading(true)
+          fetchPoems({ lastId: nextCursor }).finally(() => {
+            isFetchingRef.current = false
+            setIsLazyLoading(false)
+          })
         }
       },
-      { threshold: 1.0 }
-    );
-    if (loaderRef.current) observer.observe(loaderRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, loading]);
-
-  const fetchMorePoems = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/poem?page=${page + 1}&limit=20`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch more poems");
-      const data = await res.json();
-      setAllPoems((prev) => [...prev, ...data.poems]);
-      setFilteredPoems((prev) => [...prev, ...data.poems]);
-      setPage(page + 1);
-      setHasMore(data.hasMore || false);
-    } catch (error) {
-      toast.error("Failed to load more poems", {
-        description: "Please try again",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      { threshold: 0.5 },
+    )
+    if (loaderRef.current) observer.observe(loaderRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, nextCursor, fetchPoems])
 
   useEffect(() => {
-    if (allPoems.length === 0) return;
+    if (poems.length === 0) return
 
     const updateFeaturedPoem = () => {
-      const now = new Date();
-      const hourIndex = Math.floor(now.getTime() / (1000 * 60 * 60));
-      const poemIndex = hourIndex % allPoems.length;
-      const selectedPoem = allPoems[poemIndex];
-      setFeaturedPoem(selectedPoem);
-    };
-
-    updateFeaturedPoem();
-    const interval = setInterval(updateFeaturedPoem, 1000 * 60 * 60);
-    return () => clearInterval(interval);
-  }, [allPoems]);
-
-  useEffect(() => {
-    if (allPoems.length === 0) return;
-
-    let filtered = [...allPoems];
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (poem) =>
-          poem.title?.en?.toLowerCase().includes(query) ||
-          poem.author?.name?.toLowerCase().includes(query) ||
-          poem.category?.toLowerCase().includes(query) ||
-          poem.summary?.en?.toLowerCase().includes(query)
-      );
+      const now = new Date()
+      const hourIndex = Math.floor(now.getTime() / (1000 * 60 * 60))
+      const poemIndex = hourIndex % poems.length
+      setFeaturedPoem(poems[poemIndex])
     }
 
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter((poem) => selectedCategories.includes(poem.category));
-    }
-
-    setFilteredPoems(filtered);
-  }, [searchQuery, selectedCategories, allPoems]);
+    updateFeaturedPoem()
+    const interval = setInterval(updateFeaturedPoem, 1000 * 60 * 60)
+    return () => clearInterval(interval)
+  }, [poems])
 
   const getRandomCoverImage = () => {
-    if (coverImages.length === 0) return "/placeholder.svg?height=300&width=300";
-    const randomIndex = Math.floor(Math.random() * coverImages.length);
-    return coverImages[randomIndex].url;
-  };
-
-  const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
-    const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
-    const method = isInReadlist ? "DELETE" : "POST";
-
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ poemId }),
-        credentials: "include",
-      });
-      if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
-        setFeaturedPoem((prev: any) =>
-          prev?._id === poemId
-            ? {
-                ...prev,
-                readListCount: isInReadlist ? (prev.readListCount || 1) - 1 : (prev.readListCount || 0) + 1,
-              }
-            : prev
-        );
-        setAllPoems((prev) =>
-          prev.map((poem) =>
-            poem._id === poemId
-              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
-              : poem
-          )
-        );
-        setFilteredPoems((prev) =>
-          prev.map((poem) =>
-            poem._id === poemId
-              ? { ...poem, readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1 }
-              : poem
-          )
-        );
-        setPoemsByPoet((prevPoemsByPoet) => {
-          const updated = { ...prevPoemsByPoet };
-          Object.keys(updated).forEach((poetId) => {
-            updated[poetId] = updated[poetId].map((poem) => {
-              if (poem._id === poemId) {
-                return {
-                  ...poem,
-                  readListCount: isInReadlist ? (poem.readListCount || 1) - 1 : (poem.readListCount || 0) + 1,
-                };
-              }
-              return poem;
-            });
-          });
-          return updated;
-        });
-
-        if (isInReadlist) {
-          toast.error("Removed from reading list", {
-            description: `"${poemTitle}" has been removed from your reading list.`,
-          });
-        } else {
-          toast.custom(
-            (t) => (
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center gap-3"
-              >
-                <BookHeart className="h-5 w-5" />
-                <div>
-                  <div className="font-medium">Added to your anthology</div>
-                  <div className="text-sm opacity-90">"{poemTitle}" now resides in your collection</div>
-                </div>
-              </motion.div>
-            ),
-            { duration: 3000 }
-          );
-        }
-      } else if (res.status === 401) {
-        toast.error("Authentication required", {
-          description: "Please sign in to manage your reading list.",
-          action: {
-            label: "Sign In",
-            onClick: () => (window.location.href = "/api/auth/signin"),
-          },
-        });
-      } else {
-        throw new Error("Failed to update readlist");
-      }
-    } catch (error) {
-      toast.error("Error", {
-        description: "An error occurred while updating the reading list.",
-      });
-    }
-  };
+    if (coverImages.length === 0) return "/placeholder.svg?height=300&width=300"
+    const randomIndex = Math.floor(Math.random() * coverImages.length)
+    return coverImages[randomIndex].url
+  }
 
   const toggleCategory = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-    );
-  };
-
-  if (loading && page === 1) {
-    return <LoadingComponent />;
+    setSelectedCategories(
+      selectedCategories.includes(category) ? selectedCategories.filter((c) => c !== category) : [category],
+    )
   }
 
-  if (error) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]"
-      >
-        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold text-destructive">{error}</h2>
-        <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-          Try Again
-        </Button>
-      </motion.div>
-    );
-  }
+  // Category list without "poem"
+  const categories = ["ghazal", "sher", "nazm", "rubai", "marsiya", "qataa", "other"]
 
   return (
-    <div className="min-h-screen bg-background mb-16">
-      <LineOfTheDay poems={allPoems} coverImages={coverImages} />
+    <div className="min-h-screen bg-white dark:bg-black">
+      <LineOfTheDay poems={poems} coverImages={coverImages} />
 
-      <div className="container mx-auto px-4 py-8">
+      {/* Library Header */}
+      <div className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 py-6">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl md:text-3xl font-bold font-serif text-black dark:text-white flex items-center gap-2">
+              <BookMarked className="h-6 w-6" />
+              Poetry Library
+            </h1>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="md:hidden border-zinc-300 dark:border-zinc-700 text-black dark:text-white"
+                onClick={() => setFilterOpen(true)}
+              >
+                <Filter className="h-4 w-4 mr-1" />
+                Filters
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:flex border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                onClick={() => {
+                  setIsInitialLoading(true)
+                  clearCache()
+                  fetchPoems({ reset: true }).finally(() => {
+                    setIsInitialLoading(false)
+                  })
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="md:w-64 lg:w-72 shrink-0">
-            <div className="sticky top-4 bg-background rounded-lg md:border p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold font-serif flex items-center gap-2 md:flex">
-                  <BookText className="h-5 w-5 text-primary" />
-                  <span>Library</span>
-                </h2>
-              </div>
-
-              <div className="hidden md:block space-y-6">
+          {/* Sidebar Filter - Desktop */}
+          <div className="hidden md:block md:w-64 lg:w-72 shrink-0">
+            <div
+              className="sticky border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black shadow-sm p-5"
+              style={{ top: `${navbarHeight}px` }}
+            >
+              <div className="space-y-6">
                 <div>
-                  <h3 className="font-medium mb-2 text-sm">Search</h3>
+                  <h3 className="font-medium mb-3 text-sm text-black dark:text-white flex items-center gap-1.5">
+                    <Search className="h-4 w-4" />
+                    Search
+                  </h3>
                   <div className="relative">
                     <Input
                       placeholder="Search poems..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8"
+                      className="pl-3 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-black dark:text-white"
                     />
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     {searchQuery && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                         onClick={() => setSearchQuery("")}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3 w-3 text-zinc-500 dark:text-zinc-400" />
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="font-medium mb-2 text-sm flex items-center justify-between">
-                    <span>Categories</span>
+                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                  <h3 className="font-medium mb-3 text-sm flex items-center justify-between text-black dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <Filter className="h-4 w-4" />
+                      Categories
+                    </span>
                     {selectedCategories.length > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs"
+                        className="h-6 text-xs text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
                         onClick={() => setSelectedCategories([])}
                       >
                         Clear
                       </Button>
                     )}
                   </h3>
-                  <div className="space-y-2">
-                    {availableCategories.map((category) => (
+                  <div className="space-y-2.5">
+                    {categories.map((category) => (
                       <div key={category} className="flex items-center space-x-2">
                         <Checkbox
                           id={`category-${category}`}
                           checked={selectedCategories.includes(category)}
                           onCheckedChange={() => toggleCategory(category)}
+                          className="border-zinc-300 dark:border-zinc-700 data-[state=checked]:bg-black data-[state=checked]:text-white dark:data-[state=checked]:bg-white dark:data-[state=checked]:text-black"
                         />
                         <label
                           htmlFor={`category-${category}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize text-zinc-700 dark:text-zinc-300"
                         >
                           {category}
                         </label>
@@ -458,26 +322,33 @@ export default function Library() {
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="font-medium mb-2 text-sm">View</h3>
-                  <div className="flex items-center space-x-2">
+                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                  <h3 className="font-medium mb-3 text-sm flex items-center gap-1.5 text-black dark:text-white">
+                    <BookOpen className="h-4 w-4" />
+                    Quick Links
+                  </h3>
+                  <div className="space-y-2">
                     <Button
-                      variant={viewMode === "grid" ? "default" : "outline"}
+                      asChild
+                      variant="ghost"
                       size="sm"
-                      className="flex-1"
-                      onClick={() => setViewMode("grid")}
+                      className="w-full justify-start text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white"
                     >
-                      <Grid3X3 className="h-4 w-4 mr-2" />
-                      Grid
+                      <Link href="/readlist">
+                        <BookMarked className="h-4 w-4 mr-2" />
+                        My Reading List
+                      </Link>
                     </Button>
                     <Button
-                      variant={viewMode === "list" ? "default" : "outline"}
+                      asChild
+                      variant="ghost"
                       size="sm"
-                      className="flex-1"
-                      onClick={() => setViewMode("list")}
+                      className="w-full justify-start text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white"
                     >
-                      <List className="h-4 w-4 mr-2" />
-                      List
+                      <Link href="/poets">
+                        <Users className="h-4 w-4 mr-2" />
+                        Browse Poets
+                      </Link>
                     </Button>
                   </div>
                 </div>
@@ -485,45 +356,51 @@ export default function Library() {
             </div>
           </div>
 
+          {/* Mobile Filter Drawer */}
           {isMobile && (
             <Drawer open={filterOpen} onOpenChange={setFilterOpen}>
-              <DrawerContent>
+              <DrawerContent className="bg-white dark:bg-black">
                 <DrawerHeader>
-                  <DrawerTitle>Filters</DrawerTitle>
-                  <DrawerDescription>Refine your poetry collection</DrawerDescription>
+                  <DrawerTitle className="text-black dark:text-white flex items-center gap-2">
+                    <Filter className="h-5 w-5" />
+                    Filter Poetry
+                  </DrawerTitle>
+                  <DrawerDescription className="text-zinc-600 dark:text-zinc-400">
+                    Refine your poetry collection
+                  </DrawerDescription>
                 </DrawerHeader>
                 <div className="px-4 py-2 space-y-6">
                   <div>
-                    <h3 className="font-medium mb-2 text-sm">Search</h3>
+                    <h3 className="font-medium mb-2 text-sm text-black dark:text-white">Search</h3>
                     <div className="relative">
                       <Input
                         placeholder="Search poems..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8"
+                        className="pl-8 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-black dark:text-white"
                       />
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                       {searchQuery && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                           onClick={() => setSearchQuery("")}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3 text-zinc-500 dark:text-zinc-400" />
                         </Button>
                       )}
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="font-medium mb-2 text-sm flex items-center justify-between">
+                    <h3 className="font-medium mb-2 text-sm flex items-center justify-between text-black dark:text-white">
                       <span>Categories</span>
                       {selectedCategories.length > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 text-xs"
+                          className="h-6 text-xs text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
                           onClick={() => setSelectedCategories([])}
                         >
                           Clear
@@ -531,16 +408,17 @@ export default function Library() {
                       )}
                     </h3>
                     <div className="space-y-2">
-                      {availableCategories.map((category) => (
+                      {categories.map((category) => (
                         <div key={category} className="flex items-center space-x-2">
                           <Checkbox
                             id={`mobile-category-${category}`}
                             checked={selectedCategories.includes(category)}
                             onCheckedChange={() => toggleCategory(category)}
+                            className="border-zinc-300 dark:border-zinc-700 data-[state=checked]:bg-black data-[state=checked]:text-white dark:data-[state=checked]:bg-white dark:data-[state=checked]:text-black"
                           />
                           <label
                             htmlFor={`mobile-category-${category}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize text-zinc-700 dark:text-zinc-300"
                           >
                             {category}
                           </label>
@@ -548,93 +426,49 @@ export default function Library() {
                       ))}
                     </div>
                   </div>
-
-                  <div>
-                    <h3 className="font-medium mb-2 text-sm">View</h3>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant={viewMode === "grid" ? "default" : "outline"}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setViewMode("grid");
-                          setFilterOpen(false);
-                        }}
-                      >
-                        <Grid3X3 className="h-4 w-4 mr-2" />
-                        Grid
-                      </Button>
-                      <Button
-                        variant={viewMode === "list" ? "default" : "outline"}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setViewMode("list");
-                          setFilterOpen(false);
-                        }}
-                      >
-                        <List className="h-4 w-4 mr-2" />
-                        List
-                      </Button>
-                    </div>
-                  </div>
                 </div>
                 <DrawerFooter>
-                  <Button onClick={() => setFilterOpen(false)}>Apply Filters</Button>
+                  <Button
+                    onClick={() => setFilterOpen(false)}
+                    className="bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  >
+                    Apply Filters
+                  </Button>
                   <DrawerClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button
+                      variant="outline"
+                      className="border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                    >
+                      Cancel
+                    </Button>
                   </DrawerClose>
                 </DrawerFooter>
               </DrawerContent>
             </Drawer>
           )}
 
+          {/* Main Content */}
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-xl md:text-2xl font-bold font-serif hidden md:block">
-                Poetry Collection
-              </h1>
-
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                  <div className="relative flex-1 md:hidden">
-                    <Input
-                      placeholder="Search poems..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 pr-8 py-2 text-sm"
-                    />
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    {searchQuery && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                        onClick={() => setSearchQuery("")}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
+            {/* Mobile Search */}
+            <div className="md:hidden mb-4">
+              <div className="relative">
+                <Input
+                  placeholder="Search poems..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-8 py-2 text-sm border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-black dark:text-white"
+                />
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                {searchQuery && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="md:hidden h-8 w-8"
-                    onClick={() => setFilterOpen(true)}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                    onClick={() => setSearchQuery("")}
                   >
-                    <Filter className="h-4 w-4" />
+                    <X className="h-3 w-3 text-zinc-500 dark:text-zinc-400" />
                   </Button>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden md:flex"
-                  onClick={() => setFilterOpen(!filterOpen)}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
+                )}
               </div>
             </div>
 
@@ -643,12 +477,18 @@ export default function Library() {
               onValueChange={(value) => setActiveTab(value as "poems" | "poets")}
               className="mb-6"
             >
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="poems" className="text-xs sm:text-sm">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-100 dark:bg-zinc-900">
+                <TabsTrigger
+                  value="poems"
+                  className="text-xs sm:text-sm data-[state=active]:bg-black data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-black"
+                >
                   <BookOpen className="h-4 w-4 mr-2" />
                   Poems
                 </TabsTrigger>
-                <TabsTrigger value="poets" className="text-xs sm:text-sm">
+                <TabsTrigger
+                  value="poets"
+                  className="text-xs sm:text-sm data-[state=active]:bg-black data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-black"
+                >
                   <Users className="h-4 w-4 mr-2" />
                   Poets
                 </TabsTrigger>
@@ -656,131 +496,142 @@ export default function Library() {
 
               <TabsContent value="poems" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Showing <span className="font-medium">{filteredPoems.length}</span> poems
-                    {selectedCategories.length > 0 && (
-                      <span> in {selectedCategories.map((c) => c).join(", ")}</span>
-                    )}
+                  <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
+                    Showing <span className="font-medium">{poems.length}</span> poems
+                    {selectedCategories.length > 0 && <span> in {selectedCategories[0]}</span>}
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
-                  <div className="hidden sm:flex items-center gap-2">
-                    <Button
-                      variant={viewMode === "grid" ? "default" : "outline"}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setViewMode("grid")}
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "list" ? "default" : "outline"}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setViewMode("list")}
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
 
-                {filteredPoems.length === 0 ? (
-                  <div className="text-center p-8 sm:p-12 bg-muted/20 rounded-lg border border-primary/10">
-                    <BookText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium mb-2">No poems found</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground italic font-serif">
-                      Try adjusting your filters or search query
-                    </p>
-                    {(searchQuery || selectedCategories.length > 0) && (
+                <div className="min-h-[50vh]">
+                  {isInitialLoading || isSearchLoading ? (
+                    <div className="flex justify-center items-center h-[50vh]">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center p-8 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black">
+                      <AlertTriangle className="h-10 w-10 text-black dark:text-white mx-auto mb-4" />
+                      <h3 className="text-base font-medium mb-2 text-black dark:text-white">Error</h3>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">{error}</p>
                       <Button
                         variant="outline"
-                        className="mt-4 text-xs sm:text-sm"
+                        className="mt-4 text-sm border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
                         onClick={() => {
-                          setSearchQuery("");
-                          setSelectedCategories([]);
+                          setIsInitialLoading(true)
+                          fetchPoems({ reset: true }).finally(() => {
+                            setIsInitialLoading(false)
+                          })
                         }}
                       >
-                        Clear Filters
+                        Try Again
                       </Button>
-                    )}
-                  </div>
-                ) : viewMode === "grid" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {filteredPoems.map((poem) => {
-                      const englishSlug = poem.slug?.en || poem._id;
-                      const isInReadlist = readList.includes(poem._id);
-                      const poemTitle = poem.title?.en || "Untitled";
-                      return (
-                        <motion.div
-                          key={poem._id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4 }}
-                          whileHover={{ y: -5 }}
+                    </div>
+                  ) : poems.length === 0 ? (
+                    <div className="text-center p-8 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black">
+                      <BookText className="h-10 w-10 text-zinc-500 dark:text-zinc-400 mx-auto mb-4" />
+                      <h3 className="text-base font-medium mb-2 text-black dark:text-white">No poems published</h3>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 italic font-serif">
+                        No poems match your filters or none are published yet.
+                      </p>
+                      {(searchQuery || selectedCategories.length > 0) && (
+                        <Button
+                          variant="outline"
+                          className="mt-4 text-sm border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                          onClick={() => {
+                            setSearchQuery("")
+                            setSelectedCategories([])
+                          }}
                         >
-                          <PoemCard
-                            poem={poem}
-                            coverImage={getRandomCoverImage()}
-                            englishSlug={englishSlug}
-                            isInReadlist={isInReadlist}
-                            poemTitle={poemTitle}
-                            handleReadlistToggle={handleReadlistToggle}
-                          />
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredPoems.map((poem) => {
-                      const englishSlug = poem.slug?.en || poem._id;
-                      const isInReadlist = readList.includes(poem._id);
-                      const poemTitle = poem.title?.en || "Untitled";
-                      return (
-                        <motion.div
-                          key={poem._id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
+                          Clear Filters
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <AnimatePresence>
+    {poems.map((poem, index) => {
+      const englishSlug = poem.slug.en || poem._id;
+      const isInReadlist = readList.includes(poem._id);
+      const poemTitle = poem.title.en || "Untitled";
+      return (
+        <motion.div
+          key={poem._id}
+          className={`
+            ${index === 0 ? "block" : "hidden md:block"}
+            ${index > 1 ? "md:hidden" : ""}
+          `}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+        >
+          <PoemListItem
+            poem={poem}
+            coverImage={getRandomCoverImage()}
+            englishSlug={englishSlug}
+            isInReadlist={isInReadlist}
+            poemTitle={poemTitle}
+            handleReadlistToggle={toggleReadList}
+          />
+        </motion.div>
+      );
+    })}
+  </AnimatePresence>
+</div>
+                  )}
+                  {poems.length > 0 && hasMore && (
+                    <div ref={loaderRef} className="h-16 flex items-center justify-center mt-6">
+                      {isLazyLoading ? (
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black dark:border-white"></div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-zinc-300 dark:border-zinc-700 text-black dark:text-white"
+                          onClick={() => {
+                            if (!isFetchingRef.current && hasMore) {
+                              isFetchingRef.current = true
+                              setIsLazyLoading(true)
+                              fetchPoems({ lastId: nextCursor }).finally(() => {
+                                isFetchingRef.current = false
+                                setIsLazyLoading(false)
+                              })
+                            }
+                          }}
                         >
-                          <PoemListItem
-                            poem={poem}
-                            coverImage={getRandomCoverImage()}
-                            englishSlug={englishSlug}
-                            isInReadlist={isInReadlist}
-                            poemTitle={poemTitle}
-                            handleReadlistToggle={handleReadlistToggle}
-                          />
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
-                {hasMore && <div ref={loaderRef} className="h-10" />}
-                {loading && page > 1 && (
-                  <div className="text-center py-4">
-                    <LoadingComponent />
-                  </div>
-                )}
+                          Load More
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="poets" className="mt-0">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
                     Showing <span className="font-medium">{poets.length}</span> poets
                     {searchQuery && <span> matching "{searchQuery}"</span>}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {poets.slice(0, 8).map((poet, index) => (
-                    <PoetCard key={poet._id} poet={poet} variant="compact" index={index} />
-                  ))}
+                <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8">
+                  <h3 className="text-lg font-bold font-serif flex items-center gap-2 text-black dark:text-white mb-4">
+                    <Sparkles className="h-5 w-5" />
+                    Featured Poets
+                  </h3>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-6">
+                    {poets.slice(0, 8).map((poet, index) => (
+                      <PoetCard key={poet._id} poet={poet} variant="compact" index={index} />
+                    ))}
+                  </div>
                 </div>
 
-                <div className="mt-8 space-y-6">
-                  <h3 className="text-lg font-bold font-serif flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Featured Poets
+                <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+                  <h3 className="text-lg font-bold font-serif flex items-center gap-2 text-black dark:text-white mb-4">
+                    <Users className="h-5 w-5" />
+                    Popular Poets
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -789,12 +640,12 @@ export default function Library() {
                     ))}
                   </div>
 
-                  <div className="flex justify-center mt-4">
+                  <div className="flex justify-center mt-6">
                     <Button
                       asChild
                       variant="outline"
                       size="sm"
-                      className="gap-2 font-serif text-xs sm:text-sm"
+                      className="gap-2 font-serif text-xs sm:text-sm border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
                     >
                       <Link href="/poets">
                         View All Poets
@@ -810,11 +661,13 @@ export default function Library() {
       </div>
 
       <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <AlertDialogContent className="border border-primary/20">
+        <AlertDialogContent className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
           <motion.div initial={fadeIn.hidden} animate={fadeIn.visible}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif text-xl">Share this poem</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="font-serif text-xl text-black dark:text-white">
+                Share this poem
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
                 Copy the link below to share this beautiful poem with others
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -823,28 +676,31 @@ export default function Library() {
                 type="text"
                 readOnly
                 value={typeof window !== "undefined" ? window.location.href : ""}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-black dark:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white"
               />
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
+                  navigator.clipboard.writeText(window.location.href)
                   toast.success("Link copied", {
                     description: "The poem's link has been copied to your clipboard",
                     icon: <Sparkles className="h-4 w-4" />,
-                  });
-                  setShowShareDialog(false);
+                  })
+                  setShowShareDialog(false)
                 }}
+                className="border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
               >
                 Copy
               </Button>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="font-serif">Close</AlertDialogCancel>
+              <AlertDialogCancel className="font-serif border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                Close
+              </AlertDialogCancel>
             </AlertDialogFooter>
           </motion.div>
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
+  )
 }

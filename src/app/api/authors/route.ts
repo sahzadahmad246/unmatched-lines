@@ -1,3 +1,4 @@
+// src/pages/api/authors.ts
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -28,6 +29,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug");
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const search = searchParams.get("search")?.trim() || "";
+    const cities = searchParams.get("city")?.split(",").filter(Boolean) || [];
+    const letters = searchParams.get("letter")?.split(",").filter(Boolean) || [];
 
     if (slug) {
       const author = await Author.findOne({ slug })
@@ -41,6 +47,9 @@ export async function GET(request: NextRequest) {
       const authorResponse = {
         ...author.toObject(),
         followerCount: Number(author.followerCount) || 0,
+        ghazalCount: Number(author.ghazalCount) || 0,
+        sherCount: Number(author.sherCount) || 0,
+        otherCount: Number(author.otherCount) || 0,
         followers: author.followers.map((f: any) => ({
           id: f.userId._id,
           name: f.userId.name,
@@ -52,14 +61,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ author: authorResponse });
     }
 
-    const authors = await Author.find()
-      .select("name slug image bio followerCount")
+    const query: any = {};
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
+    if (cities.length > 0) {
+      query.city = { $in: cities };
+    }
+    if (letters.length > 0) {
+      query.name = { $regex: `^[${letters.join("")}]`, $options: "i" };
+    }
+
+    const skip = (page - 1) * limit;
+    const total = await Author.countDocuments(query);
+    const authors = await Author.find(query)
+      .select("name slug image bio followerCount ghazalCount sherCount otherCount city dob")
       .populate("followers.userId", "name image")
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit);
 
     const authorsWithDefaults = authors.map((author) => ({
       ...author.toObject(),
       followerCount: Number(author.followerCount) || 0,
+      ghazalCount: Number(author.ghazalCount) || 0,
+      sherCount: Number(author.sherCount) || 0,
+      otherCount: Number(author.otherCount) || 0,
       followers: author.followers.map((f: any) => ({
         id: f.userId._id,
         name: f.userId.name,
@@ -68,7 +95,12 @@ export async function GET(request: NextRequest) {
       })),
     }));
 
-    return NextResponse.json({ authors: authorsWithDefaults });
+    return NextResponse.json({
+      authors: authorsWithDefaults,
+      page,
+      total,
+      pages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error("Error fetching authors:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -123,6 +155,9 @@ export async function POST(request: Request) {
       bio,
       image: imageUrl || undefined,
       followerCount: 0,
+      ghazalCount: 0,
+      sherCount: 0,
+      otherCount: 0,
       followers: [],
     });
 

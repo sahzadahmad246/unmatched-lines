@@ -119,6 +119,9 @@ const PoemSchema = new Schema(
   { timestamps: true }
 );
 
+PoemSchema.index({ category: 1, createdAt: -1 });
+PoemSchema.index({ slug: 1 });
+
 PoemSchema.pre("save", function (next) {
   this.readListCount = this.readListUsers.length;
   next();

@@ -1,3 +1,4 @@
+// src/app/page.tsx or src/components/home/index.tsx (partial update)
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -79,11 +80,11 @@ export default function Home() {
         const poetsData = await poetsRes.json();
         setPoets(poetsData.authors || []);
 
-        // Fetch poems with new schema
+        // Fetch poems
         const poemsRes = await fetch("/api/poem?limit=12", {
           credentials: "include",
         });
-        if (!poetsRes.ok) throw new Error("Failed to fetch poems");
+        if (!poemsRes.ok) throw new Error("Failed to fetch poems");
         const poemsData = await poemsRes.json();
         const poems = poemsData.poems || [];
 
@@ -310,10 +311,9 @@ export default function Home() {
           }
         `}
       </style>
-      {/* Hero Section - Enhanced with gradients */}
+      {/* Hero Section */}
       <div className="relative min-h-[70vh] md:min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-cyan-50/30 via-white to-background dark:from-cyan-950/30 dark:via-background dark:to-background">
         <div className="absolute inset-0 z-0">
-          {/* Decorative elements */}
           <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-cyan-300/20 to-blue-300/20 dark:from-cyan-700/20 dark:to-blue-700/20 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2"></div>
           <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tr from-blue-300/20 to-cyan-300/20 dark:from-blue-700/20 dark:to-cyan-700/20 rounded-full blur-3xl translate-y-1/2 translate-x-1/2"></div>
 
@@ -452,7 +452,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Line of the Day and Top Five Picks Section - Side by side on desktop */}
+      {/* Line of the Day and Top Five Picks */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="w-full h-full">
@@ -474,7 +474,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* New Components Section - Trending Poems and Featured Authors */}
+      {/* Trending Poems and Featured Authors */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="w-full h-full">
@@ -506,15 +506,9 @@ export default function Home() {
       <HomeFeaturedPoets poets={poets} />
 
       {/* Featured Collections */}
-      <FeaturedCollection
-        ghazals={ghazals}
-        shers={shers}
-        nazms={nazms}
-        readList={readList}
-        handleReadlistToggle={handleReadlistToggle}
-      />
+      <FeaturedCollection />
 
-      {/* Quote Section - Enhanced with gradients */}
+      {/* Quote Section */}
       <section className="py-16 md:py-24 relative overflow-hidden bg-gradient-to-br from-cyan-50/30 via-white to-blue-50/30 dark:from-cyan-950/30 dark:via-background dark:to-blue-950/30">
         <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-cyan-300/20 to-blue-300/20 dark:from-cyan-700/20 dark:to-blue-700/20 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2"></div>
         <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tr from-blue-300/20 to-cyan-300/20 dark:from-blue-700/20 dark:to-cyan-700/20 rounded-full blur-3xl translate-y-1/2 translate-x-1/2"></div>
@@ -559,9 +553,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Call to Action - Enhanced with gradients */}
+      {/* Call to Action */}
       <section className="py-16 md:py-24 bg-gradient-to-br from-cyan-500 to-blue-600 dark:from-cyan-600 dark:to-blue-700 text-white relative overflow-hidden">
-        {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2"></div>
         <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl translate-y-1/2 translate-x-1/2"></div>
 

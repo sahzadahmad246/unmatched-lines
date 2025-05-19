@@ -1,46 +1,37 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Poem } from "@/types/poem";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Feather, User, Quote, ArrowRight, Heart, Eye } from "lucide-react";
-import { motion } from "framer-motion";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSession } from "next-auth/react";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react"
+import type { Poem } from "@/types/poem"
+import { Quote, Feather, ChevronRight, ChevronLeft, User, BookOpen } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { PoemListItem } from "./poem-list-item"
+import { useStore } from "@/lib/store"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CoverImage {
-  _id: string;
-  url: string;
-  uploadedBy: { name: string };
-  createdAt: string;
-}
-
-interface Author {
-  _id: string;
-  name: string;
-  slug: string;
-  image?: string;
-  bio?: string;
+  _id: string
+  url: string
+  uploadedBy: { name: string }
+  createdAt: string
 }
 
 interface CategoryPoemsProps {
-  poems: Poem[];
-  category: string;
+  initialPoems: Poem[]
+  category: string
+  initialMeta: { page: number; total: number; pages: number; hasMore: boolean }
 }
 
 const fadeIn = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-};
+}
 
 const slideUp = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
-};
+}
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -50,188 +41,127 @@ const staggerContainer = {
       staggerChildren: 0.1,
     },
   },
-};
+}
 
-const customStyles = `
-  @media (max-width: 640px) {
-    .poem-grid {
-      grid-template-columns: 1fr;
-    }
-    
-    .header-title {
-      font-size: 1.5rem;
-      line-height: 2rem;
-    }
-  }
-  
-  @media (min-width: 641px) and (max-width: 1023px) {
-    .poem-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-  
-  @media (min-width: 1024px) {
-    .poem-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-  
-  .poem-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .poem-card-content {
-    flex-grow: 1;
-  }
+const poetCardVariants = {
+  hidden: { opacity: 0, x: 20 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
+  hover: { y: -5, transition: { duration: 0.2 } },
+}
 
-  .urdu-text {
-    font-family: 'Fajer Noori Nastalique', sans-serif;
-    direction: rtl;
-    text-align: center;
-    line-height: 1.8;
-    font-size: 0.95rem;
-  }
-`;
+export default function CategoryPoems({ initialPoems, category, initialMeta }: CategoryPoemsProps) {
+  const {
+    categoryPoems,
+    categoryMeta,
+    coverImages,
+    loading,
+    fetchPoemsByCategory,
+    fetchCoverImages,
+    toggleReadList,
+    readList,
+    authors,
+    fetchAuthor,
+  } = useStore()
 
-export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
-  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authorDataMap, setAuthorDataMap] = useState<Record<string, Author>>({});
-  const [language, setLanguage] = useState<"en" | "hi" | "ur">("en");
-  const [readList, setReadList] = useState<string[]>([]);
-  const { data: session } = useSession();
-  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
-  const isSherCategory = category.toLowerCase() === "sher";
+  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1)
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const poetsScrollRef = useRef<HTMLDivElement>(null)
+  const isFetchingRef = useRef(false)
+  const [relevantPoets, setRelevantPoets] = useState<any[]>([])
+  const [isPoetLoading, setIsPoetLoading] = useState(true)
+  const [isPoemLoading, setIsPoemLoading] = useState(true)
+  const [scrollPosition, setScrollPosition] = useState(0)
 
-  // Fetch cover images
+  // Initialize Zustand with server data
   useEffect(() => {
-    const fetchCoverImages = async () => {
-      try {
-        const res = await fetch("/api/cover-images", { credentials: "include", cache: "force-cache" });
-        if (!res.ok) throw new Error(`Failed to fetch cover images: ${res.status}`);
-        const data = await res.json();
-        setCoverImages(data.coverImages || []);
-      } catch (error) {
-        setCoverImages([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setIsPoemLoading(true)
+    fetchPoemsByCategory({
+      category,
+      page: initialMeta.page,
+      limit: 10,
+      reset: true,
+    }).finally(() => {
+      setIsPoemLoading(false)
+    })
+    fetchCoverImages()
+  }, [category, initialMeta, fetchPoemsByCategory, fetchCoverImages])
 
-    fetchCoverImages();
-  }, []);
-
-  // Fetch author data
+  // Extract poet IDs from poems and fetch poet data
   useEffect(() => {
-    const fetchAuthorsData = async () => {
-      const authorIds = [...new Set(poems.map((poem) => poem.author._id))].filter(Boolean);
-      const authorDataMap: Record<string, Author> = {};
+    const poems = categoryPoems[category] || initialPoems
 
-      await Promise.all(
-        authorIds.map(async (authorId) => {
-          try {
-            const res = await fetch(`/api/authors/${authorId}`, { credentials: "include" });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data.author) authorDataMap[authorId] = data.author;
-          } catch (error) {
-            console.error(`CategoryPoems - Error fetching author ${authorId}:`, error);
-          }
-        })
-      );
+    // Extract unique poet IDs from poems
+    const poetIds = Array.from(new Set(poems.map((poem) => poem.author?._id).filter(Boolean)))
 
-      setAuthorDataMap(authorDataMap);
-    };
-
-    if (poems.length > 0) fetchAuthorsData();
-  }, [poems]);
-
-  // Fetch user's readlist
-  useEffect(() => {
-    const fetchReadList = async () => {
-      if (!session) return;
-      try {
-        const res = await fetch("/api/user", { credentials: "include", cache: "no-store" });
-        if (!res.ok) throw new Error(`Failed to fetch user data: ${res.status}`);
-        const data = await res.json();
-        setReadList(data.user.readList.map((poem: any) => poem._id.toString()) || []);
-      } catch (error) {
-        toast.error("Failed to load reading list", {
-          description: "You can still add poems to your reading list.",
-        });
-      }
-    };
-
-    fetchReadList();
-  }, [session]);
-
-  // Handle readlist toggle
-  const handleReadlistToggle = async (poemId: string, poemTitle: string) => {
-    if (!session) {
-      toast.error("Authentication required", {
-        description: "Please sign in to manage your reading list.",
-        action: {
-          label: "Sign In",
-          onClick: () => (window.location.href = "/api/auth/signin"),
-        },
-      });
-      return;
-    }
-
-    const isInReadlist = readList.includes(poemId);
-    const url = isInReadlist ? "/api/user/readlist/remove" : "/api/user/readlist/add";
-    const method = isInReadlist ? "DELETE" : "POST";
-
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ poemId }),
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (res.ok) {
-        setReadList((prev) => (isInReadlist ? prev.filter((id) => id !== poemId) : [...prev, poemId]));
-        if (isInReadlist) {
-          toast.error("Removed from reading list", {
-            description: `"${poemTitle}" has been removed from your reading list.`,
-          });
-        } else {
-          toast.custom(
-            (t) => (
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center gap-3"
-              >
-                <Heart className="h-5 w-5 fill-current" />
-                <div>
-                  <div className="font-medium">Added to your anthology</div>
-                  <div className="text-sm opacity-90">"{poemTitle}" now resides in your collection</div>
-                </div>
-              </motion.div>
-            ),
-            { duration: 3000 }
-          );
+    // Fetch poet data for each ID
+    const fetchPoets = async () => {
+      setIsPoetLoading(true)
+      const fetchedPoets = []
+      for (const poetId of poetIds) {
+        await fetchAuthor(poetId)
+        const poet = authors[poetId]
+        if (poet) {
+          fetchedPoets.push(poet)
         }
-      } else {
-        throw new Error(`Failed to update readlist: ${res.status}`);
       }
-    } catch (error) {
-      toast.error("Error", {
-        description: "An error occurred while updating the reading list.",
-      });
+      setRelevantPoets(fetchedPoets)
+      setIsPoetLoading(false)
     }
-  };
 
+    if (poetIds.length > 0) {
+      fetchPoets()
+    } else {
+      setRelevantPoets([])
+      setIsPoetLoading(false)
+    }
+  }, [categoryPoems, initialPoems, category, fetchAuthor, authors])
+
+  // Lazy loading for poems
+  useEffect(() => {
+    const meta = categoryMeta[category] || initialMeta
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && meta.hasMore && !isFetchingRef.current) {
+          isFetchingRef.current = true
+          fetchPoemsByCategory({ category, page: meta.page + 1, limit: 10 }).finally(() => {
+            isFetchingRef.current = false
+          })
+        }
+      },
+      { threshold: 0.1 },
+    )
+    if (sectionRef.current) observer.observe(sectionRef.current)
+    return () => observer.disconnect()
+  }, [category, categoryMeta, initialMeta, fetchPoemsByCategory])
+
+  const poems = categoryPoems[category] || initialPoems
   const coverImageUrl =
-    coverImages.length > 0 ? coverImages[Math.floor(Math.random() * coverImages.length)].url : "/default-poem-image.jpg";
+    coverImages.length > 0 ? coverImages[Math.floor(Math.random() * coverImages.length)].url : "/default-poem-image.jpg"
 
-  if (loading) {
+  // Scroll handlers for poet carousel
+  const scrollLeft = () => {
+    if (poetsScrollRef.current) {
+      poetsScrollRef.current.scrollBy({ left: -300, behavior: "smooth" })
+      setScrollPosition(poetsScrollRef.current.scrollLeft - 300)
+    }
+  }
+
+  const scrollRight = () => {
+    if (poetsScrollRef.current) {
+      poetsScrollRef.current.scrollBy({ left: 300, behavior: "smooth" })
+      setScrollPosition(poetsScrollRef.current.scrollLeft + 300)
+    }
+  }
+
+  // Check if we need to show scroll buttons
+  const handleScroll = () => {
+    if (poetsScrollRef.current) {
+      setScrollPosition(poetsScrollRef.current.scrollLeft)
+    }
+  }
+
+  // Main loading state
+  if (loading && poems.length === 0 && relevantPoets.length === 0) {
     return (
       <div className="container mx-auto py-12 px-4 flex justify-center items-center min-h-[60vh]">
         <motion.div
@@ -241,204 +171,246 @@ export default function CategoryPoems({ poems, category }: CategoryPoemsProps) {
           transition={{ duration: 0.5 }}
         >
           <motion.div
-            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-            transition={{ rotate: { duration: 2, repeat: Infinity, ease: "linear" }, scale: { duration: 2, repeat: Infinity, ease: "easeInOut" } }}
-          >
-            <Feather className="h-12 w-12 text-primary/70" />
-          </motion.div>
-          <p className="text-primary/70 animate-pulse">Loading poems...</p>
+            animate={{ rotate: 360 }}
+            transition={{
+              duration: 2,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "linear",
+            }}
+            className="h-12 w-12 rounded-full border-2 border-t-black dark:border-t-white border-zinc-200 dark:border-zinc-800"
+          />
+          <p className="text-zinc-700 dark:text-zinc-300">Loading content...</p>
         </motion.div>
       </div>
-    );
+    )
   }
 
-  const formatPoetryContent = (content: { verse: string; meaning: string }[] | undefined, lang: "en" | "hi" | "ur"): React.ReactNode => {
-    if (!content || content.length === 0 || !content[0]?.verse) {
-      return (
-        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
-          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध नहीं है" : "مواد دستیاب نہیں ہے"}
-        </div>
-      );
-    }
-
-    const lines = content[0].verse.split("\n").filter(Boolean);
-    if (lines.length === 0) {
-      return (
-        <div className={`text-muted-foreground italic text-xs ${lang === "ur" ? "urdu-text" : ""}`}>
-          {lang === "en" ? "Content not available" : lang === "hi" ? "सामग्री उपलब्ध نہیں है" : "مواد دستیاب نہیں ہے"}
-        </div>
-      );
-    }
-
-    if (isSherCategory) {
-      return (
-        <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
-          {lines.map((line, lineIndex) => (
-            <div key={lineIndex} className={`poem-line leading-relaxed text-sm font-serif ${lang === "ur" ? "urdu-text" : ""}`}>
-              {line || "\u00A0"}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className={`space-y-1 ${lang === "ur" ? "urdu-text" : ""}`}>
-        {lines.slice(0, 2).map((line, lineIndex) => (
-          <div key={lineIndex} className={`poem-line leading-relaxed text-xs sm:text-sm font-serif line-clamp-1 ${lang === "ur" ? "urdu-text" : ""}`}>
-            {line || "\u00A0"}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   return (
-    <>
-      <style>{customStyles}</style>
-      <div className="container mx-auto py-8 px-4">
-        <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="mb-12">
-          <Card className="overflow-hidden border shadow-lg bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-            <CardHeader className="relative p-0">
+    <div className="container mx-auto py-8 px-4">
+      {/* Category Header */}
+      <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="mb-12">
+        <div className="overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-lg bg-white dark:bg-black rounded-lg">
+          <motion.div
+            className="h-48 md:h-64 relative"
+            initial={{ opacity: 0.6 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1 }}
+            style={{ backgroundImage: `url(${coverImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80 flex items-center justify-center">
               <motion.div
-                className="h-48 md:h-64 relative"
-                initial={{ opacity: 0.6 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1 }}
-                style={{ backgroundImage: `url(${coverImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="bg-white/10 backdrop-blur-sm p-6 rounded-full"
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60 flex items-center justify-center">
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                    className="bg-white/10 backdrop-blur-sm p-6 rounded-full"
-                  >
-                    <Feather className="h-16 w-16 text-white" />
-                  </motion.div>
+                <Feather className="h-16 w-16 text-white" />
+              </motion.div>
+            </div>
+          </motion.div>
+          <div className="relative bg-white dark:bg-black py-8">
+            <motion.div className="flex flex-col items-center gap-2">
+              <h1 className="text-2xl md:text-4xl font-bold text-center font-serif mt-4 text-black dark:text-white">
+                {displayCategory}
+              </h1>
+              <motion.div
+                className="w-24 h-1 bg-black dark:bg-white mx-auto mt-2"
+                initial={{ width: 0 }}
+                animate={{ width: "6rem" }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+              />
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Poet Cards Section - Horizontal Scrollable */}
+      <motion.div className="mb-12" initial={fadeIn.hidden} animate={fadeIn.visible} transition={{ duration: 0.5 }}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl md:text-2xl font-serif font-bold text-black dark:text-white">
+            Explore {displayCategory} by Poet
+          </h2>
+
+          {relevantPoets.length > 3 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                onClick={scrollLeft}
+                disabled={scrollPosition <= 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full border-zinc-300 dark:border-zinc-700 text-black dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                onClick={scrollRight}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {isPoetLoading ? (
+          <div className="flex gap-4 overflow-hidden pb-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 w-[280px] border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-black"
+              >
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-16 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32 bg-zinc-200 dark:bg-zinc-800" />
+                    <Skeleton className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Skeleton className="h-8 w-full bg-zinc-200 dark:bg-zinc-800" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : relevantPoets.length > 0 ? (
+          <div
+            ref={poetsScrollRef}
+            className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
+            onScroll={handleScroll}
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {relevantPoets.map((poet) => (
+              <motion.div
+                key={poet._id}
+                variants={poetCardVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="flex-shrink-0 w-[280px] border border-zinc-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-black rounded-lg overflow-hidden"
+              >
+                <div className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center border border-zinc-200 dark:border-zinc-800">
+                      {poet.image ? (
+                        <img
+                          src={poet.image || "/placeholder.svg"}
+                          alt={poet.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-8 w-8 text-zinc-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-serif font-bold text-black dark:text-white">{poet.name}</h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {poet.poemCount || "Multiple"} {displayCategory}
+                      </p>
+                    </div>
+                  </div>
+                  <Link href={`/poets/${poet.slug || poet._id}/${category}`} className="block mt-4">
+                    <motion.button
+                      className="w-full py-2 bg-black dark:bg-white text-white dark:text-black rounded-md text-sm font-medium flex items-center justify-center gap-1"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span>View {displayCategory}</span>
+                    </motion.button>
+                  </Link>
                 </div>
               </motion.div>
-              <div className="relative bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 py-8">
-                <motion.div className="flex flex-col items-center gap-2">
-                  <h1 className={`text-2xl md:text-4xl font-bold text-center font-serif mt-4 header-title ${language === "ur" ? "urdu-text" : ""}`}>
-                    {displayCategory}
-                  </h1>
-                  <motion.div
-                    className="w-24 h-1 bg-primary/60 mx-auto mt-2"
-                    initial={{ width: 0 }}
-                    animate={{ width: "6rem" }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                  />
-                </motion.div>
+            ))}
+          </div>
+        ) : null}
+      </motion.div>
+
+      {/* Poems Section */}
+      <div className="mb-6">
+        <h2 className="text-xl md:text-2xl font-serif font-bold text-black dark:text-white mb-6">
+          {displayCategory} Collection
+        </h2>
+
+        {isPoemLoading ? (
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-black"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                    <Skeleton className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800" />
+                  </div>
+                  <Skeleton className="h-5 w-5 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                </div>
+                <div className="mb-4">
+                  <Skeleton className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 mb-2" />
+                  <Skeleton className="h-4 w-3/4 bg-zinc-200 dark:bg-zinc-800" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <Skeleton className="h-6 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                  <Skeleton className="h-4 w-8 bg-zinc-200 dark:bg-zinc-800" />
+                </div>
               </div>
-            </CardHeader>
-          </Card>
-        </motion.div>
-
-        <Tabs defaultValue="en" onValueChange={(value) => setLanguage(value as "en" | "hi" | "ur")} className="mb-8">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-            <TabsTrigger value="en">English</TabsTrigger>
-            <TabsTrigger value="hi">Hindi</TabsTrigger>
-            <TabsTrigger value="ur">Urdu</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {poems.length === 0 ? (
-          <motion.div initial={fadeIn.hidden} animate={fadeIn.visible} className="text-center py-12">
-            <Quote className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className={`text-gray-600 text-lg font-serif italic ${language === "ur" ? "urdu-text" : ""}`}>
-              {language === "en" ? "No poems found in this category." : language === "hi" ? "इस श्रेणी में कोई कविता नहीं मिली।" : "اس زمرے میں کوئی نظم نہیں ملی۔"}
+            ))}
+          </div>
+        ) : poems.length === 0 ? (
+          <motion.div
+            initial={fadeIn.hidden}
+            animate={fadeIn.visible}
+            className="text-center py-12 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black"
+          >
+            <Quote className="h-12 w-12 mx-auto text-zinc-500 dark:text-zinc-400 mb-4" />
+            <p className="text-zinc-700 dark:text-zinc-300 text-lg font-serif italic">
+              No poems found in this category.
             </p>
           </motion.div>
         ) : (
-          <motion.div className="grid gap-6 poem-grid" variants={staggerContainer} initial="hidden" animate="visible">
-            {poems.map((poem) => {
-              const authorData = poem.author._id ? authorDataMap[poem.author._id] : null;
-              const currentSlug = poem.slug[language] || poem.slug.en || poem._id;
-              const currentTitle = poem.title[language] || poem.title.en || "Untitled";
-              const currentContent = poem.content?.[language] || poem.content?.en || [];
-              const poemLanguage = poem.content?.[language] ? language : "en";
-              const isInReadlist = readList.includes(poem._id);
-
-              return (
-                <motion.article key={poem._id} variants={slideUp} className="h-full">
-                  <Card className="border shadow-sm hover:shadow-xl transition-all duration-300 h-full bg-white dark:bg-slate-900 overflow-hidden group poem-card">
-                    <CardHeader className={`p-4 ${isSherCategory ? "pb-0" : "pb-2"}`}>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          {!isSherCategory && (
-                            <h2
-                              className={`text-lg font-semibold text-primary hover:text-primary/80 font-serif group-hover:underline decoration-dotted underline-offset-4 ${language === "ur" ? "urdu-text" : ""}`}
-                            >
-                              <Link href={`/poems/${poemLanguage}/${currentSlug}`}>{currentTitle}</Link>
-                            </h2>
-                          )}
-                          <div className="flex items-center gap-2 mt-1">
-                            <Avatar className="h-6 w-6 border border-primary/20">
-                              {authorData?.image ? (
-                                <AvatarImage src={authorData.image} alt={authorData.name || poem.author.name} />
-                              ) : (
-                                <AvatarFallback>
-                                  <User className="h-3 w-3" />
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <p className={`text-gray-600 dark:text-gray-400 text-xs ${language === "ur" ? "urdu-text" : ""}`}>
-                              {authorData?.name || poem.author.name || "Unknown Author"}
-                            </p>
-                          </div>
-                        </div>
-                        <motion.button
-                          onClick={() => handleReadlistToggle(poem._id, currentTitle)}
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="p-1"
-                          aria-label={isInReadlist ? "Remove from readlist" : "Add to readlist"}
-                        >
-                          <Heart
-                            className={`h-5 w-5 ${isInReadlist ? "fill-red-500 text-red-500" : "text-gray-500"}`}
-                          />
-                        </motion.button>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="p-4 pt-2 poem-card-content">
-                      <Link href={`/poems/${poemLanguage}/${currentSlug}`} className="block">
-                        <div
-                          className={`${isSherCategory ? "mt-2" : "mt-0"} font-serif text-gray-800 dark:text-gray-200 border-l-2 border-primary/30 pl-3 py-1`}
-                        >
-                          {formatPoetryContent(currentContent, poemLanguage)}
-                        </div>
-                      </Link>
-                    </CardContent>
-
-                    <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`text-xs bg-primary/5 hover:bg-primary/10 transition-colors ${language === "ur" ? "urdu-text" : ""}`}>
-                          {poem.category || "Uncategorized"}
-                        </Badge>
-                        <Badge variant="outline" className="gap-1 text-xs bg-primary/5 hover:bg-primary/10 transition-colors">
-                          <Eye className="h-3 w-3" />
-                          <span>{poem.viewsCount || 0}</span>
-                        </Badge>
-                      </div>
-                      <motion.div
-                        className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
-                        whileHover={{ x: 3 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                      >
-                        <Link href={`/poems/${poemLanguage}/${currentSlug}`}>
-                          <ArrowRight className="h-3 w-3 ml-1" />
-                        </Link>
-                      </motion.div>
-                    </CardFooter>
-                  </Card>
-                </motion.article>
-              );
-            })}
+          <motion.div
+            className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            ref={sectionRef}
+          >
+            <AnimatePresence>
+              {poems.map((poem) => {
+                const englishSlug = poem.slug.en || poem._id
+                const poemTitle = poem.title.en || "Untitled"
+                const isInReadlist = readList.includes(poem._id)
+                return (
+                  <motion.div
+                    key={poem._id}
+                    variants={slideUp}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <PoemListItem
+                      poem={poem}
+                      coverImage={coverImageUrl}
+                      englishSlug={englishSlug}
+                      isInReadlist={isInReadlist}
+                      poemTitle={poemTitle}
+                      handleReadlistToggle={toggleReadList}
+                    />
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
           </motion.div>
         )}
       </div>
-    </>
-  );
+    </div>
+  )
 }
+
+// Add this to your global CSS or as a style tag
+// .scrollbar-hide::-webkit-scrollbar {
+//   display: none;
+// }

@@ -6,118 +6,73 @@ import Poem from "@/models/Poem";
 import Author from "@/models/Author";
 import cloudinary from "@/lib/cloudinary";
 import User from "@/models/User";
-import mongoose from "mongoose";
+
+
 
 export async function GET(request: NextRequest) {
   await dbConnect();
+  const url = new URL(request.url);
+  const limitPerCategory = parseInt(url.searchParams.get("limit") || "4", 10);
+  const lastId = url.searchParams.get("lastId");
+  const category = url.searchParams.get("category");
+  const search = url.searchParams.get("search");
 
-  try {
-    const url = new URL(request.url);
-    const slug = url.searchParams.get("slug");
-    const authorSlug = url.searchParams.get("authorSlug");
-    const top = url.searchParams.get("top"); // e.g., top=50 for top 50 poems
-    const page = parseInt(url.searchParams.get("page") || "1", 10);
-    const limit = parseInt(url.searchParams.get("limit") || "10", 10);
+  const query: any = { status: "published" };
+  if (category) query.category = category.toLowerCase();
+  if (search) query.$text = { $search: search };
+  if (lastId) query._id = { $gt: lastId };
 
-    // Fetch a single poem by slug
-    if (slug) {
-      const poem = await Poem.findOne({
-        $or: [{ "slug.en": slug }, { "slug.hi": slug }, { "slug.ur": slug }],
-      }).populate("author", "name slug");
+  const categories = ["ghazal", "sher", "nazm"];
+  let poems: any[] = [];
+  let nextCursor: string | null = null;
+  let hasMore = false;
 
-      if (!poem) {
-        return NextResponse.json({ error: "Poem not found" }, { status: 404 });
-      }
-
-      // Increment viewsCount
-      await Poem.findByIdAndUpdate(poem._id, { $inc: { viewsCount: 1 } });
-
-      return NextResponse.json({ poem });
+  if (!category) {
+    // Fetch poems for each category
+    for (const cat of categories) {
+      const catQuery = { ...query, category: cat };
+      const catPoems = await Poem.find(catQuery)
+        .populate("author", "name slug image bio")
+        .sort({ _id: 1 })
+        .limit(limitPerCategory)
+        .lean();
+      poems = [...poems, ...catPoems];
     }
-
-    // Build query
-    const query: any = { status: "published" };
-    let sort: { [key: string]: 1 | -1 } = { createdAt: -1 }; // Default sort
-    let responseLimit = limit;
-
-    // Handle top 50 poems by authorSlug
-    if (authorSlug && top === "50") {
-      const author = await Author.findOne({ slug: authorSlug });
-      if (!author) {
-        return NextResponse.json(
-          { error: `Author not found for slug: ${authorSlug}` },
-          { status: 404 }
-        );
-      }
-      query.author = author._id;
-      sort = { viewsCount: -1 }; // Sort by viewsCount descending
-      responseLimit = 50; // Override limit to 50
-    } else if (authorSlug) {
-      const author = await Author.findOne({ slug: authorSlug });
-      if (!author) {
-        return NextResponse.json(
-          { error: `Author not found for slug: ${authorSlug}` },
-          { status: 404 }
-        );
-      }
-      query.author = author._id;
+    // Sort by _id to ensure consistent pagination
+    poems.sort((a, b) => (a._id > b._id ? 1 : -1));
+    if (poems.length > 0) {
+      nextCursor = poems[poems.length - 1]._id;
+      hasMore = await Poem.countDocuments({ ...query, _id: { $gt: nextCursor } }) > 0;
     }
-
-    // Pagination
-    const skip = (page - 1) * responseLimit;
-    const totalPoems = await Poem.countDocuments(query);
-
-    // Fetch poems
-    const poems = await Poem.find(query)
-      .populate("author", "name slug")
-      .sort(sort)
-      .skip(skip)
-      .limit(responseLimit)
+  } else {
+    // Existing logic for single category
+    poems = await Poem.find(query)
+      .populate("author", "name slug image bio")
+      .sort({ _id: 1 })
+      .limit(limitPerCategory)
       .lean();
-
-    if (!poems.length && page === 1) {
-      return NextResponse.json(
-        {
-          error: `No published poems found${
-            authorSlug ? ` for author: ${authorSlug}` : ""
-          }`,
-        },
-        { status: 404 }
-      );
+    if (poems.length > 0) {
+      nextCursor = poems[poems.length - 1]._id;
+      hasMore = await Poem.countDocuments({ ...query, _id: { $gt: nextCursor } }) > 0;
     }
+  }
 
-    // Transform poems
-    const transformedPoems = poems.map((poem) => ({
+  console.log("API Response:", { poems: poems.length, nextCursor, hasMore });
+  return NextResponse.json({
+    poems: poems.map((poem) => ({
       ...poem,
+      content: {
+        en: poem.content?.en || [],
+        hi: poem.content?.hi || [],
+        ur: poem.content?.ur || [],
+      },
       viewsCount: poem.viewsCount ?? 0,
       readListCount: poem.readListCount ?? 0,
-      category: poem.category ?? "Uncategorized",
-      summary: poem.summary ?? { en: "", hi: "", ur: "" },
-      didYouKnow: poem.didYouKnow ?? { en: "", hi: "", ur: "" },
-      faqs: poem.faqs ?? [],
-      createdAt: poem.createdAt ?? new Date(),
-      tags: poem.tags ?? [],
-      coverImage: poem.coverImage ?? "/placeholder.svg",
-    }));
-
-    return NextResponse.json({
-      poems: transformedPoems,
-      totalPoems,
-      currentPage: page,
-      totalPages: Math.ceil(totalPoems / responseLimit),
-    });
-  } catch (error) {
-    console.error("Error in /api/poem:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
-  }
+    })),
+    nextCursor,
+    hasMore,
+  });
 }
-
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -335,254 +290,6 @@ export async function POST(request: NextRequest) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
-    );
-  }
-}
-
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
-
-export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  await dbConnect();
-
-  try {
-    const { id } = await params;
-    const formData = await request.formData();
-    const titleEn = formData.get("titleEn") as string;
-    const titleHi = formData.get("titleHi") as string;
-    const titleUr = formData.get("titleUr") as string;
-    const contentEn = JSON.parse(formData.get("contentEn") as string) as {
-      verse: string;
-      meaning: string;
-    }[];
-    const contentHi = JSON.parse(formData.get("contentHi") as string) as {
-      verse: string;
-      meaning: string;
-    }[];
-    const contentUr = JSON.parse(formData.get("contentUr") as string) as {
-      verse: string;
-      meaning: string;
-    }[];
-    const summaryEn = formData.get("summaryEn") as string;
-    const summaryHi = formData.get("summaryHi") as string;
-    const summaryUr = formData.get("summaryUr") as string;
-    const didYouKnowEn = formData.get("didYouKnowEn") as string;
-    const didYouKnowHi = formData.get("didYouKnowHi") as string;
-    const didYouKnowUr = formData.get("didYouKnowUr") as string;
-    const faqs = JSON.parse(formData.get("faqs") as string) as {
-      question: { en: string; hi: string; ur: string };
-      answer: { en: string; hi: string; ur: string };
-    }[];
-    const category = formData.get("category") as string;
-    const status = formData.get("status") as string;
-    const tags = formData.get("tags") as string;
-    const coverImage = formData.get("coverImage") as File | null;
-
-    // Generate slugs from English title
-    const baseSlug = titleEn
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-
-    const slugEn = `${baseSlug}-en`;
-    const slugHi = `${baseSlug}-hi`;
-    const slugUr = `${baseSlug}-ur`;
-
-    const poem = await Poem.findById(id);
-    if (!poem) {
-      return NextResponse.json({ error: "Poem not found" }, { status: 404 });
-    }
-
-    const user = await User.findById(session.user.id);
-    if (user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    if (!titleEn || !titleHi || !titleUr) {
-      return NextResponse.json(
-        { error: "Title is required for all languages" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      !Array.isArray(contentEn) ||
-      contentEn.length === 0 ||
-      contentEn.some(
-        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "English content must be a non-empty array of verses with meanings",
-        },
-        { status: 400 }
-      );
-    }
-    if (
-      !Array.isArray(contentHi) ||
-      contentHi.length === 0 ||
-      contentHi.some(
-        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Hindi content must be a non-empty array of verses with meanings",
-        },
-        { status: 400 }
-      );
-    }
-    if (
-      !Array.isArray(contentUr) ||
-      contentUr.length === 0 ||
-      contentUr.some(
-        (v) => !v.verse || typeof v.verse !== "string" || !v.verse.trim()
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Urdu content must be a non-empty array of verses with meanings",
-        },
-        { status: 400 }
-      );
-    }
-
-    let coverImageUrl = poem.coverImage;
-    if (coverImage) {
-      const arrayBuffer = await coverImage.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      coverImageUrl = await new Promise((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            { folder: "unmatched_line/poems" },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result!.secure_url);
-            }
-          )
-          .end(buffer);
-      });
-    }
-
-    const updatedPoem = await Poem.findByIdAndUpdate(
-      id,
-      {
-        title: { en: titleEn, hi: titleHi, ur: titleUr },
-        content: { en: contentEn, hi: contentHi, ur: contentUr },
-        slug: { en: slugEn, hi: slugHi, ur: slugUr },
-        category,
-        status,
-        tags: tags ? tags.split(",").map((tag) => tag.trim()) : poem.tags,
-        coverImage: coverImageUrl,
-        summary: {
-          en: summaryEn || "",
-          hi: summaryHi || "",
-          ur: summaryUr || "",
-        },
-        didYouKnow: {
-          en: didYouKnowEn || "",
-          hi: didYouKnowHi || "",
-          ur: didYouKnowUr || "",
-        },
-        faqs: faqs || [],
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (poem.category !== category) {
-      const oldCategory = poem.category;
-      let decrementField, incrementField;
-
-      if (oldCategory === "sher") {
-        decrementField = { $inc: { sherCount: -1 } };
-      } else if (oldCategory === "ghazal") {
-        decrementField = { $inc: { ghazalCount: -1 } };
-      } else {
-        decrementField = { $inc: { otherCount: -1 } };
-      }
-
-      if (category === "sher") {
-        incrementField = { $inc: { sherCount: 1 } };
-      } else if (category === "ghazal") {
-        incrementField = { $inc: { ghazalCount: 1 } };
-      } else {
-        incrementField = { $inc: { otherCount: 1 } };
-      }
-
-      await Author.findByIdAndUpdate(poem.author, decrementField);
-      await Author.findByIdAndUpdate(poem.author, incrementField);
-    }
-
-    return NextResponse.json({ message: "Poem updated", poem: updatedPoem });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  // DELETE remains unchanged
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  await dbConnect();
-
-  try {
-    const { id } = await params;
-    const poem = await Poem.findById(id);
-    if (!poem) {
-      return NextResponse.json({ error: "Poem not found" }, { status: 404 });
-    }
-
-    const user = await User.findById(session.user.id);
-    if (user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const authorId = poem.author;
-    const category = poem.category;
-
-    await poem.deleteOne();
-
-    let updateField;
-    if (category === "sher") {
-      updateField = { $inc: { sherCount: -1 } };
-    } else if (category === "ghazal") {
-      updateField = { $inc: { ghazalCount: -1 } };
-    } else {
-      updateField = { $inc: { otherCount: -1 } };
-    }
-
-    await Author.findByIdAndUpdate(
-      authorId,
-      {
-        $pull: { poems: { poemId: id } },
-        ...updateField,
-      },
-      { new: true }
-    );
-
-    return NextResponse.json({ message: "Poem deleted" });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
       { status: 500 }
     );
   }

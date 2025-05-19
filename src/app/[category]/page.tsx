@@ -13,13 +13,13 @@ interface ApiResponse {
 }
 
 interface CategoryPageProps {
-  params: Promise<{ category: string }>;
+  params: Promise<{ category: string }>; // Update type to reflect that params is a Promise
 }
 
 export async function generateMetadata({
   params,
 }: CategoryPageProps): Promise<Metadata> {
-  const { category } = await params;
+  const { category } = await params; // Await params before destructuring
   const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
@@ -91,36 +91,55 @@ async function generateStructuredData(category: string, poems: Poem[]) {
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
-  const { category } = await params;
+  const { category } = await params; // Await params before destructuring
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
-  const res = await fetch(
-    `${baseUrl}/api/poems-by-category?category=${category}&page=1&limit=10`,
-    { cache: "no-store" }
-  );
 
-  if (!res.ok) {
-    if (res.status === 404) {
-      notFound();
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/poems-by-category?category=${category}&page=1&limit=10`,
+      { cache: "force-cache", signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        notFound();
+      }
+      throw new Error(`Failed to fetch poems: ${res.status}`);
     }
-    throw new Error(`Failed to fetch poems: ${res.status}`);
+
+    const data: ApiResponse = await res.json();
+
+    if (!data.category || !Array.isArray(data.poems)) {
+      throw new Error("Invalid API response format");
+    }
+
+    const { poems, total, page, pages } = data;
+    const structuredData = await generateStructuredData(category, poems);
+
+    console.timeEnd(`SSR fetch for /category/${category}`);
+
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        <CategoryPoems
+          initialPoems={poems}
+          category={category}
+          initialMeta={{ page, total, pages, hasMore: page < pages }}
+        />
+      </>
+    );
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error(`Error in CategoryPage for ${category}:`, error);
+    throw error;
   }
-
-  const data: ApiResponse = await res.json();
-
-  if (!data.category || !Array.isArray(data.poems)) {
-    throw new Error("Invalid API response format");
-  }
-
-  const { poems, category: fetchedCategory } = data;
-  const structuredData = await generateStructuredData(fetchedCategory, poems);
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-      <CategoryPoems poems={poems} category={fetchedCategory} />
-    </>
-  );
 }
+
+export const revalidate = 3600; // Revalidate every hour

@@ -111,8 +111,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     throw new Error("Invalid API response format");
   }
 
-  const { poems, category: fetchedCategory } = data;
+  const { poems, category: fetchedCategory, page, total, pages } = data;
   const structuredData = await generateStructuredData(fetchedCategory, poems);
+
+  const initialMeta = {
+    page: page || 1,
+    total: total || poems.length,
+    pages: pages || 1,
+    hasMore: poems.length === 10,
+  };
 
   return (
     <>
@@ -120,7 +127,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <CategoryPoems poems={poems} category={fetchedCategory} />
+      <CategoryPoems
+        initialPoems={poems}
+        category={fetchedCategory}
+        initialMeta={initialMeta}
+      />
     </>
   );
 }

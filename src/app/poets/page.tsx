@@ -1,39 +1,53 @@
+// src/app/poets/page.tsx
 import type { Metadata } from "next";
 import { PoetList } from "@/components/poets/PoetList";
-import { Poet } from "@/components/poets/PoetList";
+import { Author } from "@/types/author";
 
-async function fetchPoets(): Promise<Poet[] | null> {
+interface ApiResponse {
+  authors: Author[];
+  page: number;
+  total: number;
+  pages: number;
+}
+
+async function fetchPoets(): Promise<ApiResponse | null> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/authors`, {
+    const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+    const res = await fetch(`${baseUrl}/api/authors?page=1&limit=20`, {
       cache: "force-cache",
     });
     if (!res.ok) throw new Error("Failed to fetch poets");
     const data = await res.json();
-    return data.authors || null;
+    return {
+      authors: data.authors || [],
+      page: data.page || 1,
+      total: data.total || 0,
+      pages: data.pages || 1,
+    };
   } catch (error) {
-    
+    console.error("Error fetching poets:", error);
     return null;
   }
 }
 
 async function fetchCoverImages(): Promise<{ url: string }[]> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/cover-images`, {
+    const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+    const res = await fetch(`${baseUrl}/api/cover-images`, {
       cache: "force-cache",
     });
     if (!res.ok) throw new Error("Failed to fetch cover images");
     const data = await res.json();
     return data.coverImages || [];
   } catch (error) {
-   
+    console.error("Error fetching cover images:", error);
     return [];
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   const coverImages = await fetchCoverImages();
-  const baseUrl =
-    process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const title = "Poets";
   const description =
@@ -101,26 +115,25 @@ export async function generateMetadata(): Promise<Metadata> {
         "max-video-preview": -1,
       },
     },
-  
   };
 }
 
 export default async function PoetsPage() {
-  const poets = await fetchPoets();
+  const data = await fetchPoets();
 
-  if (!poets || poets.length === 0) {
+  if (!data || data.authors.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold">No Poets Found</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-black dark:text-white">No Poets Found</h1>
+        <p className="text-gray-600 dark:text-gray-400">
           Please check back later for our collection of poets.
         </p>
       </div>
     );
   }
 
-  const baseUrl =
-    process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
+  const { authors, page, total, pages } = data;
+  const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -137,7 +150,7 @@ export default async function PoetsPage() {
         url: `${baseUrl}/logo.png`,
       },
     },
-    mainEntity: poets.map((poet) => ({
+    mainEntity: authors.map((poet) => ({
       "@type": "Person",
       name: poet.name,
       url: `${baseUrl}/poets/${encodeURIComponent(poet.slug)}`,
@@ -175,7 +188,10 @@ export default async function PoetsPage() {
           __html: JSON.stringify(structuredData),
         }}
       />
-      <PoetList poets={poets} />
+      <PoetList
+        initialPoets={authors}
+        initialMeta={{ page, total, pages, hasMore: page < pages }}
+      />
     </>
   );
 }
