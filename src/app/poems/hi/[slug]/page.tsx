@@ -1,6 +1,7 @@
+// app/poems/hi/[slug]/page.tsx
 import type { Metadata } from "next";
 import PoemDetail from "@/components/poems/poem-detail";
-import { Poem } from "@/types/poem";
+import { Poem, StructuredData } from "@/types/poem";
 import { getSlugs } from "@/utils/helpers";
 
 async function fetchPoem(slug: string): Promise<Poem | null> {
@@ -47,54 +48,67 @@ export async function generateMetadata({
   const title = poem?.title?.hi || "कविता नहीं मिली";
   const author = poem?.author?.name || "अज्ञात लेखक";
   const description = poem?.summary?.hi
-    ? poem.summary.hi.slice(0, 150)
+    ? poem.summary.hi.slice(0, 160)
     : poem?.content?.hi?.[0]?.verse
-    ? `${poem.content.hi[0].verse.slice(0, 150)}... - ${author} की कविता`
-    : `${author} की यह कविता हिंदी में पढ़ें।`;
-  const coverImageUrl =
-    poem?.coverImage ||
-    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+      ? `${poem.content.hi[0].verse.slice(0, 120)}... ${author} की कविता पढ़ें।`
+      : `हिंदी में "${title}" कविता, ${author} द्वारा, Unmatched Lines पर।`;
+  const coverImageUrl = poem?.coverImage && poem.coverImage.trim() !== ""
+    ? poem.coverImage
+    : coverImages.length > 0
+      ? coverImages[0].url
+      : "/default-poem-image.jpg";
   const slugs = getSlugs(poem, resolvedParams.slug);
-
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
 
   return {
-    title: `${title} द्वारा ${author} | हिंदी कविता`,
+    title: `${title} द्वारा ${author} | Unmatched Lines`,
     description,
     keywords: [
       title,
       author,
-      "कविता",
       "हिंदी कविता",
+      "कविता संग्रह",
       poem?.category || "कविता",
       ...(poem?.tags || []),
     ].join(", "),
+    robots: {
+      index: poem?.status === "published" ? true : false,
+      follow: true,
+    },
     alternates: {
       canonical: `${baseUrl}/poems/hi/${slugs.hi}`,
       languages: {
-        en: `/poems/en/${slugs.en}`,
+        en: poem?.slug.en ? `/poems/en/${slugs.en}` : undefined,
         hi: `/poems/hi/${slugs.hi}`,
-        ur: `/poems/ur/${slugs.ur}`,
+        ur: poem?.slug.ur ? `/poems/ur/${slugs.ur}` : undefined,
       },
     },
     openGraph: {
-      title: `${title} द्वारा ${author} | हिंदी`,
+      title: `${title} द्वारा ${author}`,
       description,
       url: `${baseUrl}/poems/hi/${slugs.hi}`,
+      type: "article",
+      publishedTime: poem?.createdAt,
+      modifiedTime: poem?.updatedAt,
       images: [
         {
           url: coverImageUrl,
           width: 1200,
           height: 630,
-          alt: `${title} द्वारा ${author}`,
+          alt: `${title} द्वारा ${author} - हिंदी कविता कवर`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${title} द्वारा ${author} | हिंदी`,
+      title: `${title} द्वारा ${author}`,
       description,
-      images: [coverImageUrl],
+      images: [
+        {
+          url: coverImageUrl,
+          alt: `${title} द्वारा ${author} - हिंदी कविता कवर`,
+        },
+      ],
     },
   };
 }
@@ -105,63 +119,83 @@ function generateStructuredData(
   baseUrl: string,
   slugs: Record<string, string>,
   coverImageUrl: string
-) {
+): StructuredData | null {
   if (!poem) {
     return null;
   }
 
-  return {
+  const structuredData: StructuredData = {
     "@context": "https://schema.org",
-    "@type": "CreativeWork",
+    "@type": "Poem",
     name: poem.title?.hi || "शीर्षक रहित कविता",
     author: {
       "@type": "Person",
       name: poem.author?.name || "अज्ञात लेखक",
     },
-    description:
-      poem.summary?.hi ||
-      poem.content?.hi?.[0]?.verse ||
-      `${poem.author?.name || "अज्ञात लेखक"} की कविता`,
+    description: poem.summary?.hi || poem.content?.hi?.[0]?.verse || `कविता ${poem.author?.name || "अज्ञात लेखक"} द्वारा`,
     inLanguage: "hi",
     url: `${baseUrl}/poems/hi/${slugs.hi}`,
-    image: coverImageUrl,
+    image: {
+      "@type": "ImageObject",
+      url: coverImageUrl,
+      name: `${poem.title.hi || "कविता"} कवर इमेज`,
+    },
     keywords: poem.tags?.join(", ") || poem.category || "कविता",
-    datePublished: poem.createdAt || undefined,
+    datePublished: poem.createdAt,
+    dateModified: poem.updatedAt,
     genre: poem.category || "कविता",
-  };
-}
-
-function generateBreadcrumbData(
-  poem: Poem | null,
-  language: string,
-  baseUrl: string,
-  slugs: Record<string, string>
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "होम", item: baseUrl },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "कविताएँ",
-        item: `${baseUrl}/poems`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: "हिंदी",
-        item: `${baseUrl}/poems/hi`,
-      },
-      {
-        "@type": "ListItem",
-        position: 4,
-        name: poem?.title?.hi || "कविता",
-        item: `${baseUrl}/poems/hi/${slugs.hi}`,
-      },
+    interactionCount: [
+      `UserViews:${poem.viewsCount || 0}`,
+      `UserBookmarks:${poem.readListCount || 0}`,
     ],
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "होम",
+          item: baseUrl,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "कविताएँ",
+          item: `${baseUrl}/poems`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: "हिंदी",
+          item: `${baseUrl}/poems/hi`,
+        },
+        {
+          "@type": "ListItem",
+          position: 4,
+          name: poem.title.hi || "कविता",
+          item: `${baseUrl}/poems/hi/${slugs.hi}`,
+        },
+      ],
+    },
   };
+
+  if (poem.faqs && poem.faqs.length > 0) {
+    structuredData.mainEntity = {
+      "@type": "FAQPage",
+      mainEntity: poem.faqs
+        .filter((faq) => faq.question.hi && faq.answer.hi)
+        .map((faq) => ({
+          "@type": "Question",
+          name: faq.question.hi!,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer.hi!,
+          },
+        })),
+    };
+  }
+
+  return structuredData;
 }
 
 export default async function PoemPage({
@@ -174,9 +208,11 @@ export default async function PoemPage({
   const coverImages = await fetchCoverImages();
   const baseUrl = process.env.NEXTAUTH_URL || "https://www.unmatchedlines.com";
   const slugs = getSlugs(poem, resolvedParams.slug);
-  const coverImageUrl =
-    poem?.coverImage ||
-    (coverImages.length > 0 ? coverImages[0].url : "/default-poem-image.jpg");
+  const coverImageUrl = poem?.coverImage && poem.coverImage.trim() !== ""
+    ? poem.coverImage
+    : coverImages.length > 0
+      ? coverImages[0].url
+      : "/default-poem-image.jpg";
 
   const structuredData = generateStructuredData(
     poem,
@@ -185,20 +221,13 @@ export default async function PoemPage({
     slugs,
     coverImageUrl
   );
-  const breadcrumbData = generateBreadcrumbData(poem, "hi", baseUrl, slugs);
-  console.log(poem);
+
   return (
     <>
       {structuredData && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-      )}
-      {breadcrumbData && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
         />
       )}
       <PoemDetail poem={poem} language="hi" />
