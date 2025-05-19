@@ -35,12 +35,7 @@ export default function FeaturedCollection() {
   const shers = poems.filter((poem) => poem.category.toLowerCase() === "sher").slice(0, 3)
   const nazms = poems.filter((poem) => poem.category.toLowerCase() === "nazm").slice(0, 3)
 
-  // Debug categories
-  useEffect(() => {
-    console.log("Poems:", poems)
-    console.log("Categories:", { ghazals, shers, nazms })
-    console.log("Unique categories:", [...new Set(poems.map((p) => p.category))])
-  }, [poems, ghazals, shers, nazms])
+  
 
   // Initial data fetch
   useEffect(() => {

@@ -112,7 +112,7 @@ export const useStore = create<StoreState>((set, get) => ({
           throw new Error(errorData.error || "Failed to fetch poems");
         }
         const data = await res.json();
-        console.log("Fetched poems:", data);
+        
         set((state) => ({
           poems: lastId ? [...state.poems, ...data.poems] : data.poems,
           nextCursor: data.nextCursor || null,
@@ -160,15 +160,15 @@ export const useStore = create<StoreState>((set, get) => ({
           loading: false, // Ensure loading is false for cached data
         }));
       } else {
-        console.time(`Fetch poems for ${category}, page ${page}`);
+        
         const res = await fetch(`/api/poems-by-category?${query.toString()}`, { credentials: "include" });
-        console.timeEnd(`Fetch poems for ${category}, page ${page}`);
+        
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.error || "Failed to fetch category poems");
         }
         const data = await res.json();
-        console.log(`Fetched poems for ${category}:`, data);
+        
         set((state) => ({
           categoryPoems: {
             ...state.categoryPoems,
@@ -225,7 +225,7 @@ export const useStore = create<StoreState>((set, get) => ({
           throw new Error(errorData.error || "Failed to fetch poets");
         }
         const data = await res.json();
-        console.log("Fetched poets:", data);
+       
         set((state) => ({
           poets: page > 1 ? [...state.poets, ...data.authors] : data.authors,
           poetMeta: {
