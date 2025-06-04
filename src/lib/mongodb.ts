@@ -1,57 +1,42 @@
 import mongoose from "mongoose";
-import models from "@/models"; // Ensure model registration
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI as string;
+
 if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable");
+  throw new Error("Please define MONGODB_URI in .env");
 }
 
-interface CachedConnection {
-  conn: mongoose.Connection | null;
-  promise: Promise<mongoose.Connection> | null;
+// Define interface for cached object
+interface Cached {
+  mongoose?: {
+    conn: mongoose.Mongoose | null;
+    promise: Promise<mongoose.Mongoose> | null;
+  };
 }
 
-// Define a proper type for the global object
-declare global {
-  // This is the correct way to extend globalThis
-  interface Global {
-    mongoose?: {
-      conn: mongoose.Connection | null;
-      promise: Promise<mongoose.Connection> | null;
-    };
-  }
+// Type the global object
+const cached: Cached = global as Cached;
+
+if (!cached.mongoose) {
+  cached.mongoose = { conn: null, promise: null };
 }
 
-let cached: CachedConnection = (global as any).mongoose || { conn: null, promise: null };
-if (!cached) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  cached = (global as any).mongoose = { conn: null, promise: null };
-}
-async function dbConnect(): Promise<mongoose.Connection> {
-  if (cached.conn) {
-    return cached.conn;
+async function dbConnect() {
+  if (cached.mongoose?.conn) {
+    return cached.mongoose.conn;
   }
 
-  if (!cached.promise) {
-    const opts: mongoose.ConnectOptions = {
+  if (!cached.mongoose?.promise) {
+    const opts = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      return mongoose.connection;
+    cached.mongoose!.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
     });
   }
-
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
-
-  return cached.conn;
+  cached.mongoose!.conn = await cached.mongoose!.promise;
+  return cached.mongoose!.conn;
 }
 
 export default dbConnect;
-
-

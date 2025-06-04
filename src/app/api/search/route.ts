@@ -1,137 +1,156 @@
-// app/api/search/route.ts
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import Poem from "@/models/Poem";
-import Author from "@/models/Author";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import dbConnect from "@/lib/mongodb";
+import Poem  from "@/models/Poem";
+import { IPoem } from "@/types/poemTypes";
+import User from "@/models/User";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/authOptions";
+import mongoose, { FilterQuery } from "mongoose";
 
-// Define interfaces for the lean documents
-interface LeanPoem {
-  _id: mongoose.Types.ObjectId;
-  title: { en: string; hi: string; ur: string };
-  slug: { en: string; hi: string; ur: string };
-  category: string;
-  coverImage: string;
-  content: {
-    en: { verse: string; meaning: string }[];
-    hi: { verse: string; meaning: string }[];
-    ur: { verse: string; meaning: string }[];
-  };
-  author: { _id: mongoose.Types.ObjectId; name: string; image: string };
+// Define the schema for query parameters
+const searchSchema = z.object({
+  query: z.string().min(1, "Search query is required").trim(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  language: z.enum(["en", "hi", "ur"]).optional(),
+});
+
+// Define type for regex-based query conditions
+interface RegexCondition {
+  $regex: string;
+  $options: string;
 }
 
-interface LeanAuthor {
-  _id: mongoose.Types.ObjectId;
-  name: string;
-  slug: string;
-  image: string;
-  city?: string;
+// Define type for Poem search conditions using FilterQuery
+type PoemSearchConditions = FilterQuery<IPoem> & {
+  status: string;
+  $or: Array<
+    | { [key in `title.${"en" | "hi" | "ur"}`]?: RegexCondition }
+    | { [key in `content.${"en" | "hi" | "ur"}.couplet`]?: RegexCondition }
+    | { [key in `content.${"en" | "hi" | "ur"}.meaning`]?: RegexCondition }
+    | { topics: RegexCondition }
+    | { category: RegexCondition }
+    | { poet: { $in: mongoose.Types.ObjectId[] } }
+  >;
+  poet?: { $in: mongoose.Types.ObjectId[] };
+};
+
+// Define interface for MongoDB query conditions for users
+interface UserSearchConditions {
+  $or: Array<{
+    [key in "name" | "bio" | "email"]?: RegexCondition;
+  }>;
 }
 
-// Response type for the API
-interface SearchResult {
-  _id: string;
-  type: "poem" | "poet";
-  title?: { en: string; hi: string; ur: string };
-  name?: string;
-  slug?: { en: string; hi: string; ur: string } | string;
-  category?: string;
-  image?: string;
-  excerpt?: string;
-  content?: {
-    en?: { verse: string; meaning: string }[];
-    hi?: { verse: string; meaning: string }[];
-    ur?: { verse: string; meaning: string }[];
-  };
-  author?: { _id: string; name: string; image?: string };
-}
-
-// Named export for GET method
 export async function GET(req: NextRequest) {
-  await dbConnect(); // Ensure DB is connected
-
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q");
-
-  if (!q || q.trim().length < 2) {
-    return NextResponse.json(
-      { message: "Query must be at least 2 characters" },
-      { status: 400 }
-    );
-  }
-
-  const searchQuery = q.trim();
-
   try {
-    // Search Poems with explicit typing
-    const poemResults = (await Poem.find({
-      $or: [
-        { "title.en": { $regex: searchQuery, $options: "i" } },
-        { "title.hi": { $regex: searchQuery, $options: "i" } },
-        { "title.ur": { $regex: searchQuery, $options: "i" } },
-        { "content.en.verse": { $regex: searchQuery, $options: "i" } },
-        { "content.hi.verse": { $regex: searchQuery, $options: "i" } },
-        { "content.ur.verse": { $regex: searchQuery, $options: "i" } },
-        { tags: { $regex: searchQuery, $options: "i" } },
-      ],
+    // Parse and validate query parameters
+    const url = new URL(req.url);
+    const queryParams = {
+      query: url.searchParams.get("query") || "",
+      page: url.searchParams.get("page") || "1",
+      limit: url.searchParams.get("limit") || "10",
+      language: url.searchParams.get("language") || undefined,
+    };
+
+    const parsedParams = searchSchema.safeParse(queryParams);
+    if (!parsedParams.success) {
+      return NextResponse.json(
+        { message: "Invalid query parameters", errors: parsedParams.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const { query, page, limit, language } = parsedParams.data;
+    const skip = (page - 1) * limit;
+
+    // Connect to MongoDB
+    await dbConnect();
+
+    // Get session for potential admin checks
+    const session = await getServerSession(authOptions);
+
+    // Build search conditions for poems
+    const poemSearchConditions: PoemSearchConditions = {
       status: "published",
-    })
-      .limit(10)
-      .select("title slug category coverImage content author")
-      .populate("author", "name image") // Include image in populate
-      .lean()) as unknown as LeanPoem[];
-
-    // Search Authors with explicit typing
-    const authorResults = (await Author.find({
       $or: [
-        { name: { $regex: searchQuery, $options: "i" } },
-        { city: { $regex: searchQuery, $options: "i" } },
+        { [`title.${language || "en"}`]: { $regex: query, $options: "i" } },
+        { [`content.${language || "en"}.couplet`]: { $regex: query, $options: "i" } },
+        { [`content.${language || "en"}.meaning`]: { $regex: query, $options: "i" } },
+        { topics: { $regex: query, $options: "i" } },
+        { category: { $regex: query, $options: "i" } },
       ],
-    })
-      .limit(10)
-      .select("name slug image city")
-      .lean()) as unknown as LeanAuthor[];
+    };
 
-    // Format results to match frontend expectation
-    const formattedPoemResults = poemResults.map((poem) => ({
-      _id: poem._id.toString(),
-      type: "poem" as const,
-      title: poem.title,
-      slug: poem.slug, // Return full slug object for language support
-      category: poem.category,
-      image: poem.coverImage,
-      excerpt: poem.content.en[0]?.verse.substring(0, 100), // First verse as excerpt
-      content: poem.content,
-      author: poem.author
-        ? {
-            _id: poem.author._id.toString(),
-            name: poem.author.name,
-            image: poem.author.image,
-          }
-        : undefined,
-    }));
+    // Optionally search by poet name (requires joining with User model)
+    if (session?.user?.role === "admin") {
+      const poetIds = await User.find({ name: { $regex: query, $options: "i" } })
+        .distinct("_id")
+        .lean()
+        .then((ids) => ids.map((id) => new mongoose.Types.ObjectId(id)));
+      poemSearchConditions.$or.push({
+        poet: { $in: poetIds },
+      });
+    }
 
-    const formattedAuthorResults = authorResults.map((author) => ({
-      _id: author._id.toString(),
-      type: "poet" as const,
-      name: author.name,
-      slug: author.slug,
-      image: author.image,
-      excerpt: author.city ? `From ${author.city}` : undefined,
-    }));
+    // Search poems
+    const poems = await Poem.find(poemSearchConditions)
+      .skip(skip)
+      .limit(limit)
+      .populate("poet", "name slug profilePicture")
+      .select("title slug content summary topics category poet coverImage viewsCount bookmarkCount createdAt")
+      .lean();
 
-    // Combine and sort results
-    const results: SearchResult[] = [
-      ...formattedPoemResults,
-      ...formattedAuthorResults,
-    ].sort((a, b) => a.type.localeCompare(b.type));
+    const totalPoems = await Poem.countDocuments(poemSearchConditions);
 
-    return NextResponse.json({ results }, { status: 200 });
+    // Build search conditions for users
+    const userSearchConditions: UserSearchConditions = {
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { bio: { $regex: query, $options: "i" } },
+      ],
+    };
+
+    // Include email search only for admins
+    if (session?.user?.role === "admin") {
+      userSearchConditions.$or.push({ email: { $regex: query, $options: "i" } });
+    }
+
+    // Search users
+    const users = await User.find(userSearchConditions)
+      .skip(skip)
+      .limit(limit)
+      .select("name slug profilePicture role bio poemCount createdAt")
+      .lean();
+
+    const totalUsers = await User.countDocuments(userSearchConditions);
+
+    // Return combined results
+    return NextResponse.json({
+      poems: {
+        results: poems,
+        pagination: {
+          page,
+          limit,
+          total: totalPoems,
+          pages: Math.ceil(totalPoems / limit),
+        },
+      },
+      users: {
+        results: users,
+        pagination: {
+          page,
+          limit,
+          total: totalUsers,
+          pages: Math.ceil(totalUsers / limit),
+        },
+      },
+    });
   } catch (error) {
     console.error("Search API error:", error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Server error", error: "Unknown error" },
       { status: 500 }
     );
   }

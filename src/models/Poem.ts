@@ -1,40 +1,9 @@
-import mongoose, { Schema, Model } from "mongoose";
+// src/app/models/Poem.ts
+import mongoose, { Schema, model, Model, Document } from "mongoose";
+import sanitizeHtml from "sanitize-html";
+import { IPoem } from "@/types/poemTypes";
 
-// Define interfaces for better type checking
-interface IPoemVerse {
-  verse: string;
-  meaning?: string;
-}
-
-interface IMultiLingual<T> {
-  en: T;
-  hi: T;
-  ur: T;
-}
-
-export interface IPoem {
-  title: IMultiLingual<string>;
-  content: IMultiLingual<IPoemVerse[]>;
-  author: mongoose.Types.ObjectId;
-  readListUsers: mongoose.Types.ObjectId[];
-  readListCount: number;
-  coverImage: string;
-  tags: string[];
-  category: string;
-  status: string;
-  slug: IMultiLingual<string>;
-  summary: IMultiLingual<string>;
-  didYouKnow: IMultiLingual<string>;
-  faqs: Array<{
-    question: IMultiLingual<string>;
-    answer: IMultiLingual<string>;
-  }>;
-  viewsCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const PoemSchema = new Schema(
+const PoemSchema = new Schema<IPoem>(
   {
     title: {
       en: { type: String, required: true, trim: true },
@@ -44,40 +13,39 @@ const PoemSchema = new Schema(
     content: {
       en: [
         {
-          verse: { type: String, required: true },
+          couplet: { type: String, required: true },
           meaning: { type: String, default: "" },
         },
       ],
       hi: [
         {
-          verse: { type: String, required: true },
+          couplet: { type: String, required: true },
           meaning: { type: String, default: "" },
         },
       ],
       ur: [
         {
-          verse: { type: String, required: true },
+          couplet: { type: String, required: true },
           meaning: { type: String, default: "" },
         },
       ],
     },
-    author: { type: Schema.Types.ObjectId, ref: "Author", required: true },
-    readListUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    readListCount: { type: Number, default: 0 },
-    coverImage: { type: String, default: "" },
-    tags: [String],
+    poet: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    bookmarks: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        bookmarkedAt: { type: Date, default: Date.now },
+      },
+    ],
+    bookmarkCount: { type: Number, default: 0 },
+    coverImage: {
+      publicId: { type: String },
+      url: { type: String },
+    },
+    topics: [{ type: String }],
     category: {
       type: String,
-      enum: [
-        "poem",
-        "ghazal",
-        "sher",
-        "nazm",
-        "rubai",
-        "marsiya",
-        "qataa",
-        "other",
-      ],
+      enum: ["poem", "ghazal", "sher", "nazm", "rubai", "marsiya", "qataa", "other"],
       default: "poem",
     },
     status: {
@@ -119,21 +87,52 @@ const PoemSchema = new Schema(
   { timestamps: true }
 );
 
-PoemSchema.index({ category: 1, createdAt: -1 });
-PoemSchema.index({ slug: 1 });
+// Sanitize inputs and sync bookmarkCount
+PoemSchema.pre("save", function (this: Document & IPoem, next) {
+  if (this.title?.en) this.title.en = sanitizeHtml(this.title.en);
+  if (this.title?.hi) this.title.hi = sanitizeHtml(this.title.hi);
+  if (this.title?.ur) this.title.ur = sanitizeHtml(this.title.ur);
 
-PoemSchema.pre("save", function (next) {
-  this.readListCount = this.readListUsers.length;
+  if (this.summary?.en) this.summary.en = sanitizeHtml(this.summary.en);
+  if (this.summary?.hi) this.summary.hi = sanitizeHtml(this.summary.hi);
+  if (this.summary?.ur) this.summary.ur = sanitizeHtml(this.summary.ur);
+
+  if (this.didYouKnow?.en) this.didYouKnow.en = sanitizeHtml(this.didYouKnow.en);
+  if (this.didYouKnow?.hi) this.didYouKnow.hi = sanitizeHtml(this.didYouKnow.hi);
+  if (this.didYouKnow?.ur) this.didYouKnow.ur = sanitizeHtml(this.didYouKnow.ur);
+
+  this.content?.en?.forEach((item) => {
+    if (item.couplet) item.couplet = sanitizeHtml(item.couplet);
+    if (item.meaning) item.meaning = sanitizeHtml(item.meaning);
+  });
+  this.content?.hi?.forEach((item) => {
+    if (item.couplet) item.couplet = sanitizeHtml(item.couplet);
+    if (item.meaning) item.meaning = sanitizeHtml(item.meaning);
+  });
+  this.content?.ur?.forEach((item) => {
+    if (item.couplet) item.couplet = sanitizeHtml(item.couplet);
+    if (item.meaning) item.meaning = sanitizeHtml(item.meaning);
+  });
+
+  this.faqs?.forEach((faq) => {
+    if (faq.question?.en) faq.question.en = sanitizeHtml(faq.question.en);
+    if (faq.question?.hi) faq.question.hi = sanitizeHtml(faq.question.hi);
+    if (faq.question?.ur) faq.question.ur = sanitizeHtml(faq.question.ur);
+    if (faq.answer?.en) faq.answer.en = sanitizeHtml(faq.answer.en);
+    if (faq.answer?.hi) faq.answer.hi = sanitizeHtml(faq.answer.hi);
+    if (faq.answer?.ur) faq.answer.ur = sanitizeHtml(faq.answer.ur);
+  });
+
+  if (this.topics) this.topics = this.topics.map((topic) => sanitizeHtml(topic));
+  if (this.coverImage?.url) this.coverImage.url = sanitizeHtml(this.coverImage.url);
+  if (this.coverImage?.publicId) this.coverImage.publicId = sanitizeHtml(this.coverImage.publicId);
+
+  this.bookmarkCount = this.bookmarks?.length || 0;
+  this.viewsCount = this.viewsCount || 0;
+
   next();
 });
 
-// Use this pattern to avoid model recompilation errors
-let Poem: Model<IPoem>;
-
-try {
-  Poem = mongoose.model<IPoem>("Poem");
-} catch {
-  Poem = mongoose.model<IPoem>("Poem", PoemSchema);
-}
+const Poem: Model<IPoem> = mongoose.models.Poem || model<IPoem>("Poem", PoemSchema);
 
 export default Poem;

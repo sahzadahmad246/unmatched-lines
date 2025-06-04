@@ -1,109 +1,88 @@
+// src/app/layout.tsx
 import type React from "react";
-import { Providers } from "./providers";
-import "./globals.css";
-import type { Metadata } from "next";
+import { Inter, Noto_Nastaliq_Urdu } from "next/font/google";
+import ClientProviders from "@/components/ClientProviders";
+import ConditionalNavigation from "@/components/navigation/conditional-navigation";
 import { Toaster } from "sonner";
-import ClientLayout from "./client-layout";
-import Script from "next/script";
+import type { Metadata } from "next";
+import "./globals.css";
+import { Suspense } from "react";
+
+// Configure Inter font for Latin text
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+// Configure Noto Nastaliq Urdu font for Urdu text
+const notoNastaliq = Noto_Nastaliq_Urdu({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-noto-nastaliq",
+});
 
 export const metadata: Metadata = {
+  title: "Unmatched Lines ",
   description:
-    "Discover beautiful poetry from renowned poets across different languages and traditions. Explore classic and contemporary poems in our curated collection.",
-  keywords:
-    "poetry, poems, famous poets, multilingual poetry, poetry collection, classic poetry, contemporary poetry",
-  authors: [{ name: "Unmatched Lines Team" }],
+    "Discover a soulful collection of timeless Urdu, Hindi, and Roman poetry. Read famous ghazals, nazms, and sher by legendary poets like Ghalib, Faiz, Faraz, and more.",
+  keywords: [
+    "Urdu poetry",
+    "Hindi poetry",
+    "Roman Urdu poetry",
+    "Ghazals",
+    "Nazms",
+    "Shayari",
+    "Mirza Ghalib",
+    "Faiz Ahmed Faiz",
+    "Ahmad Faraz",
+    "Unmatched Lines",
+    "Poetry website",
+    "Romantic poetry",
+    "Sad poetry",
+  ],
   openGraph: {
-    title: "Unmatched Lines - Poetry Collection",
+    title: "Unmatched Lines | Explore Ghazals, Nazms & Shayari",
     description:
-      "Explore a diverse collection of beautiful poetry from famous poets across languages and cultures.",
+      "Unmatched Lines offers an immersive collection of classical and modern poetry in Urdu, Hindi, and Roman scripts.",
     url: "https://unmatchedlines.com",
     siteName: "Unmatched Lines",
-    type: "website",
-    locale: "en_US",
     images: [
       {
-        url: "/images/image1.jpg",
+        url: "https://unmatchedlines.com/placeholder.svg",
         width: 1200,
         height: 630,
-        alt: "Unmatched Lines Poetry Collection",
+        alt: "Unmatched Lines Poetry Banner",
       },
     ],
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Unmatched Lines - Poetry Collection",
+    title: "Unmatched Lines | Timeless Poetry in Urdu, Hindi & Roman",
     description:
-      "Discover poetry from renowned poets in multiple languages at Unmatched Lines.",
-    creator: "@shahzadahmad246",
-    images: ["/images/image1.jpg"],
+      "Read the finest ghazals, nazms, and sher from iconic poets across generations. Dive into the world of unmatched poetry.",
+    images: ["https://unmatchedlines.com/placeholder.svg"],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-snippet": -1,
-    },
-  },
-  metadataBase: new URL("https://unmatchedlines.com"),
-  icons: {
-    icon: "/icon.ico",
-    apple: "/apple-touch-icon.png",
-  },
+  authors: [
+    { name: "Unmatched Lines Team", url: "https://unmatchedlines.com" },
+  ],
+  creator: "Shahzad",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="en">
-      <head>
-        <meta
-          name="google-site-verification"
-          content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/urdu-web-fonts@1.0.3/Fajer-Noori-Nastalique/css/fajer-noori-nastalique.min.css"
-        />
-        {/* Google Analytics */}
-        <Script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-DH09B07MV0"
-        />
-        <Script
-          id="gtag-init"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-DH09B07MV0');
-            `,
-          }}
-        />
-      </head>
-      <body>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-DH09B07MV0"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-DH09B07MV0');
-          `}
-        </Script>
-        <Providers>
-          <ClientLayout>{children}</ClientLayout>
-          <Toaster position="top-right" />
-        </Providers>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${notoNastaliq.variable}`}>
+        <ClientProviders>
+          <Suspense>
+            <ConditionalNavigation>{children}</ConditionalNavigation>
+            <Toaster richColors />
+          </Suspense>
+        </ClientProviders>
       </body>
     </html>
   );

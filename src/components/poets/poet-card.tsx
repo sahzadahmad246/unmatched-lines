@@ -1,174 +1,76 @@
-// src/components/poets/poet-card.tsx
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { BookOpen, BookMarked, FileText, Sparkles } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Author } from "@/types/author";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { FileText, User, Crown } from "lucide-react";
+import Link from "next/link";
+import type { IPoet } from "@/types/userTypes";
 
 interface PoetCardProps {
-  poet: Author;
-  variant?: "default" | "compact";
-  featured?: boolean;
+  poet: IPoet;
 }
 
-export function PoetCard({ poet, variant = "default", featured = false }: PoetCardProps) {
-  const totalPoems = (poet.ghazalCount || 0) + (poet.sherCount || 0) + (poet.otherCount || 0);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
-
-  if (variant === "compact") {
-    return (
-      <Link href={`/poets/${poet.slug}`} className="block h-full">
-        <motion.div
-          className="group relative h-full overflow-hidden rounded-xl transition-all duration-300 hover:shadow-md"
-          whileHover={{ y: -4, transition: { duration: 0.2 } }}
-        >
-          <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
-            <div className="relative aspect-square w-full overflow-hidden rounded-t-xl">
-              {poet.image ? (
-                <Image
-                  src={poet.image || "/placeholder.svg"}
-                  alt={poet.name}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  sizes="(max-width: 768px) 180px, (max-width: 1200px) 220px, 260px"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-800">
-                  <span className="text-4xl font-semibold text-gray-600 dark:text-gray-400">
-                    {getInitials(poet.name)}
-                  </span>
-                </div>
-              )}
-
-              {featured && (
-                <div className="absolute left-2 top-2">
-                  <Badge className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-                    <Sparkles className="h-3 w-3 mr-1 text-gray-500 dark:text-gray-400" />
-                    Featured
-                  </Badge>
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </div>
-
-            <div className="p-3 flex flex-col justify-between">
-              <h3 className="line-clamp-1 font-medium text-black dark:text-white">{poet.name}</h3>
-
-              <div className="mt-1">
-                {totalPoems > 0 ? (
-                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                    <BookOpen className="h-3 w-3" />
-                    <span className="truncate">
-                      {poet.ghazalCount > 0 && `${poet.ghazalCount} ghazal${poet.ghazalCount !== 1 ? "s" : ""}`}
-                      {poet.ghazalCount > 0 && (poet.sherCount > 0 || poet.otherCount > 0) && ", "}
-                      {poet.sherCount > 0 && `${poet.sherCount} sher${poet.sherCount !== 1 ? "s" : ""}`}
-                      {(poet.ghazalCount > 0 || poet.sherCount > 0) && poet.otherCount > 0 && ", "}
-                      {poet.otherCount > 0 && `${poet.otherCount} other${poet.otherCount !== 1 ? "s" : ""}`}
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-600 dark:text-gray-400">No works found</p>
-                )}
-              </div>
-            </div>
-
-            <div className="p-2 pt-0 mt-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-xs h-8 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-              >
-                View Profile
-              </Button>
-            </div>
-          </div>
-        </motion.div>
-      </Link>
-    );
-  }
-
+export default function PoetCard({ poet }: PoetCardProps) {
   return (
-    <Link href={`/poets/${poet.slug}`} className="block h-full">
-      <Card className="group h-full overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950">
-        <div className="relative aspect-square w-full overflow-hidden">
-          {poet.image ? (
-            <Image
-              src={poet.image || "/placeholder.svg"}
-              alt={poet.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-800">
-              <span className="text-5xl font-semibold text-gray-600 dark:text-gray-400">
-                {getInitials(poet.name)}
-              </span>
+    <Card className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border bg-card overflow-hidden">
+      <CardContent className="p-0">
+        <div className="flex items-center px-4 relative">
+          {/* Profile Picture */}
+          <div className="relative mr-4">
+            <Avatar className="h-16 w-16 ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all">
+              <AvatarImage
+                src={poet.profilePicture?.url || "/placeholder.svg"}
+                alt={poet.name}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-lg font-semibold">
+                {poet.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-yellow-500 rounded-full flex items-center justify-center shadow-sm">
+              <Crown className="h-3 w-3 text-white" />
             </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-          <div className="absolute bottom-0 w-full p-3">
-            <h3 className="line-clamp-1 text-lg font-medium text-white drop-shadow-md">{poet.name}</h3>
           </div>
-        </div>
 
-        <CardContent className="p-3 pt-2">
-          <div className="flex flex-col gap-1">
-            {totalPoems > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
-                {poet.ghazalCount > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <BookMarked className="h-3 w-3" />
-                    {poet.ghazalCount} {poet.ghazalCount === 1 ? "ghazal" : "ghazals"}
-                  </span>
-                )}
-
-                {poet.sherCount > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <FileText className="h-3 w-3" />
-                    {poet.sherCount} {poet.sherCount === 1 ? "sher" : "shers"}
-                  </span>
-                )}
-
-                {poet.otherCount > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <BookOpen className="h-3 w-3" />
-                    {poet.otherCount} {poet.otherCount === 1 ? "other" : "others"}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-600 dark:text-gray-400">No works found</p>
-            )}
+          {/* Poet Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors truncate">
+              {poet.name}
+            </h3>
+            <p className="text-sm text-muted-foreground truncate">
+              @{poet.slug}
+            </p>
           </div>
-        </CardContent>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 p-2 mt-auto">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full h-8 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+          {/* Poem Count Badge - Top Right */}
+          <Badge
+            variant="secondary"
+            className="absolute top-0 right-4 bg-primary/10 text-primary hover:bg-primary/20"
           >
-            View Profile
-          </Button>
+            <FileText className="h-3 w-3 mr-1" />
+            {poet.poemCount}
+          </Badge>
         </div>
-      </Card>
-    </Link>
+
+        {/* View Profile Button */}
+        <Button
+          asChild
+          className="w-full rounded-none h-12 group-hover:bg-primary group-hover:text-primary-foreground transition-all"
+          variant="ghost"
+        >
+          <Link href={`/poet/${poet.slug}`}>
+            <User className="h-4 w-4 mr-2" />
+            View Profile
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
