@@ -36,7 +36,6 @@ import {
   HelpCircle,
   Globe,
   BookOpen,
-  Heart,
   Languages,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -423,9 +422,9 @@ export default function EnhancedPoemDetails({
                 </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50">
-                <Heart className="h-4 w-4 text-red-500" />
+                <Bookmark className="h-4 w-4 text-red-500" />
                 <span className="font-medium">
-                  {(poem.bookmarkCount || 0).toLocaleString()} likes
+                  {(poem.bookmarkCount || 0).toLocaleString()} bookmarks
                 </span>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import Poem from "@/models/Poem";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -13,9 +14,7 @@ export async function GET(
     await dbConnect();
     const params = await context.params;
     const { identifier } = params;
-    console.log("GET request for identifier:", identifier);
 
-    // Find the poem
     const poem = Types.ObjectId.isValid(identifier)
       ? await Poem.findById(identifier)
       : await Poem.findOne({
@@ -27,23 +26,19 @@ export async function GET(
         }).populate("poet", "name profilePicture slug");
 
     if (!poem) {
-      console.warn(`Poem not found for identifier: ${identifier}`);
       return NextResponse.json({ message: "Poem not found" }, { status: 404 });
     }
 
-    // Increment viewsCount using findOneAndUpdate for atomic operation
     const updatedPoem = await Poem.findOneAndUpdate(
       { _id: poem._id },
       { $inc: { viewsCount: 1 } },
-      { new: true } // Return the updated document
+      { new: true }
     ).populate("poet", "name profilePicture slug");
 
     if (!updatedPoem) {
-      console.warn(`Failed to update poem with identifier: ${identifier}`);
       return NextResponse.json({ poem }, { status: 200 });
     }
 
-    // Select fields explicitly, excluding __v
     const poemData = await Poem.findById(updatedPoem._id)
       .populate("poet", "name profilePicture slug")
       .select("-__v")
@@ -51,7 +46,6 @@ export async function GET(
 
     return NextResponse.json({ poem: poemData });
   } catch (error: unknown) {
-    console.error("Error in GET /api/poems/[identifier]:", error);
     return NextResponse.json(
       {
         message: "Server error",
