@@ -299,8 +299,8 @@ export default function EnhancedPoemDetails({
       )}
 
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-3">
+      <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-lg">
+        <div className="container m-0 p-5">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -339,7 +339,7 @@ export default function EnhancedPoemDetails({
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
+      <div className="container mx-auto px-0 py-8 max-w-4xl space-y-8">
         {/* Language Switcher */}
         <section className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm">
           <h2 className="flex items-center gap-2 mb-4">
