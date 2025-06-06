@@ -9,6 +9,7 @@ import { authOptions } from "@/lib/auth/authOptions";
 import { bookmarkPoemSchema } from "@/validators/poemValidator";
 
 export async function POST(req: NextRequest) {
+  let body: z.infer<typeof bookmarkPoemSchema> | null = null; // Declare body outside try block
   try {
     await dbConnect();
     const session = await getServerSession(authOptions);
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    body = await req.json();
     const validatedData = bookmarkPoemSchema.parse(body);
 
     const poem = await Poem.findById(validatedData.poemId);
@@ -38,34 +39,46 @@ export async function POST(req: NextRequest) {
         !poem.bookmarks.some((b) => b.userId.toString() === validatedData.userId) &&
         !user.bookmarks.some((b) => b.poemId.toString() === validatedData.poemId)
       ) {
-        await Poem.updateOne(
-          { _id: validatedData.poemId },
-          { $push: { bookmarks: { userId: validatedData.userId, bookmarkedAt: new Date() } }, $inc: { bookmarkCount: 1 } }
-        );
+        poem.bookmarks.push({ userId: validatedData.userId, bookmarkedAt: new Date() });
+        poem.bookmarkCount = poem.bookmarks.length; // Sync count
+        await poem.save();
+
         await User.updateOne(
           { _id: validatedData.userId },
           { $push: { bookmarks: { poemId: validatedData.poemId, bookmarkedAt: new Date() } } }
         );
-        return NextResponse.json({ message: "Poem bookmarked successfully" });
+        return NextResponse.json({ message: "Poem bookmarked successfully", poem });
       }
       return NextResponse.json({ message: "Poem already bookmarked" }, { status: 400 });
     } else {
-      await Poem.updateOne(
-        { _id: validatedData.poemId },
-        { $pull: { bookmarks: { userId: validatedData.userId } }, $inc: { bookmarkCount: -1 } }
-      );
-      await User.updateOne(
-        { _id: validatedData.userId },
-        { $pull: { bookmarks: { poemId: validatedData.poemId } } }
-      );
-      return NextResponse.json({ message: "Poem unbookmarked successfully" });
+      if (poem.bookmarks.some((b) => b.userId.toString() === validatedData.userId)) {
+        poem.bookmarks = poem.bookmarks.filter((b) => b.userId.toString() !== validatedData.userId);
+        poem.bookmarkCount = Math.max(0, poem.bookmarks.length); // Prevent negative count
+        await poem.save();
+
+        await User.updateOne(
+          { _id: validatedData.userId },
+          { $pull: { bookmarks: { poemId: validatedData.poemId } } }
+        );
+        return NextResponse.json({ message: "Poem unbookmarked successfully", poem });
+      }
+      return NextResponse.json({ message: "Poem not bookmarked by user" }, { status: 400 });
     }
   } catch (error: unknown) {
+    console.error("Bookmark error:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      poemId: body?.poemId ?? "unknown",
+      userId: body?.userId ?? "unknown",
+      action: body?.action ?? "unknown",
+    });
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: "Validation error", errors: error.errors }, { status: 400 });
     }
     return NextResponse.json(
-      { message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
+      {
+        message: "Server error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

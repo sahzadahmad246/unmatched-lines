@@ -1,3 +1,4 @@
+// src/store/poem-store.ts
 "use client";
 
 import { create } from "zustand";
@@ -15,11 +16,11 @@ interface Pagination {
 interface PoemState {
   poems: SerializedPoem[];
   poem: SerializedPoem | null;
-  poetWorks: Record<string, SerializedPoem[]>; // poetSlug -> poems
+  poetWorks: Record<string, SerializedPoem[]>;
   pagination: Pagination | null;
-  poetPagination: Record<string, Pagination>; // poetSlug -> pagination
+  poetPagination: Record<string, Pagination>;
   loading: boolean;
-  poetLoading: Record<string, boolean>; // poetSlug -> loading state
+  poetLoading: Record<string, boolean>;
   error: string | null;
   fetchPoems: (page?: number, limit?: number, category?: string) => Promise<void>;
   fetchPoemByIdOrSlug: (identifier: string) => Promise<void>;
@@ -28,12 +29,16 @@ interface PoemState {
     category: string,
     page?: number,
     limit?: number,
-    sortBy?: string,
+    sortBy?: string
   ) => Promise<void>;
   createPoem: (data: FormData) => Promise<{ success: boolean; message?: string; poem?: SerializedPoem }>;
   updatePoem: (identifier: string, data: FormData) => Promise<{ success: boolean; message?: string; poem?: SerializedPoem }>;
   deletePoem: (identifier: string) => Promise<{ success: boolean; message?: string }>;
-  bookmarkPoem: (poemId: string, userId: string, action: "add" | "remove") => Promise<{ success: boolean; message?: string }>;
+  bookmarkPoem: (
+    poemId: string,
+    userId: string,
+    action: "add" | "remove"
+  ) => Promise<{ success: boolean; message?: string; poem?: SerializedPoem }>;
   setPoems: (poems: SerializedPoem[]) => void;
   setPagination: (pagination: Pagination) => void;
   clearPoem: () => void;
@@ -50,7 +55,6 @@ export const usePoemStore = create<PoemState>((set) => ({
   poetLoading: {},
   error: null,
 
-  // Fetch all published poems with pagination
   fetchPoems: async (page = 1, limit = 10, category = "all") => {
     try {
       set({ loading: true, error: null });
@@ -69,7 +73,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Fetch a single poem by ID or slug
   fetchPoemByIdOrSlug: async (identifier: string) => {
     try {
       set({ loading: true, error: null });
@@ -91,7 +94,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Fetch poems by a specific poet
   fetchPoetWorks: async (poetSlug: string, category: string, page = 1, limit = 3, sortBy = "recent") => {
     try {
       set((state) => ({
@@ -99,7 +101,7 @@ export const usePoemStore = create<PoemState>((set) => ({
         error: null,
       }));
       const response = await fetch(
-        `/api/poet/${poetSlug}/works?category=${category}&page=${page}&limit=${limit}&sortBy=${sortBy}`,
+        `/api/poet/${poetSlug}/works?category=${category}&page=${page}&limit=${limit}&sortBy=${sortBy}`
       );
       if (!response.ok) {
         const errorData = await response.json();
@@ -125,7 +127,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Create a new poem
   createPoem: async (data: FormData) => {
     try {
       set({ loading: true, error: null });
@@ -151,7 +152,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Update a poem
   updatePoem: async (identifier: string, data: FormData) => {
     try {
       set({ loading: true, error: null });
@@ -163,9 +163,7 @@ export const usePoemStore = create<PoemState>((set) => ({
       if (response.ok) {
         const updatedPoem = result.poem;
         set((state) => ({
-          poems: state.poems.map((poem) =>
-            poem._id === result.poem._id ? updatedPoem : poem
-          ),
+          poems: state.poems.map((poem) => (poem._id === result.poem._id ? updatedPoem : poem)),
           poem: state.poem?._id === result.poem._id ? updatedPoem : state.poem,
           poetWorks: Object.keys(state.poetWorks).reduce(
             (acc, poetSlug) => ({
@@ -189,7 +187,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Delete a poem
   deletePoem: async (identifier: string) => {
     try {
       set({ loading: true, error: null });
@@ -239,7 +236,6 @@ export const usePoemStore = create<PoemState>((set) => ({
     }
   },
 
-  // Bookmark or unbookmark a poem
   bookmarkPoem: async (poemId: string, userId: string, action: "add" | "remove") => {
     try {
       set({ loading: true, error: null });
@@ -250,73 +246,45 @@ export const usePoemStore = create<PoemState>((set) => ({
       });
       const result = await response.json();
       if (response.ok) {
+        // Update local state with the returned poem data
         set((state) => ({
-          poems: state.poems.map((poem) => {
-            if (poem._id === poemId) {
-              const updatedBookmarks =
-                action === "add"
-                  ? [...poem.bookmarks, { userId, bookmarkedAt: new Date().toISOString() }]
-                  : poem.bookmarks.filter((b) => b.userId !== userId);
-              return {
-                ...poem,
-                bookmarks: updatedBookmarks,
-                bookmarkCount: updatedBookmarks.length,
-              };
-            }
-            return poem;
-          }),
+          poems: state.poems.map((poem) =>
+            poem._id === poemId
+              ? { ...poem, bookmarks: result.poem.bookmarks, bookmarkCount: result.poem.bookmarkCount }
+              : poem
+          ),
           poem: state.poem?._id === poemId
-            ? {
-                ...state.poem,
-                bookmarks:
-                  action === "add"
-                    ? [...state.poem.bookmarks, { userId, bookmarkedAt: new Date().toISOString() }]
-                    : state.poem.bookmarks.filter((b) => b.userId !== userId),
-                bookmarkCount: action === "add" ? state.poem.bookmarkCount + 1 : state.poem.bookmarkCount - 1,
-              }
+            ? { ...state.poem, bookmarks: result.poem.bookmarks, bookmarkCount: result.poem.bookmarkCount }
             : state.poem,
           poetWorks: Object.keys(state.poetWorks).reduce(
             (acc, poetSlug) => ({
               ...acc,
-              [poetSlug]: state.poetWorks[poetSlug].map((poem) => {
-                if (poem._id === poemId) {
-                  const updatedBookmarks =
-                    action === "add"
-                      ? [...poem.bookmarks, { userId, bookmarkedAt: new Date().toISOString() }]
-                      : poem.bookmarks.filter((b) => b.userId !== userId);
-                  return {
-                    ...poem,
-                    bookmarks: updatedBookmarks,
-                    bookmarkCount: updatedBookmarks.length,
-                  };
-                }
-                return poem;
-              }),
+              [poetSlug]: state.poetWorks[poetSlug].map((poem) =>
+                poem._id === poemId
+                  ? { ...poem, bookmarks: result.poem.bookmarks, bookmarkCount: result.poem.bookmarkCount }
+                  : poem
+              ),
             }),
             {}
           ),
           loading: false,
         }));
-        return { success: true };
+        return { success: true, poem: result.poem };
       } else {
         set({ error: result.message || `Failed to ${action} bookmark`, loading: false });
         return { success: false, message: result.message || `Failed to ${action} bookmark` };
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Unknown error", loading: false });
-      return { success: false, message: `An error occurred while ${action === "add" ? "bookmarking" : "unbookmarking"} poem` };
+      return {
+        success: false,
+        message: `An error occurred while ${action === "add" ? "bookmarking" : "unbookmarking"} poem`,
+      };
     }
   },
 
-  // Set poems
   setPoems: (poems: SerializedPoem[]) => set({ poems }),
-
-  // Set pagination
   setPagination: (pagination: Pagination) => set({ pagination }),
-
-  // Clear single poem state
   clearPoem: () => set({ poem: null, error: null, loading: false }),
-
-  // Clear all poems state
   clearPoems: () => set({ poems: [], poetWorks: {}, pagination: null, poetPagination: {}, error: null, loading: false }),
 }));

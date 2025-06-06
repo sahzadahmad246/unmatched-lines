@@ -388,7 +388,7 @@ export default function EnhancedPoemDetails({
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <Link href={`/poets/${poetSlug}`}>
+            <Link href={`/poet/${poetSlug}`}>
               <h3 className="font-bold text-2xl mb-2 hover:text-primary transition-colors">
                 {poetName}
               </h3>
