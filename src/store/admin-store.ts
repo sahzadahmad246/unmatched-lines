@@ -10,13 +10,21 @@ interface AdminState {
   loading: boolean;
   error: string | null;
   fetchUserData: () => Promise<void>;
-  updateUserData: (data: FormData) => Promise<{ success: boolean; message?: string }>;
+  updateUserData: (
+    data: FormData
+  ) => Promise<{ success: boolean; message?: string }>;
   clearUserData: () => void;
   fetchAllUsers: (page?: number, limit?: number) => Promise<void>;
   fetchUserByIdentifier: (identifier: string) => Promise<void>;
   addUser: (data: FormData) => Promise<{ success: boolean; message?: string }>;
-  updateUserByIdentifier: (identifier: string, data: FormData) => Promise<{ success: boolean; message?: string }>;
-  deleteUserByIdentifier: (identifier: string) => Promise<{ success: boolean; message?: string }>;
+  updateUserByIdentifier: (
+    identifier: string,
+    data: FormData
+  ) => Promise<{ success: boolean; message?: string }>;
+  deleteUserByIdentifier: (
+    identifier: string
+  ) => Promise<{ success: boolean; message?: string }>;
+  searchUsers: (query: string, page?: number, limit?: number) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
@@ -110,7 +118,11 @@ export const useAdminStore = create<AdminState>((set) => ({
         set({ error: "User not found", loading: false, selectedUser: null });
       }
     } catch {
-      set({ error: "Failed to fetch user", loading: false, selectedUser: null });
+      set({
+        error: "Failed to fetch user",
+        loading: false,
+        selectedUser: null,
+      });
     }
   },
 
@@ -220,7 +232,35 @@ export const useAdminStore = create<AdminState>((set) => ({
       }
     } catch {
       set({ error: "An error occurred while deleting user", loading: false });
-      return { success: false, message: "An error occurred while deleting user" };
+      return {
+        success: false,
+        message: "An error occurred while deleting user",
+      };
+    }
+  },
+  searchUsers: async (query: string, page = 1, limit = 10) => {
+    try {
+      set({ loading: true, error: null });
+      const response = await fetch(
+        `/api/usersearch?type=user&query=${encodeURIComponent(
+          query
+        )}&page=${page}&limit=${limit}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to search users: ${response.status}`);
+      }
+      const { users } = await response.json();
+      set({
+        users: users.results.map((user: IUser) => ({
+          ...user,
+          _id: user._id.toString(),
+        })),
+        loading: false,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to search users";
+      set({ error: errorMessage, loading: false });
     }
   },
 }));

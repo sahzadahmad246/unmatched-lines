@@ -1,3 +1,4 @@
+// /store/poet-store.ts
 "use client";
 
 import { create } from "zustand";
@@ -10,6 +11,7 @@ interface PoetState {
   error: string | null;
   fetchPoetByIdentifier: (identifier: string) => Promise<void>;
   fetchAllPoets: (page?: number, limit?: number) => Promise<void>;
+  searchPoets: (query: string, page?: number, limit?: number) => Promise<void>;
 }
 
 export const usePoetStore = create<PoetState>((set) => ({
@@ -57,6 +59,29 @@ export const usePoetStore = create<PoetState>((set) => ({
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch poets";
+      set({ error: errorMessage, loading: false });
+    }
+  },
+
+  searchPoets: async (query: string, page = 1, limit = 10) => {
+    try {
+      set({ loading: true, error: null });
+      const response = await fetch(
+        `/api/search?type=poet&query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to search poets: ${response.status}`);
+      }
+      const { users } = await response.json();
+      set({
+        poets: users.results.map((poet: IPoet) => ({
+          ...poet,
+          _id: poet._id.toString(),
+        })),
+        loading: false,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to search poets";
       set({ error: errorMessage, loading: false });
     }
   },

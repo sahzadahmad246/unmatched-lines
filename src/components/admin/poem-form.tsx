@@ -1,36 +1,39 @@
-// src/components/admin/poem-form.tsx
-import type React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { usePoemStore } from "@/store/poem-store";
-import { useAdminStore } from "@/store/admin-store";
-import { useUserStore } from "@/store/user-store";
-import type { IPoem, SerializedPoem } from "@/types/poemTypes";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Plus, Trash2, Upload, FileText, Globe, Settings } from "lucide-react";
-import { toast } from "sonner";
+"use client"
 
-type Category = "poem" | "ghazal" | "sher" | "nazm" | "rubai" | "marsiya" | "qataa" | "other";
-type Status = "draft" | "published";
-type ContentLang = "en" | "hi" | "ur";
+import type React from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { usePoemStore } from "@/store/poem-store"
+import { usePoetStore } from "@/store/poet-store"
+import { useUserStore } from "@/store/user-store"
+import { useDebounce } from "@/hooks/use-debounce"
+import type { IPoem, SerializedPoem } from "@/types/poemTypes"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { AlertCircle, Plus, Trash2, Upload, FileText, Globe, Settings, Search, X } from "lucide-react"
+import { toast } from "sonner"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+type Category = "poem" | "ghazal" | "sher" | "nazm" | "rubai" | "marsiya" | "qataa" | "other"
+type Status = "draft" | "published"
+type ContentLang = "en" | "hi" | "ur"
 
 interface PoemFormProps {
-  initialData?: IPoem | SerializedPoem; // Allow both IPoem and SerializedPoem
-  slug?: string;
+  initialData?: IPoem | SerializedPoem
+  slug?: string
 }
 
 const languageNames: Record<ContentLang, string> = {
   en: "English",
   hi: "हिंदी",
   ur: "اردو",
-};
+}
 
 // Utility function to convert SerializedPoem to IPoem
 const convertSerializedPoemToIPoem = (data: SerializedPoem): IPoem => ({
@@ -41,22 +44,21 @@ const convertSerializedPoemToIPoem = (data: SerializedPoem): IPoem => ({
     userId: bookmark.userId,
     bookmarkedAt: new Date(bookmark.bookmarkedAt),
   })),
-});
+})
 
 export default function PoemForm({ initialData, slug }: PoemFormProps) {
-  const router = useRouter();
-  const { createPoem, updatePoem, loading } = usePoemStore();
-  const { users, fetchAllUsers } = useAdminStore();
-  const { userData } = useUserStore();
-  const isEdit = !!initialData;
+  const router = useRouter()
+  const { createPoem, updatePoem, loading } = usePoemStore()
+  const { poets,  fetchAllPoets, searchPoets } = usePoetStore()
+  const { userData } = useUserStore()
+  const isEdit = !!initialData
 
   // Convert initialData to IPoem if it's a SerializedPoem
   const normalizedInitialData = initialData
-    ? "bookmarks" in initialData &&
-      initialData.bookmarks.some((b) => typeof b.bookmarkedAt === "string")
+    ? "bookmarks" in initialData && initialData.bookmarks.some((b) => typeof b.bookmarkedAt === "string")
       ? convertSerializedPoemToIPoem(initialData as SerializedPoem)
       : initialData
-    : undefined;
+    : undefined
 
   const [formData, setFormData] = useState({
     title: normalizedInitialData?.title || { en: "", hi: "", ur: "" },
@@ -75,16 +77,61 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
     faqs: normalizedInitialData?.faqs?.length
       ? normalizedInitialData.faqs
       : [{ question: { en: "", hi: "", ur: "" }, answer: { en: "", hi: "", ur: "" } }],
-  });
+  })
 
-  const [errors, setErrors] = useState<string[]>([]);
-  const [topicsInput, setTopicsInput] = useState<string>(formData.topics.join(", "));
+  const [errors, setErrors] = useState<string[]>([])
+  const [topicsInput, setTopicsInput] = useState<string>(formData.topics.join(", "))
 
+  // Poet search states
+  const [poetSearchQuery, setPoetSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(poetSearchQuery, 300)
+  const [isSearching, setIsSearching] = useState(false)
+  const [showPoetDropdown, setShowPoetDropdown] = useState(false)
+  const poetDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Get selected poet details
+  const selectedPoet = useMemo(() => {
+    return poets.find((poet) => poet._id === formData.poet)
+  }, [poets, formData.poet])
+
+  // Fetch poets on component mount
   useEffect(() => {
     if (userData?.role === "admin") {
-      fetchAllUsers();
+      fetchAllPoets()
     }
-  }, [userData?.role, fetchAllUsers]);
+  }, [userData?.role, fetchAllPoets])
+
+  // Handle poet search with debouncing
+  useEffect(() => {
+    if (!debouncedSearchQuery.trim()) {
+      if (userData?.role === "admin") {
+        fetchAllPoets()
+      }
+      setIsSearching(false)
+      return
+    }
+
+    if (userData?.role === "admin") {
+      setIsSearching(true)
+      searchPoets(debouncedSearchQuery).finally(() => {
+        setIsSearching(false)
+      })
+    }
+  }, [debouncedSearchQuery, userData?.role, searchPoets, fetchAllPoets])
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (poetDropdownRef.current && !poetDropdownRef.current.contains(event.target as Node)) {
+        setShowPoetDropdown(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   if (!userData?.role || (userData.role !== "admin" && userData.role !== "poet")) {
     return (
@@ -95,10 +142,8 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
           <p className="text-muted-foreground">You do not have permission to {isEdit ? "edit" : "create"} poems.</p>
         </CardContent>
       </Card>
-    );
+    )
   }
-
-  const poets = users.filter((user) => user.role === "poet" || user.role === "admin");
 
   const handleContentChange = (lang: ContentLang, index: number, field: "couplet" | "meaning", value: string) => {
     setFormData((prev) => ({
@@ -107,8 +152,8 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
         ...prev.content,
         [lang]: prev.content[lang].map((item, i) => (i === index ? { ...item, [field]: value } : item)),
       },
-    }));
-  };
+    }))
+  }
 
   const addCouplet = (lang: ContentLang) => {
     setFormData((prev) => ({
@@ -117,8 +162,8 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
         ...prev.content,
         [lang]: [...prev.content[lang], { couplet: "", meaning: "" }],
       },
-    }));
-  };
+    }))
+  }
 
   const removeCouplet = (lang: ContentLang, index: number) => {
     setFormData((prev) => ({
@@ -127,98 +172,110 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
         ...prev.content,
         [lang]: prev.content[lang].filter((_, i) => i !== index),
       },
-    }));
-  };
+    }))
+  }
 
   const handleFaqChange = (index: number, field: "question" | "answer", lang: ContentLang, value: string) => {
     setFormData((prev) => ({
       ...prev,
       faqs: prev.faqs.map((faq, i) => (i === index ? { ...faq, [field]: { ...faq[field], [lang]: value } } : faq)),
-    }));
-  };
+    }))
+  }
 
   const addFaq = () => {
     setFormData((prev) => ({
       ...prev,
       faqs: [...prev.faqs, { question: { en: "", hi: "", ur: "" }, answer: { en: "", hi: "", ur: "" } }],
-    }));
-  };
+    }))
+  }
 
   const removeFaq = (index: number) => {
     setFormData((prev) => ({
       ...prev,
       faqs: prev.faqs.filter((_, i) => i !== index),
-    }));
-  };
+    }))
+  }
 
   const handleTopicsChange = (value: string) => {
-    setTopicsInput(value);
+    setTopicsInput(value)
     const topics = value
       .split(",")
       .map((t) => t.trim())
       .filter((t) => t.length > 0)
-      .slice(0, 10);
+      .slice(0, 10)
     setFormData((prev) => ({
       ...prev,
       topics,
-    }));
-  };
+    }))
+  }
+
+  const handlePoetSelect = (poetId: string) => {
+    setFormData((prev) => ({ ...prev, poet: poetId }))
+    setPoetSearchQuery("")
+    setShowPoetDropdown(false)
+  }
+
+  const clearPoetSelection = () => {
+    setFormData((prev) => ({ ...prev, poet: "" }))
+    setPoetSearchQuery("")
+    setShowPoetDropdown(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors([]);
+    e.preventDefault()
+    setErrors([])
 
     // Validation
-    const newErrors: string[] = [];
+    const newErrors: string[] = []
     if (!formData.title.en.trim() || !formData.title.hi.trim() || !formData.title.ur.trim()) {
-      newErrors.push("All title fields are required");
+      newErrors.push("All title fields are required")
     }
     if (
       !formData.content.en.some((item) => item.couplet.trim()) ||
       !formData.content.hi.some((item) => item.couplet.trim()) ||
       !formData.content.ur.some((item) => item.couplet.trim())
     ) {
-      newErrors.push("At least one couplet is required for each language");
+      newErrors.push("At least one couplet is required for each language")
     }
     if (userData.role === "admin" && !formData.poet) {
-      newErrors.push("Poet selection is required for admin users");
+      newErrors.push("Poet selection is required for admin users")
     }
 
     if (newErrors.length > 0) {
-      setErrors(newErrors);
-      return;
+      setErrors(newErrors)
+      return
     }
 
-    const data = new FormData();
-    data.append("title[en]", formData.title.en);
-    data.append("title[hi]", formData.title.hi);
-    data.append("title[ur]", formData.title.ur);
-    data.append("content", JSON.stringify(formData.content));
-    if (formData.coverImage) data.append("coverImage", formData.coverImage);
-    if (formData.topics.length) data.append("topics", JSON.stringify(formData.topics));
-    data.append("category", formData.category);
-    data.append("status", formData.status);
-    data.append("summary[en]", formData.summary.en || "");
-    data.append("summary[hi]", formData.summary.hi || "");
-    data.append("summary[ur]", formData.summary.ur || "");
-    data.append("didYouKnow[en]", formData.didYouKnow.en || "");
-    data.append("didYouKnow[hi]", formData.didYouKnow.hi || "");
-    data.append("didYouKnow[ur]", formData.didYouKnow.ur || "");
-    data.append("faqs", JSON.stringify(formData.faqs));
+    const data = new FormData()
+    data.append("title[en]", formData.title.en)
+    data.append("title[hi]", formData.title.hi)
+    data.append("title[ur]", formData.title.ur)
+    data.append("content", JSON.stringify(formData.content))
+    if (formData.coverImage) data.append("coverImage", formData.coverImage)
+    if (formData.topics.length) data.append("topics", JSON.stringify(formData.topics))
+    data.append("category", formData.category)
+    data.append("status", formData.status)
+    data.append("summary[en]", formData.summary.en || "")
+    data.append("summary[hi]", formData.summary.hi || "")
+    data.append("summary[ur]", formData.summary.ur || "")
+    data.append("didYouKnow[en]", formData.didYouKnow.en || "")
+    data.append("didYouKnow[hi]", formData.didYouKnow.hi || "")
+    data.append("didYouKnow[ur]", formData.didYouKnow.ur || "")
+    data.append("faqs", JSON.stringify(formData.faqs))
     if (userData.role === "admin" && formData.poet) {
-      data.append("poet", formData.poet);
+      data.append("poet", formData.poet)
     }
 
-    const result = isEdit ? await updatePoem(slug!, data) : await createPoem(data);
+    const result = isEdit ? await updatePoem(slug!, data) : await createPoem(data)
 
     if (result.success) {
-      toast.success(`Poem ${isEdit ? "updated" : "created"} successfully`);
-      router.push("/admin/poems");
+      toast.success(`Poem ${isEdit ? "updated" : "created"} successfully`)
+      router.push("/admin/poems")
     } else {
-      toast.error(result.message || "An error occurred");
-      setErrors([result.message || "An error occurred"]);
+      toast.error(result.message || "An error occurred")
+      setErrors([result.message || "An error occurred"])
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background py-6">
@@ -330,22 +387,75 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
 
                     {userData.role === "admin" && (
                       <div className="space-y-2">
-                        <Label htmlFor="poet">Poet</Label>
-                        <Select
-                          value={formData.poet}
-                          onValueChange={(value) => setFormData({ ...formData, poet: value })}
-                        >
-                          <SelectTrigger id="poet">
-                            <SelectValue placeholder="Select poet" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {poets.map((poet) => (
-                              <SelectItem key={poet._id} value={poet._id}>
-                                {poet.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="poet" className="flex items-center gap-2">
+                          <Search className="h-4 w-4" />
+                          Poet * 
+                        </Label>
+
+                        {selectedPoet ? (
+                          <div className="flex items-center gap-2 p-2 border rounded-md">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={selectedPoet.profilePicture?.url || ""} alt={selectedPoet.name} />
+                              <AvatarFallback>{selectedPoet.name?.charAt(0) || "P"}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{selectedPoet.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="ml-auto"
+                              onClick={clearPoetSelection}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="relative" ref={poetDropdownRef}>
+                            <div className="flex items-center border rounded-md focus-within:ring-1 focus-within:ring-ring">
+                              <Search className="h-4 w-4 m-3 text-muted-foreground" />
+                              <Input
+                                placeholder="Click to search and select a poet..."
+                                value={poetSearchQuery}
+                                onChange={(e) => setPoetSearchQuery(e.target.value)}
+                                onFocus={() => setShowPoetDropdown(true)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+
+                            {showPoetDropdown && (
+                              <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md">
+                                {isSearching ? (
+                                  <div className="p-3 text-center text-sm text-muted-foreground">Searching...</div>
+                                ) : poets.length === 0 ? (
+                                  <div className="p-3 text-center text-sm text-muted-foreground">
+                                    {poetSearchQuery.trim() ? "No poets found" : "Start typing to search poets"}
+                                  </div>
+                                ) : (
+                                  <div className="max-h-60 overflow-auto py-1">
+                                    {poets.map((poet) => (
+                                      <div
+                                        key={poet._id}
+                                        className="flex items-center gap-2 p-2 hover:bg-muted cursor-pointer transition-colors"
+                                        onClick={() => handlePoetSelect(poet._id)}
+                                      >
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={poet.profilePicture?.url || ""} alt={poet.name} />
+                                          <AvatarFallback>{poet.name?.charAt(0) || "P"}</AvatarFallback>
+                                        </Avatar>
+                                        <span>{poet.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <p className="text-xs text-muted-foreground">
+                          <span className="text-destructive">*</span> Required: Search and select a poet to attribute
+                          this poem to
+                        </p>
                       </div>
                     )}
                   </div>
@@ -556,5 +666,5 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
         </Card>
       </div>
     </div>
-  );
+  )
 }
