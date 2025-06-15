@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { usePoemStore } from "@/store/poem-store"
 import { usePoetStore } from "@/store/poet-store"
@@ -16,9 +16,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, Plus, Trash2, Upload, FileText, Globe, Settings, Search, X } from "lucide-react"
+import { AlertCircle, Plus, Trash2, Upload, FileText, Globe, Settings, Search, X, Save, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type Category = "poem" | "ghazal" | "sher" | "nazm" | "rubai" | "marsiya" | "qataa" | "other"
 type Status = "draft" | "published"
@@ -29,11 +39,34 @@ interface PoemFormProps {
   slug?: string
 }
 
+interface DraftData {
+  title: { en: string; hi: string; ur: string }
+  content: {
+    en: Array<{ couplet: string; meaning?: string }>
+    hi: Array<{ couplet: string; meaning?: string }>
+    ur: Array<{ couplet: string; meaning?: string }>
+  }
+  topics: string[]
+  category: Category
+  status: Status
+  poet: string
+  summary: { en?: string; hi?: string; ur?: string }
+  didYouKnow: { en?: string; hi?: string; ur?: string }
+  faqs: Array<{
+    question: { en?: string; hi?: string; ur?: string }
+    answer: { en?: string; hi?: string; ur?: string }
+  }>
+  savedAt: string
+}
+
 const languageNames: Record<ContentLang, string> = {
   en: "English",
   hi: "हिंदी",
   ur: "اردو",
 }
+
+const DRAFT_KEY = "poem-form-draft"
+const DRAFT_SAVE_INTERVAL = 5000 // Save every 5 seconds
 
 // Utility function to convert SerializedPoem to IPoem
 const convertSerializedPoemToIPoem = (data: SerializedPoem): IPoem => ({
@@ -49,7 +82,7 @@ const convertSerializedPoemToIPoem = (data: SerializedPoem): IPoem => ({
 export default function PoemForm({ initialData, slug }: PoemFormProps) {
   const router = useRouter()
   const { createPoem, updatePoem, loading } = usePoemStore()
-  const { poets,  fetchAllPoets, searchPoets } = usePoetStore()
+  const { poets, fetchAllPoets, searchPoets } = usePoetStore()
   const { userData } = useUserStore()
   const isEdit = !!initialData
 
@@ -82,6 +115,11 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
   const [errors, setErrors] = useState<string[]>([])
   const [topicsInput, setTopicsInput] = useState<string>(formData.topics.join(", "))
 
+  // Draft-related states
+  const [showDraftDialog, setShowDraftDialog] = useState(false)
+  const [draftData, setDraftData] = useState<DraftData | null>(null)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+
   // Poet search states
   const [poetSearchQuery, setPoetSearchQuery] = useState("")
   const debouncedSearchQuery = useDebounce(poetSearchQuery, 300)
@@ -93,6 +131,151 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
   const selectedPoet = useMemo(() => {
     return poets.find((poet) => poet._id === formData.poet)
   }, [poets, formData.poet])
+
+  // Draft management functions
+  const saveDraft = useCallback(() => {
+    if (isEdit) return // Don't save drafts for editing
+
+    const draftData: DraftData = {
+      title: formData.title,
+      content: {
+        en: formData.content.en.map((item) => ({
+          couplet: item.couplet,
+          meaning: item.meaning || "",
+        })),
+        hi: formData.content.hi.map((item) => ({
+          couplet: item.couplet,
+          meaning: item.meaning || "",
+        })),
+        ur: formData.content.ur.map((item) => ({
+          couplet: item.couplet,
+          meaning: item.meaning || "",
+        })),
+      },
+      topics: formData.topics,
+      category: formData.category,
+      status: formData.status,
+      poet: formData.poet,
+      summary: {
+        en: formData.summary.en || "",
+        hi: formData.summary.hi || "",
+        ur: formData.summary.ur || "",
+      },
+      didYouKnow: {
+        en: formData.didYouKnow.en || "",
+        hi: formData.didYouKnow.hi || "",
+        ur: formData.didYouKnow.ur || "",
+      },
+      faqs: formData.faqs.map((faq) => ({
+        question: {
+          en: faq.question.en || "",
+          hi: faq.question.hi || "",
+          ur: faq.question.ur || "",
+        },
+        answer: {
+          en: faq.answer.en || "",
+          hi: faq.answer.hi || "",
+          ur: faq.answer.ur || "",
+        },
+      })),
+      savedAt: new Date().toISOString(),
+    }
+
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData))
+      setLastSaved(new Date())
+    } catch (error) {
+      console.error("Failed to save draft:", error)
+    }
+  }, [formData, isEdit])
+
+  const loadDraft = useCallback(() => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_KEY)
+      if (savedDraft) {
+        const parsed: DraftData = JSON.parse(savedDraft)
+        return parsed
+      }
+    } catch (error) {
+      console.error("Failed to load draft:", error)
+    }
+    return null
+  }, [])
+
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY)
+      setLastSaved(null)
+    } catch (error) {
+      console.error("Failed to clear draft:", error)
+    }
+  }, [])
+
+  const restoreFromDraft = useCallback((draft: DraftData) => {
+    setFormData({
+      title: draft.title,
+      content: draft.content,
+      coverImage: null, // Can't restore file from localStorage
+      topics: draft.topics,
+      category: draft.category,
+      status: draft.status,
+      poet: draft.poet,
+      summary: draft.summary,
+      didYouKnow: draft.didYouKnow,
+      faqs: draft.faqs,
+    })
+    setTopicsInput(draft.topics.join(", "))
+    toast.success("Draft restored successfully!")
+    setShowDraftDialog(false)
+  }, [])
+
+  const isDraftEmpty = useCallback((draft: DraftData) => {
+    return (
+      !draft.title.en.trim() &&
+      !draft.title.hi.trim() &&
+      !draft.title.ur.trim() &&
+      !draft.content.en.some((item) => item.couplet.trim()) &&
+      !draft.content.hi.some((item) => item.couplet.trim()) &&
+      !draft.content.ur.some((item) => item.couplet.trim()) &&
+      draft.topics.length === 0 &&
+      !draft.summary.en?.trim() &&
+      !draft.summary.hi?.trim() &&
+      !draft.summary.ur?.trim() &&
+      !draft.didYouKnow.en?.trim() &&
+      !draft.didYouKnow.hi?.trim() &&
+      !draft.didYouKnow.ur?.trim()
+    )
+  }, [])
+
+  // Check for existing draft on component mount
+  useEffect(() => {
+    if (!isEdit) {
+      const existingDraft = loadDraft()
+      if (existingDraft && !isDraftEmpty(existingDraft)) {
+        setDraftData(existingDraft)
+        setShowDraftDialog(true)
+      }
+    }
+  }, [isEdit, loadDraft, isDraftEmpty])
+
+  // Auto-save draft periodically
+  useEffect(() => {
+    if (isEdit) return
+
+    const interval = setInterval(() => {
+      saveDraft()
+    }, DRAFT_SAVE_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [saveDraft, isEdit])
+
+  // Save draft when form data changes (debounced)
+  const debouncedFormData = useDebounce(formData, 2000)
+  useEffect(() => {
+    if (!isEdit) {
+      saveDraft()
+    }
+  }, [debouncedFormData, saveDraft, isEdit])
 
   // Fetch poets on component mount
   useEffect(() => {
@@ -132,6 +315,20 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
+
+  // Handle beforeunload to save draft
+  useEffect(() => {
+    if (isEdit) return
+
+    const handleBeforeUnload = () => {
+      saveDraft()
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [saveDraft, isEdit])
 
   if (!userData?.role || (userData.role !== "admin" && userData.role !== "poet")) {
     return (
@@ -269,6 +466,10 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
     const result = isEdit ? await updatePoem(slug!, data) : await createPoem(data)
 
     if (result.success) {
+      // Clear draft only on successful creation (not editing)
+      if (!isEdit) {
+        clearDraft()
+      }
       toast.success(`Poem ${isEdit ? "updated" : "created"} successfully`)
       router.push("/admin/poems")
     } else {
@@ -287,6 +488,18 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
               {isEdit ? "Edit Poem" : "Create New Poem"}
             </CardTitle>
             <p className="text-muted-foreground">Share your poetry with the world in multiple languages</p>
+
+            {/* Draft status indicator */}
+            {!isEdit && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Save className="h-4 w-4" />
+                {lastSaved ? (
+                  <span>Draft saved at {lastSaved.toLocaleTimeString()}</span>
+                ) : (
+                  <span>Auto-save enabled</span>
+                )}
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="p-6">
@@ -389,7 +602,7 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
                       <div className="space-y-2">
                         <Label htmlFor="poet" className="flex items-center gap-2">
                           <Search className="h-4 w-4" />
-                          Poet * 
+                          Poet *
                         </Label>
 
                         {selectedPoet ? (
@@ -665,6 +878,28 @@ export default function PoemForm({ initialData, slug }: PoemFormProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Draft Restoration Dialog */}
+      <AlertDialog open={showDraftDialog} onOpenChange={setShowDraftDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Restore Draft?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              We found a saved draft from {draftData && new Date(draftData.savedAt).toLocaleString()}. Would you like to
+              restore it? This will replace any current content in the form.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDraftDialog(false)}>Start Fresh</AlertDialogCancel>
+            <AlertDialogAction onClick={() => draftData && restoreFromDraft(draftData)}>
+              Restore Draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

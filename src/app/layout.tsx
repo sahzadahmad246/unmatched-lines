@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type React from "react";
 import { Inter, Noto_Nastaliq_Urdu } from "next/font/google";
 import ClientProviders from "@/components/ClientProviders";
@@ -22,7 +21,7 @@ const notoNastaliq = Noto_Nastaliq_Urdu({
 });
 
 export const metadata: Metadata = {
-  title: "Unmatched Lines ",
+  title: "Unmatched Lines",
   description:
     "Discover a soulful collection of timeless Urdu, Hindi, and Roman poetry. Read famous ghazals, nazms, and sher by legendary poets like Ghalib, Faiz, Faraz, and more.",
   keywords: [
@@ -76,6 +75,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta
+          name="google-site-verification"
+          content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
+        />
+        <link rel="icon" href="/logo.png" type="image/png" />
+      </head>
       <body className={`${inter.variable} ${notoNastaliq.variable}`}>
         <ClientProviders>
           <Suspense>
