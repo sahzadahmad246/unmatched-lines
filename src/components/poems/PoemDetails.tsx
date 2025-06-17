@@ -1,49 +1,75 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { SerializedPoem } from "@/types/poemTypes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import RecommendedPoems from "@/components/poems/RecommendedPoems";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   ArrowLeft,
   Bookmark,
   Share2,
   Eye,
   Calendar,
-  ChevronDown,
-  ChevronUp,
-  MessageCircle,
-  Sparkles,
-  Quote,
   User,
   Tag,
   Info,
-  HelpCircle,
-  Globe,
   BookOpen,
   Languages,
+  Download,
+  Sparkles,
+  Quote,
+  MessageCircle,
+  HelpCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useUserStore } from "@/store/user-store";
 import { usePoemStore } from "@/store/poem-store";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
-import DownloadCouplet from "./DownloadCouplet";
+
+// Lazy load heavy components
+const RecommendedPoems = lazy(
+  () => import("@/components/poems/RecommendedPoems")
+);
+const DownloadCouplet = lazy(() => import("./DownloadCouplet"));
+const Dialog = lazy(() =>
+  import("@/components/ui/dialog").then((mod) => ({ default: mod.Dialog }))
+);
+const DialogContent = lazy(() =>
+  import("@/components/ui/dialog").then((mod) => ({
+    default: mod.DialogContent,
+  }))
+);
+const DialogHeader = lazy(() =>
+  import("@/components/ui/dialog").then((mod) => ({
+    default: mod.DialogHeader,
+  }))
+);
+const DialogTitle = lazy(() =>
+  import("@/components/ui/dialog").then((mod) => ({ default: mod.DialogTitle }))
+);
+const DialogTrigger = lazy(() =>
+  import("@/components/ui/dialog").then((mod) => ({
+    default: mod.DialogTrigger,
+  }))
+);
+const Collapsible = lazy(() =>
+  import("@/components/ui/collapsible").then((mod) => ({
+    default: mod.Collapsible,
+  }))
+);
+const CollapsibleContent = lazy(() =>
+  import("@/components/ui/collapsible").then((mod) => ({
+    default: mod.CollapsibleContent,
+  }))
+);
+const CollapsibleTrigger = lazy(() =>
+  import("@/components/ui/collapsible").then((mod) => ({
+    default: mod.CollapsibleTrigger,
+  }))
+);
+
 interface PoemDetailsProps {
   poem: SerializedPoem;
   currentLang: "en" | "hi" | "ur";
@@ -127,7 +153,14 @@ const localizedStrings = {
   },
 };
 
-export default function EnhancedPoemDetails({
+// Loading component for suspense fallbacks
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center p-4">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-primary border-muted" />
+  </div>
+);
+
+export default function OptimizedPoemDetails({
   poem,
   currentLang,
 }: PoemDetailsProps) {
@@ -141,12 +174,49 @@ export default function EnhancedPoemDetails({
     couplet: string;
     meaning: string;
   } | null>(null);
+  const [scrolled, setScrolled] = useState(false);
   const [fullViewDialogOpen, setFullViewDialogOpen] = useState(false);
-  const { userData, fetchUserData } = useUserStore();
   const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  const [showRecommended, setShowRecommended] = useState(false);
+
+  const { userData, fetchUserData } = useUserStore();
   const { bookmarkPoem } = usePoemStore();
 
   const t = localizedStrings[currentLang];
+
+  // Memoize poet data to prevent recalculations
+  const poetData = useMemo(() => {
+    const name = isPoetObject(poem.poet) ? poem.poet.name : "Unknown Poet";
+    const image = isPoetObject(poem.poet)
+      ? poem.poet.profilePicture?.url ?? "/placeholder.svg?height=64&width=64"
+      : "/placeholder.svg?height=64&width=64";
+    const slug = isPoetObject(poem.poet) ? poem.poet.slug : "unknown";
+    const imageAlt = isPoetObject(poem.poet)
+      ? poem.poet.profilePicture?.alt ?? t.poetImageAlt(name)
+      : t.poetImageAlt("Unknown Poet");
+
+    return { name, image, slug, imageAlt };
+  }, [poem.poet, t]);
+
+  // Memoize content processing
+  const contentData = useMemo(() => {
+    const displayContent =
+      poem.content[currentLang].length > 0
+        ? poem.content[currentLang]
+        : poem.content.en.length > 0
+        ? poem.content.en
+        : [];
+    const contentLang =
+      poem.content[currentLang].length > 0 ? currentLang : "en";
+    const contentNotice =
+      poem.content[currentLang].length === 0 && poem.content.en.length > 0;
+
+    return { displayContent, contentLang, contentNotice };
+  }, [poem.content, currentLang]);
+
+  const isUrdu = currentLang === "ur";
+  const textDirection = isUrdu ? "rtl" : "ltr";
+  const fontClass = isUrdu ? "font-noto-nastaliq" : "font-inter";
 
   useEffect(() => {
     if (userData?._id && poem) {
@@ -165,21 +235,20 @@ export default function EnhancedPoemDetails({
     }
   }, [userData, poem]);
 
-  const poetName = isPoetObject(poem.poet) ? poem.poet.name : "Unknown Poet";
-  const poetImage = isPoetObject(poem.poet)
-    ? poem.poet.profilePicture?.url ?? "/placeholder.svg?height=64&width=64"
-    : "/placeholder.svg?height=64&width=64";
-  const poetSlug = isPoetObject(poem.poet) ? poem.poet.slug : "unknown";
-  const poetImageAlt = isPoetObject(poem.poet)
-    ? poem.poet.profilePicture?.alt ?? t.poetImageAlt(poetName)
-    : t.poetImageAlt("Unknown Poet");
-
   useEffect(() => {
     const handleScroll = () => {
       setShowTitle(window.scrollY > 200);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Lazy load recommended poems after initial render
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowRecommended(true);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleBookmark = async () => {
@@ -215,6 +284,14 @@ export default function EnhancedPoemDetails({
     }
   };
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 100);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -252,41 +329,22 @@ export default function EnhancedPoemDetails({
     setMeaningDialogOpen(true);
   };
 
-  const isUrdu = currentLang === "ur";
-  const textDirection = isUrdu ? "rtl" : "ltr";
-  const fontClass = isUrdu ? "font-noto-nastaliq" : "font-inter";
-
   // FAQ Schema for Rich Snippets
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: poem.faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question[currentLang] || faq.question.en,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: faq.answer[currentLang] || faq.answer.en,
-      },
-    })),
-  };
-
-  // Fallback content if currentLang content is missing
-  const displayContent =
-    poem.content[currentLang].length > 0
-      ? poem.content[currentLang]
-      : poem.content.en.length > 0
-      ? poem.content.en
-      : [];
-  const contentLang = poem.content[currentLang].length > 0 ? currentLang : "en";
-  const contentNotice = poem.content[currentLang].length === 0 &&
-    poem.content.en.length > 0 && (
-      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-        <p className="text-sm text-yellow-800 dark:text-yellow-200">
-          {t.availableLanguages} not available in {languageNames[currentLang]}.
-          Showing {languageNames.en} version.
-        </p>
-      </div>
-    );
+  const faqSchema = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: poem.faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question[currentLang] || faq.question.en,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.answer[currentLang] || faq.answer.en,
+        },
+      })),
+    }),
+    [poem.faqs, currentLang]
+  );
 
   return (
     <article className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -298,9 +356,13 @@ export default function EnhancedPoemDetails({
         />
       )}
 
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-lg">
-        <div className="container m-0 p-5">
+      {/* Optimized Sticky Header */}
+      <header
+        className={`fixed top-0 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl bg-background/80 backdrop-blur-md border-b border-border/50 transition-all duration-300 ${
+          scrolled ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="container m-0 p-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -315,13 +377,13 @@ export default function EnhancedPoemDetails({
               </Link>
             </Button>
             {showTitle && (
-              <div className="flex-1 min-w-0 animate-in slide-in-from-left-2 duration-300">
+              <div className="flex-1 min-w-0">
                 <h2 className="font-semibold text-lg truncate">
                   {poem.title[currentLang]}
                 </h2>
                 <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {poetName}
+                  {poetData.name}
                 </p>
               </div>
             )}
@@ -333,36 +395,37 @@ export default function EnhancedPoemDetails({
               aria-label="View full poem"
             >
               <BookOpen className="h-4 w-4" />
-              Full View
+              <span className="hidden sm:inline">Full View</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-0 py-8 max-w-4xl space-y-8">
-        {/* Language Switcher */}
-        <section className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm">
-          <h2 className="flex items-center gap-2 mb-4">
-            <Languages className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">{t.availableLanguages}</span>
+      <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
+        {/* Language Switcher - Simplified */}
+        <section className="p-4 rounded-xl border bg-card/50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="flex items-center gap-2 text-sm font-medium">
+              <Languages className="h-4 w-4 text-primary" />
+              {t.availableLanguages}
+            </h2>
             <Badge variant="secondary" className="text-xs">
-              {Object.keys(poem.title).length} languages
+              {Object.keys(poem.title).length}
             </Badge>
-          </h2>
-          <div className="flex flex-wrap gap-2">
+          </div>
+          <div className="flex gap-2">
             {(["en", "hi", "ur"] as const).map((lang) => (
               <Button
                 key={lang}
                 variant={currentLang === lang ? "default" : "outline"}
                 size="sm"
                 asChild
-                className="transition-all duration-200"
+                className="text-xs"
               >
                 <Link
                   href={`/poems/${lang}/${poem.slug[lang]}`}
                   hrefLang={lang}
                 >
-                  <Globe className="h-3 w-3 mr-1" />
                   {languageNames[lang]}
                 </Link>
               </Button>
@@ -370,123 +433,111 @@ export default function EnhancedPoemDetails({
           </div>
         </section>
 
-        {/* Poet Section */}
-        <section className="flex items-start gap-6 p-6 rounded-xl bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-sm border">
+        {/* Optimized Poet Section */}
+        <section className="flex items-start gap-4 p-4 rounded-xl bg-card/50 border">
           <div className="flex-shrink-0 relative">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 overflow-hidden ring-2 ring-primary/20">
+            <div className="h-16 w-16 rounded-full overflow-hidden ring-2 ring-primary/20">
               <Image
-                src={poetImage}
-                alt={poetImageAlt}
-                width={80}
-                height={80}
+                src={poetData.image || "/placeholder.svg"}
+                alt={poetData.imageAlt}
+                width={64}
+                height={64}
                 className="w-full h-full object-cover"
                 priority
+                sizes="64px"
               />
-            </div>
-            <div className="absolute -bottom-2 -right-2 h-8 w-8 bg-primary rounded-full flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <Link href={`/poet/${poetSlug}`}>
-              <h3 className="font-bold text-2xl mb-2 hover:text-primary transition-colors">
-                {poetName}
+            <Link href={`/poet/${poetData.slug}`}>
+              <h3 className="font-bold text-xl mb-2 hover:text-primary transition-colors">
+                {poetData.name}
               </h3>
             </Link>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-2">
               <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-3 w-3" />
                 <span>
-                  {t.published}{" "}
                   {formatDistanceToNow(new Date(poem.createdAt), {
                     addSuffix: true,
                   })}
                 </span>
               </div>
-              <Badge
-                variant="secondary"
-                className="text-xs flex items-center gap-1"
-              >
-                <Tag className="h-3 w-3" />
+              <Badge variant="secondary" className="text-xs">
                 {poem.category}
               </Badge>
-              <Badge variant="outline" className="text-xs">
-                {poem.status}
-              </Badge>
             </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50">
-                <Eye className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">
-                  {(poem.viewsCount || 0).toLocaleString()} views
-                </span>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <Eye className="h-3 w-3 text-blue-500" />
+                <span>{(poem.viewsCount || 0).toLocaleString()}</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50">
-                <Bookmark className="h-4 w-4 text-red-500" />
-                <span className="font-medium">
-                  {(poem.bookmarkCount || 0).toLocaleString()} bookmarks
-                </span>
+              <div className="flex items-center gap-1">
+                <Bookmark className="h-3 w-3 text-red-500" />
+                <span>{(poem.bookmarkCount || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Poem Title */}
-        <section className="text-center space-y-6 py-8">
-          <div className="relative">
-            <Quote className="absolute -top-4 -left-4 h-8 w-8 text-primary/20 transform -rotate-12" />
-            <h1 className="text-3xl md:text-4xl font-bold leading-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-              {poem.title[currentLang]}
-            </h1>
-            <Quote className="absolute -bottom-4 -right-4 h-8 w-8 text-primary/20 transform rotate-12 scale-x-[-1]" />
-          </div>
+        {/* Optimized Poem Title */}
+        <section className="text-center py-6">
+          <h1 className="text-2xl md:text-3xl font-bold leading-tight">
+            {poem.title[currentLang]}
+          </h1>
         </section>
 
-        {/* Cover Image */}
+        {/* Optimized Cover Image */}
         {poem.coverImage?.url && (
-          <section className="relative h-72 md:h-96 rounded-2xl overflow-hidden">
+          <section className="relative h-64 md:h-80 rounded-xl overflow-hidden">
             <Image
-              src={poem.coverImage.url}
-              alt={t.coverImageAlt(poem.title[currentLang], poetName)}
+              src={poem.coverImage.url || "/placeholder.svg"}
+              alt={t.coverImageAlt(poem.title[currentLang], poetData.name)}
               fill
-              className="object-cover transition-transform duration-700 hover:scale-105"
+              className="object-cover"
               priority
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
           </section>
         )}
 
         {/* Content Fallback Notice */}
-        {contentNotice}
+        {contentData.contentNotice && (
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              Content not available in {languageNames[currentLang]}. Showing{" "}
+              {languageNames.en} version.
+            </p>
+          </div>
+        )}
 
-        {/* Poem Content */}
+        {/* Optimized Poem Content */}
         <section
-          className="space-y-6 py-6"
+          className="space-y-4"
           dir={textDirection}
-          lang={contentLang}
+          lang={contentData.contentLang}
         >
-          {displayContent.map((item, index) => (
+          {contentData.displayContent.map((item, index) => (
             <article key={index} className="relative">
               <div className="max-w-2xl mx-auto">
-                <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm border group hover:shadow-lg transition-all duration-300">
-                  <div className="absolute top-3 left-3 text-primary/30 font-mono text-xs">
+                <div className="relative p-4 rounded-xl bg-card/50 border">
+                  <div className="absolute top-2 left-2 text-primary/30 font-mono text-xs">
                     {index + 1}
                   </div>
-                  <div className="relative mb-4">
+                  <div className="relative mb-3">
                     <div
                       className={`relative ${
-                        isUrdu ? "pr-6" : "pl-6"
+                        isUrdu ? "pr-4" : "pl-4"
                       } ${fontClass}`}
                       dir={textDirection}
-                      lang={contentLang}
+                      lang={contentData.contentLang}
                     >
                       <div
                         className={`absolute ${
                           isUrdu ? "right-0" : "left-0"
-                        } top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-primary/40 rounded-full`}
+                        } top-0 bottom-0 w-1 bg-primary/40 rounded-full`}
                       />
-                      <div className="text-lg md:text-xl leading-loose text-foreground/90 space-y-2">
+                      <div className="text-lg leading-loose space-y-1">
                         {formatCouplet(item.couplet)}
                       </div>
                     </div>
@@ -499,9 +550,9 @@ export default function EnhancedPoemDetails({
                         onClick={() =>
                           openMeaningDialog(item.couplet, item.meaning!)
                         }
-                        className="flex items-center gap-2 text-xs"
+                        className="text-xs"
                       >
-                        <Info className="h-3 w-3" />
+                        <Info className="h-3 w-3 mr-1" />
                         View Meaning
                       </Button>
                     </div>
@@ -512,17 +563,14 @@ export default function EnhancedPoemDetails({
           ))}
         </section>
 
-        {/* Topics */}
+        {/* Optimized Topics */}
         {poem.topics.length > 0 && (
-          <section
-            className={`flex justify-center gap-2 flex-wrap max-w-full ${fontClass}`}
-            dir={textDirection}
-          >
+          <section className="flex justify-center gap-2 flex-wrap">
             {poem.topics.slice(0, 3).map((topic: string) => (
               <Badge
                 key={topic}
                 variant="outline"
-                className={`px-3 py-1 text-sm hover:bg-primary/10 transition-colors cursor-pointer ${fontClass}`}
+                className="text-sm hover:bg-primary/10 transition-colors"
                 asChild
               >
                 <Link
@@ -535,64 +583,60 @@ export default function EnhancedPoemDetails({
               </Badge>
             ))}
             {poem.topics.length > 3 && (
-              <Dialog
-                open={topicsDialogOpen}
-                onOpenChange={setTopicsDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`text-xs h-8 px-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium ${fontClass}`}
-                    aria-label={`Show ${poem.topics.length - 3} more topics`}
-                  >
-                    +{poem.topics.length - 3} more
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle
-                      className={`flex items-center gap-2 ${fontClass}`}
+              <Suspense fallback={<LoadingSpinner />}>
+                <Dialog
+                  open={topicsDialogOpen}
+                  onOpenChange={setTopicsDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs bg-primary/10 hover:bg-primary/20"
                     >
-                      <Tag className="h-5 w-5 text-primary" />
-                      {t.allTopics}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div
-                    className={`flex flex-wrap gap-2 mt-4 ${fontClass}`}
-                    dir={textDirection}
-                  >
-                    {poem.topics.map((topic: string) => (
-                      <Badge
-                        key={topic}
-                        variant="secondary"
-                        className={`text-sm bg-accent/50 hover:bg-accent/70 transition-colors ${fontClass}`}
-                        asChild
-                      >
-                        <Link
-                          href={`/poems/${currentLang}/category/${encodeURIComponent(
-                            topic
-                          )}`}
+                      +{poem.topics.length - 3} more
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-primary" />
+                        {t.allTopics}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {poem.topics.map((topic: string) => (
+                        <Badge
+                          key={topic}
+                          variant="secondary"
+                          className="text-sm"
+                          asChild
                         >
-                          #{topic}
-                        </Link>
-                      </Badge>
-                    ))}
-                  </div>
-                </DialogContent>
-              </Dialog>
+                          <Link
+                            href={`/poems/${currentLang}/category/${encodeURIComponent(
+                              topic
+                            )}`}
+                          >
+                            #{topic}
+                          </Link>
+                        </Badge>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </Suspense>
             )}
           </section>
         )}
 
         {/* Summary */}
         {(poem.summary[currentLang] || poem.summary.en) && (
-          <section className="p-6 rounded-xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
-            <h2 className="flex items-center gap-2 mb-4">
-              <MessageCircle className="h-5 w-5 text-primary" />
+          <section className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+            <h2 className="flex items-center gap-2 mb-3 text-sm font-medium">
+              <MessageCircle className="h-4 w-4 text-primary" />
               {t.summary}
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {poem.summary[currentLang] || poem.summary.en}
             </p>
           </section>
@@ -600,244 +644,236 @@ export default function EnhancedPoemDetails({
 
         {/* Did You Know */}
         {(poem.didYouKnow[currentLang] || poem.didYouKnow.en) && (
-          <section className="p-6 rounded-xl bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200/50 dark:border-amber-800/50">
-            <h2 className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <section className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/50">
+            <h2 className="flex items-center gap-2 mb-3 text-sm font-medium">
+              <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               {t.didYouKnow}
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {poem.didYouKnow[currentLang] || poem.didYouKnow.en}
             </p>
           </section>
         )}
 
-        {/* FAQs */}
+        {/* Lazy-loaded FAQs */}
         {poem.faqs.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="flex items-center gap-2 mb-6">
-              <HelpCircle className="h-5 w-5 text-primary" />
-              {t.faqs}
-            </h2>
-            <div className="space-y-3">
-              {poem.faqs.map((faq, index) => (
-                <Collapsible key={index} open={openFAQs.includes(index)}>
-                  <CollapsibleTrigger
-                    onClick={() => toggleFAQ(index)}
-                    className="w-full p-4 rounded-lg border bg-card/50 hover:bg-card/80 transition-colors text-left"
-                    aria-expanded={openFAQs.includes(index)}
-                    aria-controls={`faq-content-${index}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium pr-4">
-                        {faq.question[currentLang] || faq.question.en}
-                      </h3>
-                      {openFAQs.includes(index) ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      )}
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent
-                    id={`faq-content-${index}`}
-                    className="px-4 pb-4"
-                  >
-                    <p className="text-muted-foreground leading-relaxed pt-2 border-t border-border/50">
-                      {faq.answer[currentLang] || faq.answer.en}
-                    </p>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
-            </div>
-          </section>
+          <Suspense fallback={<LoadingSpinner />}>
+            <section className="space-y-3">
+              <h2 className="flex items-center gap-2 mb-4 text-sm font-medium">
+                <HelpCircle className="h-4 w-4 text-primary" />
+                {t.faqs}
+              </h2>
+              <div className="space-y-2">
+                {poem.faqs.map((faq, index) => (
+                  <Collapsible key={index} open={openFAQs.includes(index)}>
+                    <CollapsibleTrigger
+                      onClick={() => toggleFAQ(index)}
+                      className="w-full p-3 rounded-lg border bg-card/50 hover:bg-card/80 transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-sm pr-4">
+                          {faq.question[currentLang] || faq.question.en}
+                        </h3>
+                        <div className="text-muted-foreground">
+                          {openFAQs.includes(index) ? "−" : "+"}
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-3 pb-3">
+                      <p className="text-sm text-muted-foreground leading-relaxed pt-2 border-t border-border/50">
+                        {faq.answer[currentLang] || faq.answer.en}
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </div>
+            </section>
+          </Suspense>
         )}
-        <RecommendedPoems currentPoem={poem} currentLang={currentLang} />
-        {/* Sticky Footer */}
-        <footer className="sticky bottom-0 z-50 bg-background/95 backdrop-blur-lg">
-          <div className="container mx-auto px-4 py-4">
+
+        {/* Lazy-loaded Recommended Poems */}
+        {showRecommended && (
+          <Suspense fallback={<LoadingSpinner />}>
+            <RecommendedPoems currentPoem={poem} currentLang={currentLang} />
+          </Suspense>
+        )}
+
+        {/* Optimized Sticky Footer */}
+        <footer className="sticky bottom-0 z-50 bg-background/95 backdrop-blur-sm border-t">
+          <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-around max-w-md mx-auto">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Eye className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">
-                  {(poem.viewsCount || 0).toLocaleString()}
-                </span>
+                <span>{(poem.viewsCount || 0).toLocaleString()}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className={`flex items-center gap-2 transition-all duration-200 ${
-                  isBookmarked
-                    ? "text-primary bg-primary/10"
-                    : "hover:bg-muted/80"
+                className={`flex items-center gap-1 ${
+                  isBookmarked ? "text-primary" : ""
                 }`}
                 onClick={handleBookmark}
                 disabled={actionLoading}
-                aria-label={isBookmarked ? "Remove bookmark" : "Add bookmark"}
               >
                 {actionLoading ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-primary border-muted" />
                 ) : (
                   <Bookmark
-                    className={`h-4 w-4 transition-all duration-200 ${
-                      isBookmarked ? "fill-current scale-110" : ""
-                    }`}
+                    className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`}
                   />
                 )}
-                <span className="font-medium">
+                <span className="text-sm">
                   {(poem.bookmarkCount || 0).toLocaleString()}
                 </span>
               </Button>
-              <button
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-background/60 hover:shadow-md transition-all duration-300"
-                onClick={() => setIsDownloadDialogOpen(true)}
-              >
-                <Download className="h-4 w-4" />
-                <span className="text-sm font-semibold font-inter hidden sm:inline">
-                  Download
-                </span>
-              </button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex items-center gap-2 hover:bg-muted/80 transition-colors"
+                onClick={() => setIsDownloadDialogOpen(true)}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm">Download</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleShare}
-                aria-label={t.share}
+                className="flex items-center gap-1"
               >
                 <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">{t.share}</span>
+                <span className="hidden sm:inline text-sm">{t.share}</span>
               </Button>
             </div>
           </div>
         </footer>
-        {/* Download Dialog */}
-        <DownloadCouplet
-          poemSlug={poem.slug.en}
-          open={isDownloadDialogOpen}
-          onOpenChange={setIsDownloadDialogOpen}
-        />
-        {/* Meaning Dialog */}
-        <Dialog open={meaningDialogOpen} onOpenChange={setMeaningDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Quote className="h-5 w-5 text-primary" />
-                {t.viewMeaning}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedCouplet && (
-              <div className="space-y-6">
-                <div className="relative">
-                  <div
-                    className={`relative ${
-                      isUrdu ? "pr-6" : "pl-6"
-                    } ${fontClass}`}
-                    dir={textDirection}
-                    lang={contentLang}
-                  >
+
+        {/* Lazy-loaded Dialogs */}
+        <Suspense fallback={null}>
+          <DownloadCouplet
+            poemSlug={poem.slug.en}
+            open={isDownloadDialogOpen}
+            onOpenChange={setIsDownloadDialogOpen}
+          />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <Dialog open={meaningDialogOpen} onOpenChange={setMeaningDialogOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Quote className="h-4 w-4 text-primary" />
+                  {t.viewMeaning}
+                </DialogTitle>
+              </DialogHeader>
+              {selectedCouplet && (
+                <div className="space-y-4">
+                  <div className="relative">
                     <div
-                      className={`absolute ${
-                        isUrdu ? "right-0" : "left-0"
-                      } top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-primary/40 rounded-full`}
-                    />
-                    <div className="text-lg leading-loose text-foreground/90 space-y-2">
-                      {formatCouplet(selectedCouplet.couplet)}
+                      className={`relative ${
+                        isUrdu ? "pr-4" : "pl-4"
+                      } ${fontClass}`}
+                      dir={textDirection}
+                      lang={contentData.contentLang}
+                    >
+                      <div
+                        className={`absolute ${
+                          isUrdu ? "right-0" : "left-0"
+                        } top-0 bottom-0 w-1 bg-primary/40 rounded-full`}
+                      />
+                      <div className="text-base leading-loose space-y-1">
+                        {formatCouplet(selectedCouplet.couplet)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {selectedCouplet.meaning}
+                      </p>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 rounded-lg bg-muted/30 border">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {selectedCouplet.meaning}
+              )}
+            </DialogContent>
+          </Dialog>
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <Dialog
+            open={fullViewDialogOpen}
+            onOpenChange={setFullViewDialogOpen}
+          >
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  {poem.title[currentLang]}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="h-10 w-10 rounded-full overflow-hidden">
+                    <Image
+                      src={poetData.image || "/placeholder.svg"}
+                      alt={poetData.imageAlt}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">{poetData.name}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(poem.createdAt), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Full View Dialog */}
-        <Dialog open={fullViewDialogOpen} onOpenChange={setFullViewDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                {poem.title[currentLang]}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30">
-                <div className="h-12 w-12 rounded-full overflow-hidden">
-                  <Image
-                    src={poetImage}
-                    alt={poetImageAlt}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{poetName}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(poem.createdAt), {
-                      addSuffix: true,
-                    })}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {displayContent.map((item, index) => (
-                  <div key={index} className="p-4 rounded-lg border bg-card/50">
-                    <div className="relative">
-                      <div
-                        className={`relative ${
-                          isUrdu ? "pr-6" : "pl-6"
-                        } ${fontClass}`}
-                        dir={textDirection}
-                        lang={contentLang}
-                      >
+                <div className="space-y-3">
+                  {contentData.displayContent.map((item, index) => (
+                    <div
+                      key={index}
+                      className="p-3 rounded-lg border bg-card/50"
+                    >
+                      <div className="relative">
                         <div
-                          className={`absolute ${
-                            isUrdu ? "right-0" : "left-0"
-                          } top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-primary/40 rounded-full`}
-                        />
-                        <div className="text-base leading-loose text-foreground/90 space-y-1">
-                          {formatCouplet(item.couplet)}
+                          className={`relative ${
+                            isUrdu ? "pr-4" : "pl-4"
+                          } ${fontClass}`}
+                          dir={textDirection}
+                          lang={contentData.contentLang}
+                        >
+                          <div
+                            className={`absolute ${
+                              isUrdu ? "right-0" : "left-0"
+                            } top-0 bottom-0 w-1 bg-primary/40 rounded-full`}
+                          />
+                          <div className="text-sm leading-loose space-y-1">
+                            {formatCouplet(item.couplet)}
+                          </div>
                         </div>
                       </div>
+                      {item.meaning && (
+                        <div className="mt-2 pt-2 border-t border-border/50">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-3 w-3 text-muted-foreground mt-1 flex-shrink-0" />
+                            <p className="text-xs text-muted-foreground italic leading-relaxed">
+                              {item.meaning}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {item.meaning && (
-                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <div className="flex items-start gap-2">
-                          <Info className="h-3 w-3 text-muted-foreground mt-1 flex-shrink-0" />
-                          <p className="text-xs text-muted-foreground italic leading-relaxed">
-                            {item.meaning}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <style jsx>{`
-          .poetry-text {
-            line-height: 1.8;
-            letter-spacing: 0.02em;
-          }
-          .font-noto-nastaliq {
-            font-family: var(--font-noto-nastaliq), "Noto Nastaliq Urdu",
-              sans-serif;
-          }
-          .font-inter {
-            font-family: var(--font-inter), "Inter", sans-serif;
-          }
-        `}</style>
+            </DialogContent>
+          </Dialog>
+        </Suspense>
       </div>
     </article>
   );

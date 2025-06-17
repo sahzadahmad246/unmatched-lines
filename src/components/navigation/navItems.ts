@@ -17,6 +17,6 @@ export const navItems = [
   { name: "Sher", href: "/category/sher", icon: BookOpen },
   { name: "Ghazal", href: "/category/ghazal", icon: Feather },
   { name: "Nazm", href: "/category/nazm", icon: BookText },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Policy", href: "/policy", icon: Settings },
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
 ];
