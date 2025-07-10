@@ -80,7 +80,7 @@ export default function RootLayout({
           name="google-site-verification"
           content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
         />
-        <meta name="monetag" content="ef92b2440c3c127cea97f1959018612a">
+        <meta name="monetag" content="ef92b2440c3c127cea97f1959018612a" />
         <link rel="icon" href="/logo.png" type="image/png" />
       </head>
       <body className={`${inter.variable} ${notoNastaliq.variable}`}>
