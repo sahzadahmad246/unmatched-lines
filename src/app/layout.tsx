@@ -80,13 +80,7 @@ export default function RootLayout({
           name="google-site-verification"
           content="UHyWmr1AgyMlb5wkC2f7Ep-sMZTbskO6ZSGpwsLgLCM"
         />
-        <meta name="monetag" content="ef92b2440c3c127cea97f1959018612a" />
-        <script
-          src="https://fpyf8.com/88/tag.min.js"
-          data-zone="156594"
-          async
-          data-cfasync="false"
-        ></script>
+       
         <link rel="icon" href="/logo.png" type="image/png" />
       </head>
       <body className={`${inter.variable} ${notoNastaliq.variable}`}>
