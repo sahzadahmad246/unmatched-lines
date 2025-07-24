@@ -107,6 +107,12 @@ export default function AdminDashboard() {
             </Link>
           </Button>
           <Button asChild>
+            <Link href="/admin/articles/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Article
+            </Link>
+          </Button>
+          <Button asChild>
             <Link href="/admin/poems/new">
               <Plus className="h-4 w-4 mr-2" />
               Add Poem

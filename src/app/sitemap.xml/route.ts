@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Poem from "@/models/Poem";
 import User from "@/models/User";
+import Article from "@/models/Article";
 
-// Define the query interface to avoid using `any`
+// Define the query interface for poems
 interface PoemQuery {
   poet: string;
   status: string;
@@ -13,7 +14,7 @@ interface PoemQuery {
 export async function GET() {
   await dbConnect();
 
-  // Define valid categories first to avoid ReferenceError
+  // Define valid categories for poet works
   const validCategories = [
     "all-works",
     "ghazal",
@@ -34,7 +35,12 @@ export async function GET() {
     .select("slug createdAt updatedAt")
     .lean();
 
-  // Fetch works data from database (count poems per poet and category)
+  // Fetch articles
+  const articles = await Article.find({ status: "published" })
+    .select("slug createdAt updatedAt")
+    .lean();
+
+  // Fetch works data for poets (count poems per poet and category)
   const worksDataPromises = poets.flatMap((poet) =>
     validCategories.map(async (category) => {
       try {
@@ -169,6 +175,21 @@ export async function GET() {
               </url>
             `
           )
+        )
+        .join("")}
+      <!-- Articles -->
+      ${articles
+        .map(
+          (article) => `
+            <url>
+              <loc>${baseUrl}/article/${article.slug}</loc>
+              <lastmod>${new Date(
+                article.updatedAt || article.createdAt
+              ).toISOString()}</lastmod>
+              <changefreq>weekly</changefreq>
+              <priority>0.8</priority>
+            </url>
+          `
         )
         .join("")}
     </urlset>`;

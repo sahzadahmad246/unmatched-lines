@@ -1,4 +1,3 @@
-// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -7,13 +6,19 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
-        port: "", // Leave empty for default HTTPS port (443)
-        pathname: "/dx28ql7ig/**", // Restrict to your Cloudinary account
+        port: "",
+        pathname: "/dx28ql7ig/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        port: "", // Google User Content uses the default HTTPS port
+        pathname: "/**", // Allow any path from this hostname
       },
     ],
   },
-  serverExternalPackages: ["mongoose"], // Updated from experimental.serverComponentsExternalPackages
-  output: "standalone", // Optimize for deployment
+  serverExternalPackages: ["mongoose"],
+  output: "standalone",
 };
 
 export default nextConfig;

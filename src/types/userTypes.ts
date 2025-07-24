@@ -1,4 +1,7 @@
 // src/types/userTypes.ts
+import { Types } from "mongoose"; // Import Types from Mongoose
+
+// IPoet interface (updated to include articles and articleCount)
 export interface IPoet {
   _id: string;
   email: string;
@@ -10,10 +13,13 @@ export interface IPoet {
   };
   role: "poet";
   bio?: string;
-  dob?: string; // Unchanged
+  dob?: string;
   location?: string;
   poems: { poemId: string }[];
   poemCount: number;
+  // NEW: Articles authored by this poet
+  articles: { articleId: string }[];
+  articleCount: number; // NEW
   bookmarks: {
     poemId: string;
     bookmarkedAt: string | null;
@@ -22,6 +28,17 @@ export interface IPoet {
       slug: string;
       viewsCount: number;
       poetName: string;
+    } | null;
+  }[];
+  // NEW: Bookmarked Articles by this poet
+  bookmarkedArticles: {
+    articleId: string;
+    bookmarkedAt: string | null;
+    article?: {
+      title: string;
+      slug: string;
+      viewsCount: number;
+      authorName: string; // Assuming you'd populate author for display
     } | null;
   }[];
   createdAt: string;
@@ -42,6 +59,7 @@ export interface IPoemPopulated {
   };
 }
 
+// IUser interface (updated to include articles, articleCount, and bookmarkedArticles)
 export interface IUser {
   _id: string;
   googleId?: string;
@@ -54,18 +72,32 @@ export interface IUser {
   };
   role: "user" | "poet" | "admin";
   bio?: string;
-  dob?: string | Date; // Unchanged
+  dob?: string | Date;
   location?: string;
-  poems: { poemId: string }[];
+  poems: { poemId: Types.ObjectId }[]; // Changed to Types.ObjectId for consistency with Mongoose Schema
   poemCount: number;
   bookmarks: {
-    poemId: string;
-    bookmarkedAt: string | null;
+    poemId: Types.ObjectId; // Changed to Types.ObjectId
+    bookmarkedAt: Date | null; // Changed to Date | null
     poem?: {
       firstCouplet: string;
       slug: string;
       viewsCount: number;
       poetName: string;
+    } | null;
+  }[];
+  // NEW: Articles authored by this user
+  articles: { articleId: Types.ObjectId }[]; // Changed to Types.ObjectId
+  articleCount: number; // NEW
+  // NEW: Bookmarked Articles by this user
+  bookmarkedArticles: {
+    articleId: Types.ObjectId; // Changed to Types.ObjectId
+    bookmarkedAt: Date | null; // Changed to Date | null
+    article?: { // Optional populated article data for client-side use
+      title: string;
+      slug: string;
+      viewsCount: number;
+      authorName: string; // Add if you plan to populate this info
     } | null;
   }[];
   createdAt: string;
