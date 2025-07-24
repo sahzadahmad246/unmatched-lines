@@ -37,19 +37,23 @@ export async function GET(req: NextRequest) {
           dob: user.dob ? new Date(user.dob).toISOString() : undefined,
           createdAt: new Date(user.createdAt).toISOString(),
           updatedAt: new Date(user.updatedAt).toISOString(),
-          bookmarks:
-            user.bookmarks?.map((bookmark) => ({
-              ...bookmark,
-              poemId: bookmark.poemId.toString(),
-              bookmarkedAt: bookmark.bookmarkedAt
-                ? new Date(bookmark.bookmarkedAt).toISOString()
-                : new Date().toISOString(),
-            })) || [],
-          poems:
-            user.poems?.map((poem) => ({
-              ...poem,
-              poemId: poem.poemId.toString(),
-            })) || [],
+          bookmarks: user.bookmarks?.map((bookmark) => ({
+            poemId: bookmark.poemId, // Keep as Types.ObjectId
+            bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+            poem: bookmark.poem || null,
+          })) || [],
+          poems: user.poems?.map((poem) => ({
+            poemId: poem.poemId, // Keep as Types.ObjectId
+          })) || [],
+          articles: user.articles?.map((article) => ({
+            articleId: article.articleId, // Keep as Types.ObjectId
+          })) || [],
+          articleCount: user.articleCount || 0,
+          bookmarkedArticles: user.bookmarkedArticles?.map((bookmark) => ({
+            articleId: bookmark.articleId, // Keep as Types.ObjectId
+            bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+            article: bookmark.article || null,
+          })) || [],
         })) as IUser[],
         pagination: {
           page,
@@ -74,19 +78,23 @@ export async function GET(req: NextRequest) {
         dob: user.dob ? new Date(user.dob).toISOString() : undefined,
         createdAt: new Date(user.createdAt).toISOString(),
         updatedAt: new Date(user.updatedAt).toISOString(),
-        bookmarks:
-          user.bookmarks?.map((bookmark) => ({
-            ...bookmark,
-            poemId: bookmark.poemId.toString(),
-            bookmarkedAt: bookmark.bookmarkedAt
-              ? new Date(bookmark.bookmarkedAt).toISOString()
-              : new Date().toISOString(),
-          })) || [],
-        poems:
-          user.poems?.map((poem) => ({
-            ...poem,
-            poemId: poem.poemId.toString(),
-          })) || [],
+        bookmarks: user.bookmarks?.map((bookmark) => ({
+          poemId: bookmark.poemId, // Keep as Types.ObjectId
+          bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+          poem: bookmark.poem || null,
+        })) || [],
+        poems: user.poems?.map((poem) => ({
+          poemId: poem.poemId, // Keep as Types.ObjectId
+        })) || [],
+        articles: user.articles?.map((article) => ({
+          articleId: article.articleId, // Keep as Types.ObjectId
+        })) || [],
+        articleCount: user.articleCount || 0,
+        bookmarkedArticles: user.bookmarkedArticles?.map((bookmark) => ({
+          articleId: bookmark.articleId, // Keep as Types.ObjectId
+          bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+          article: bookmark.article || null,
+        })) || [],
       } as IUser);
     }
   } catch (error: unknown) {
@@ -195,6 +203,9 @@ export async function POST(req: NextRequest) {
       profilePicture,
       bookmarks: [],
       poems: [],
+      articles: [],
+      articleCount: 0,
+      bookmarkedArticles: [],
     });
 
     try {
@@ -227,19 +238,23 @@ export async function POST(req: NextRequest) {
       dob: newUser.dob ? new Date(newUser.dob).toISOString() : undefined,
       createdAt: new Date(newUser.createdAt).toISOString(),
       updatedAt: new Date(newUser.updatedAt).toISOString(),
-      bookmarks:
-        newUser.bookmarks?.map((bookmark) => ({
-          ...bookmark,
-          poemId: bookmark.poemId.toString(),
-          bookmarkedAt: bookmark.bookmarkedAt
-            ? new Date(bookmark.bookmarkedAt).toISOString()
-            : new Date().toISOString(),
-        })) || [],
-      poems:
-        newUser.poems?.map((poem) => ({
-          ...poem,
-          poemId: poem.poemId.toString(),
-        })) || [],
+      bookmarks: newUser.bookmarks?.map((bookmark) => ({
+        poemId: bookmark.poemId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        poem: bookmark.poem || null,
+      })) || [],
+      poems: newUser.poems?.map((poem) => ({
+        poemId: poem.poemId, // Keep as Types.ObjectId
+      })) || [],
+      articles: newUser.articles?.map((article) => ({
+        articleId: article.articleId, // Keep as Types.ObjectId
+      })) || [],
+      articleCount: newUser.articleCount || 0,
+      bookmarkedArticles: newUser.bookmarkedArticles?.map((bookmark) => ({
+        articleId: bookmark.articleId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        article: bookmark.article || null,
+      })) || [],
     };
 
     return NextResponse.json(

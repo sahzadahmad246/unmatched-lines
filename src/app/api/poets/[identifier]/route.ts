@@ -33,12 +33,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ iden
             poemId: bookmark.poemId?.toString() || "",
             bookmarkedAt: bookmark.bookmarkedAt
               ? new Date(bookmark.bookmarkedAt).toISOString()
-              : new Date().toISOString(),
+              : null, // Changed to null to match IPoet
+            poem: bookmark.poem || null,
           }))
         : [],
       poems: user.poems?.length
         ? user.poems.map((poem) => ({
             poemId: poem.poemId?.toString() || "",
+          }))
+        : [],
+      articles: user.articles?.length
+        ? user.articles.map((article) => ({
+            articleId: article.articleId?.toString() || "", // Convert ObjectId to string
+          }))
+        : [],
+      articleCount: user.articleCount || 0,
+      bookmarkedArticles: user.bookmarkedArticles?.length
+        ? user.bookmarkedArticles.map((bookmark) => ({
+            articleId: bookmark.articleId?.toString() || "", // Convert ObjectId to string
+            bookmarkedAt: bookmark.bookmarkedAt
+              ? new Date(bookmark.bookmarkedAt).toISOString()
+              : null, // Changed to null to match IPoet
+            article: bookmark.article || null,
           }))
         : [],
     };

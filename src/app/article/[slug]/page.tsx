@@ -9,12 +9,13 @@ import { ArticleDetail } from "@/components/articles/article-detail";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://unmatchedlines.com";
 
 interface ArticlePageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: ArticlePageProps) {
+  const { slug } = await params; // Await the params promise
   await dbConnect();
-  const article = await Article.findOne({ slug: params.slug })
+  const article = await Article.findOne({ slug })
     .select("title summary metaDescription metaKeywords tags poet coverImage publishedAt updatedAt slug")
     .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>("poet", "name")
     .lean();
@@ -53,10 +54,11 @@ export async function generateMetadata({ params }: ArticlePageProps) {
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { slug } = await params; // Await the params promise
   await dbConnect();
   const session = await getServerSession(authOptions);
 
-  const article = await Article.findOne({ slug: params.slug })
+  const article = await Article.findOne({ slug })
     .select(
       "title content couplets summary poet slug coverImage category tags bookmarkCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt bookmarks"
     )

@@ -1,4 +1,3 @@
-// /api/usersearch/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import dbConnect from "@/lib/mongodb";
@@ -65,7 +64,7 @@ export async function GET(req: NextRequest) {
     const users = await User.find(searchConditions)
       .skip(skip)
       .limit(limit)
-      .select("name slug profilePicture role bio poemCount location createdAt")
+      .select("name slug profilePicture role bio poemCount location createdAt updatedAt dob bookmarks poems articles articleCount bookmarkedArticles")
       .lean();
 
     const totalUsers = await User.countDocuments(searchConditions);
@@ -73,19 +72,25 @@ export async function GET(req: NextRequest) {
     const transformedUsers = users.map((user) => ({
       ...user,
       _id: user._id.toString(),
+      dob: user.dob ? new Date(user.dob).toISOString() : undefined,
       createdAt: new Date(user.createdAt).toISOString(),
       updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : undefined,
-      dob: user.dob ? new Date(user.dob).toISOString() : undefined,
       bookmarks: user.bookmarks?.map((bookmark) => ({
-        ...bookmark,
-        poemId: bookmark.poemId.toString(),
-        bookmarkedAt: bookmark.bookmarkedAt
-          ? new Date(bookmark.bookmarkedAt).toISOString()
-          : new Date().toISOString(),
+        poemId: bookmark.poemId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        poem: bookmark.poem || null,
       })) || [],
       poems: user.poems?.map((poem) => ({
-        ...poem,
-        poemId: poem.poemId.toString(),
+        poemId: poem.poemId, // Keep as Types.ObjectId
+      })) || [],
+      articles: user.articles?.map((article) => ({
+        articleId: article.articleId, // Keep as Types.ObjectId
+      })) || [],
+      articleCount: user.articleCount || 0,
+      bookmarkedArticles: user.bookmarkedArticles?.map((bookmark) => ({
+        articleId: bookmark.articleId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        article: bookmark.article || null,
       })) || [],
     })) as IUser[];
 

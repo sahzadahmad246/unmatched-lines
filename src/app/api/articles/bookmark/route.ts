@@ -4,12 +4,12 @@ import { z } from "zod";
 import mongoose, { Types } from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import Article from "@/models/Article";
-import { IArticle } from "@/types/articleTypes";
+import { TransformedArticle } from "@/types/articleTypes";
 import User from "@/models/User";
 import { authOptions } from "@/lib/auth/authOptions";
 
-// Define validation schema for bookmarking articles
-export const bookmarkArticleSchema = z.object({
+// Define validation schema for bookmarking articles (non-exported)
+const bookmarkArticleSchema = z.object({
   articleId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Article ID"),
   userId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid User ID"),
   action: z.enum(["add", "remove", "check"]),
@@ -21,10 +21,23 @@ interface Bookmark {
   bookmarkedAt?: Date;
 }
 
-// Interface for user bookmark entries
+// Interface for the populated poet field
+interface PopulatedPoet {
+  _id: Types.ObjectId;
+  name: string;
+  profilePicture?: { url?: string } | null;
+}
+
+// Interface for user's bookmarkedArticles field
 interface UserBookmark {
   articleId: mongoose.Types.ObjectId;
   bookmarkedAt: Date | null;
+  article?: {
+    title: string;
+    slug: string;
+    viewsCount: number;
+    authorName: string;
+  } | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,16 +60,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Forbidden: User ID mismatch" }, { status: 403 });
     }
 
-    // Fetch article with relevant fields
+    // Fetch article with relevant fields and populated poet
     const article = await Article.findById(validatedData.articleId)
-      .select("title slug poet category bookmarkCount bookmarks viewsCount publishedAt createdAt updatedAt")
-      .populate<{
-        poet: { _id: Types.ObjectId; name: string; profilePicture?: { url?: string } | null };
-      }>("poet", "name profilePicture") as mongoose.Document<unknown, {}, IArticle> & IArticle & {
-        _id: Types.ObjectId;
-        bookmarks: Bookmark[];
-        bookmarkCount: number;
-      } | null;
+      .select("title slug poet category bookmarkCount bookmarks viewsCount publishedAt createdAt updatedAt couplets coverImage")
+      .populate<{ poet: PopulatedPoet }>("poet", "name profilePicture");
+
     if (!article) {
       return NextResponse.json({ message: "Article not found" }, { status: 404 });
     }
@@ -74,25 +82,29 @@ export async function POST(req: NextRequest) {
 
     // Check current bookmark status
     const isBookmarked =
-      article.bookmarks.some((b) => b.userId.toString() === validatedData.userId) ||
-      user.bookmarkedArticles.some((b) => b.articleId.toString() === validatedData.articleId);
+      article.bookmarks.some((b: Bookmark) => b.userId.toString() === validatedData.userId) ||
+      user.bookmarkedArticles.some((b: UserBookmark) => b.articleId.toString() === validatedData.articleId);
 
     if (validatedData.action === "check") {
       // Transform article for response
-      const transformedArticle = {
+      const transformedArticle: TransformedArticle = {
         _id: article._id.toString(),
         title: article.title,
-        slug: article.slug,
+        firstCoupletEn: article.couplets?.[0]?.en || "",
         poet: {
+          _id: article.poet._id.toString(),
           name: article.poet?.name || "Unknown",
           profilePicture: article.poet?.profilePicture?.url || null,
         },
-        category: article.category || [],
+        slug: article.slug,
         bookmarkCount: article.bookmarkCount || 0,
         viewsCount: article.viewsCount || 0,
+        category: article.category || [],
+        coverImage: article.coverImage?.url || null,
         publishedAt: article.publishedAt?.toISOString() || null,
         createdAt: article.createdAt?.toISOString() || null,
         updatedAt: article.updatedAt?.toISOString() || null,
+        isBookmarked,
       };
       return NextResponse.json({
         message: "Bookmark status checked",
@@ -112,32 +124,45 @@ export async function POST(req: NextRequest) {
         await article.save();
 
         // Add bookmark to user (ensure no duplicates)
-        if (!user.bookmarkedArticles.some((b) => b.articleId.toString() === validatedData.articleId)) {
+        if (!user.bookmarkedArticles.some((b: UserBookmark) => b.articleId.toString() === validatedData.articleId)) {
           await User.updateOne(
             { _id: validatedData.userId },
             {
               $push: {
-                bookmarkedArticles: { articleId: validatedData.articleId, bookmarkedAt: new Date() },
+                bookmarkedArticles: {
+                  articleId: validatedData.articleId,
+                  bookmarkedAt: new Date(),
+                  article: {
+                    title: article.title,
+                    slug: article.slug,
+                    viewsCount: article.viewsCount || 0,
+                    authorName: article.poet?.name || "Unknown",
+                  },
+                },
               },
             }
           );
         }
 
         // Transform article for response
-        const transformedArticle = {
+        const transformedArticle: TransformedArticle = {
           _id: article._id.toString(),
           title: article.title,
-          slug: article.slug,
+          firstCoupletEn: article.couplets?.[0]?.en || "",
           poet: {
+            _id: article.poet._id.toString(),
             name: article.poet?.name || "Unknown",
             profilePicture: article.poet?.profilePicture?.url || null,
           },
-          category: article.category || [],
+          slug: article.slug,
           bookmarkCount: article.bookmarkCount,
           viewsCount: article.viewsCount || 0,
+          category: article.category || [],
+          coverImage: article.coverImage?.url || null,
           publishedAt: article.publishedAt?.toISOString() || null,
           createdAt: article.createdAt?.toISOString() || null,
           updatedAt: article.updatedAt?.toISOString() || null,
+          isBookmarked: true,
         };
 
         return NextResponse.json({
@@ -151,7 +176,7 @@ export async function POST(req: NextRequest) {
       if (isBookmarked) {
         // Remove bookmark from article
         article.bookmarks = article.bookmarks.filter(
-          (b) => b.userId.toString() !== validatedData.userId
+          (b: Bookmark) => b.userId.toString() !== validatedData.userId
         );
         article.bookmarkCount = Math.max(0, article.bookmarks.length);
         await article.save();
@@ -163,20 +188,24 @@ export async function POST(req: NextRequest) {
         );
 
         // Transform article for response
-        const transformedArticle = {
+        const transformedArticle: TransformedArticle = {
           _id: article._id.toString(),
           title: article.title,
-          slug: article.slug,
+          firstCoupletEn: article.couplets?.[0]?.en || "",
           poet: {
+            _id: article.poet._id.toString(),
             name: article.poet?.name || "Unknown",
             profilePicture: article.poet?.profilePicture?.url || null,
           },
-          category: article.category || [],
+          slug: article.slug,
           bookmarkCount: article.bookmarkCount,
           viewsCount: article.viewsCount || 0,
+          category: article.category || [],
+          coverImage: article.coverImage?.url || null,
           publishedAt: article.publishedAt?.toISOString() || null,
           createdAt: article.createdAt?.toISOString() || null,
           updatedAt: article.updatedAt?.toISOString() || null,
+          isBookmarked: false,
         };
 
         return NextResponse.json({

@@ -490,7 +490,7 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
 
         {isLoadingRelatedArticles ? (
           <section className="mt-12 w-full">
-            <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
+            <h2 className="text-2xl font-bold mb-6">More like this</h2>
             <div className="grid grid-cols-1 gap-6">
               {[...Array(3)].map((_, i) => (
                 <ArticleCardSkeleton key={i} />

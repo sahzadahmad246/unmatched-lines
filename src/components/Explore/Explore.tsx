@@ -447,7 +447,7 @@ export function Explore() {
                           (bookmark) =>
                             bookmark.poem && (
                               <Card
-                                key={bookmark.poemId}
+                                key={bookmark.poemId.toString()}
                                 className="overflow-hidden hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 hover:border-primary/20"
                               >
                                 <CardContent className="p-3">

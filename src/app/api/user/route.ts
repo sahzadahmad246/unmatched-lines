@@ -1,4 +1,3 @@
-// src/app/api/user/route.ts
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import dbConnect from "@/lib/mongodb";
@@ -6,6 +5,7 @@ import User from "@/models/User";
 import Poem from "@/models/Poem";
 import { configureCloudinary, uploadImageStream, deleteImage } from "@/lib/utils/cloudinary";
 import { IUser, IPoemPopulated } from "@/types/userTypes";
+import mongoose from "mongoose";
 
 export async function GET() {
   try {
@@ -17,7 +17,9 @@ export async function GET() {
 
     // Populate poem data for bookmarks, including poet's name
     const user = await User.findById(sessionUser.id)
-      .populate({
+      .populate<{
+        bookmarks: { poemId: IPoemPopulated; bookmarkedAt: Date | null }[];
+      }>({
         path: "bookmarks.poemId",
         model: Poem,
         select: "content.en slug.en viewsCount poet",
@@ -33,28 +35,44 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Transform the response to include only necessary data
+    // Transform the response to match IUser
     const transformedUser: IUser = {
       ...user,
       _id: user._id.toString(),
-      dob: user.dob ? new Date(user.dob).toISOString() : undefined, // Use undefined to match dob?: string | Date
+      dob: user.dob ? new Date(user.dob).toISOString() : undefined,
       createdAt: new Date(user.createdAt).toISOString(),
       updatedAt: new Date(user.updatedAt).toISOString(),
-      bookmarks: user.bookmarks?.map((bookmark) => {
-        const poem = bookmark.poemId as unknown as IPoemPopulated | null; // Safer type assertion
-        return {
-          poemId: poem?._id?.toString() || bookmark.poemId?.toString() || "",
-          bookmarkedAt: bookmark.bookmarkedAt ? new Date(bookmark.bookmarkedAt).toISOString() : null,
-          poem: poem
-            ? {
-                firstCouplet: poem.content?.en?.[0]?.couplet || "",
-                slug: poem.slug?.en || "",
-                viewsCount: poem.viewsCount || 0,
-                poetName: poem.poet?.name || "Unknown",
-              }
-            : null,
-        };
-      }) || [],
+      bookmarks: user.bookmarks?.map((bookmark) => ({
+        poemId: bookmark.poemId?._id ? new mongoose.Types.ObjectId(bookmark.poemId._id) : new mongoose.Types.ObjectId(),
+        bookmarkedAt: bookmark.bookmarkedAt,
+        poem: bookmark.poemId
+          ? {
+              firstCouplet: bookmark.poemId.content?.en?.[0]?.couplet || "",
+              slug: bookmark.poemId.slug?.en || "",
+              viewsCount: bookmark.poemId.viewsCount || 0,
+              poetName: bookmark.poemId.poet?.name || "Unknown",
+            }
+          : null,
+      })) || [],
+      poems: user.poems?.map((poem) => ({
+        poemId: poem.poemId, // Keep as Types.ObjectId
+      })) || [],
+      articles: user.articles?.map((article) => ({
+        articleId: article.articleId, // Keep as Types.ObjectId
+      })) || [],
+      articleCount: user.articleCount || 0,
+      bookmarkedArticles: user.bookmarkedArticles?.map((bookmark) => ({
+        articleId: bookmark.articleId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt,
+        article: bookmark.article
+          ? {
+              title: bookmark.article.title || "",
+              slug: bookmark.article.slug || "",
+              viewsCount: bookmark.article.viewsCount || 0,
+              authorName: bookmark.article.authorName || "Unknown",
+            }
+          : null,
+      })) || [],
     };
 
     return NextResponse.json(transformedUser);
@@ -122,7 +140,11 @@ export async function PATCH(request: Request) {
         };
       } catch (uploadError) {
         return NextResponse.json(
-          { error: `Failed to upload image to Cloudinary: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}` },
+          {
+            error: `Failed to upload image to Cloudinary: ${
+              uploadError instanceof Error ? uploadError.message : "Unknown error"
+            }`,
+          },
           { status: 500 }
         );
       }
@@ -146,8 +168,35 @@ export async function PATCH(request: Request) {
         createdAt: new Date(updatedUser.createdAt).toISOString(),
         updatedAt: new Date(updatedUser.updatedAt).toISOString(),
         bookmarks: updatedUser.bookmarks?.map((bookmark) => ({
-          ...bookmark,
-          bookmarkedAt: bookmark.bookmarkedAt ? new Date(bookmark.bookmarkedAt).toISOString() : null,
+          poemId: bookmark.poemId, // Keep as Types.ObjectId
+          bookmarkedAt: bookmark.bookmarkedAt,
+          poem: bookmark.poem
+            ? {
+                firstCouplet: bookmark.poem.firstCouplet || "",
+                slug: bookmark.poem.slug || "",
+                viewsCount: bookmark.poem.viewsCount || 0,
+                poetName: bookmark.poem.poetName || "Unknown",
+              }
+            : null,
+        })) || [],
+        poems: updatedUser.poems?.map((poem) => ({
+          poemId: poem.poemId, // Keep as Types.ObjectId
+        })) || [],
+        articles: updatedUser.articles?.map((article) => ({
+          articleId: article.articleId, // Keep as Types.ObjectId
+        })) || [],
+        articleCount: updatedUser.articleCount || 0,
+        bookmarkedArticles: updatedUser.bookmarkedArticles?.map((bookmark) => ({
+          articleId: bookmark.articleId, // Keep as Types.ObjectId
+          bookmarkedAt: bookmark.bookmarkedAt,
+          article: bookmark.article
+            ? {
+                title: bookmark.article.title || "",
+                slug: bookmark.article.slug || "",
+                viewsCount: bookmark.article.viewsCount || 0,
+                authorName: bookmark.article.authorName || "Unknown",
+              }
+            : null,
         })) || [],
       },
     });

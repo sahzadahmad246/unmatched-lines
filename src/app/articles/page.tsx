@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ArticleCard } from "@/components/articles/article-card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -39,7 +39,7 @@ export default function ArticleListPage() {
 
   const CACHE_DURATION = 2 * 60 * 1000 // 2 minutes in milliseconds
 
-  const fetchArticles = async (page: number) => {
+  const fetchArticles = useCallback(async (page: number) => {
     setLoading(true)
     setError(null)
 
@@ -86,11 +86,11 @@ export default function ArticleListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pagination.limit, CACHE_DURATION]) // Dependency: pagination.limit
 
   useEffect(() => {
     fetchArticles(pagination.page)
-  }, [pagination.page, pagination.limit])
+  }, [pagination.page, fetchArticles]) // Include fetchArticles in dependency array
 
   const handlePreviousPage = () => {
     if (pagination.page > 1) {
@@ -122,7 +122,7 @@ export default function ArticleListPage() {
 
   return (
     <main className="container mx-auto py-8 px-4 md:px-6">
-      <h1 className="text-3xl font-bold mb-8 text-center">Latest Articles</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center"></h1>
       {articles.length === 0 ? (
         <div className="text-center text-muted-foreground">No articles found.</div>
       ) : (

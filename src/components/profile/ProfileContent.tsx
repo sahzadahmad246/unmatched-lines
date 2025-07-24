@@ -28,7 +28,7 @@ export default function ProfileContent({ userData }: ProfileContentProps) {
 
     setActionLoading(poemId)
     const previousBookmarks = optimisticBookmarks
-    setOptimisticBookmarks(previousBookmarks.filter((b) => b.poemId !== poemId))
+    setOptimisticBookmarks(previousBookmarks.filter((b) => b.poemId.toString() !== poemId))
 
     try {
       const result = await bookmarkPoem(poemId, userData._id, "remove")
@@ -75,7 +75,7 @@ export default function ProfileContent({ userData }: ProfileContentProps) {
 
             return (
               <article
-                key={bookmark.poemId}
+                key={bookmark.poemId.toString()}
                 className="group relative rounded-xl bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 p-6"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
@@ -122,10 +122,10 @@ export default function ProfileContent({ userData }: ProfileContentProps) {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-                          onClick={() => handleRemoveBookmark(bookmark.poemId)}
-                          disabled={actionLoading === bookmark.poemId}
+                          onClick={() => handleRemoveBookmark(bookmark.poemId.toString())}
+                          disabled={actionLoading === bookmark.poemId.toString()}
                         >
-                          {actionLoading === bookmark.poemId ? (
+                          {actionLoading === bookmark.poemId.toString() ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-destructive border-muted" />
                           ) : (
                             <Trash2 className="h-4 w-4" />

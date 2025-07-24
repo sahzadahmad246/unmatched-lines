@@ -37,27 +37,25 @@ export async function GET(
       ...user,
       _id: user._id.toString(),
       dob: user.dob ? new Date(user.dob).toISOString() : undefined,
-      createdAt: user.createdAt
-        ? new Date(user.createdAt).toISOString()
-        : new Date().toISOString(),
-      updatedAt: user.updatedAt
-        ? new Date(user.updatedAt).toISOString()
-        : new Date().toISOString(),
-      bookmarks: user.bookmarks?.length
-        ? user.bookmarks.map((bookmark) => ({
-            ...bookmark,
-            poemId: bookmark.poemId?.toString() || "",
-            bookmarkedAt: bookmark.bookmarkedAt
-              ? new Date(bookmark.bookmarkedAt).toISOString()
-              : new Date().toISOString(),
-          }))
-        : [],
-      poems: user.poems?.length
-        ? user.poems.map((poem) => ({
-            ...poem,
-            poemId: poem.poemId?.toString() || "",
-          }))
-        : [],
+      createdAt: new Date(user.createdAt).toISOString(),
+      updatedAt: new Date(user.updatedAt).toISOString(),
+      bookmarks: user.bookmarks?.map((bookmark) => ({
+        poemId: bookmark.poemId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        poem: bookmark.poem || null,
+      })) || [],
+      poems: user.poems?.map((poem) => ({
+        poemId: poem.poemId, // Keep as Types.ObjectId
+      })) || [],
+      articles: user.articles?.map((article) => ({
+        articleId: article.articleId, // Keep as Types.ObjectId
+      })) || [],
+      articleCount: user.articleCount || 0,
+      bookmarkedArticles: user.bookmarkedArticles?.map((bookmark) => ({
+        articleId: bookmark.articleId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        article: bookmark.article || null,
+      })) || [],
     };
 
     return NextResponse.json(userResponse);
@@ -200,26 +198,26 @@ export async function PATCH(
     const userResponse: IUser = {
       ...updatedUser,
       _id: updatedUser._id.toString(),
-      dob: updatedUser.dob
-        ? new Date(updatedUser.dob).toISOString()
-        : undefined,
+      dob: updatedUser.dob ? new Date(updatedUser.dob).toISOString() : undefined,
       createdAt: new Date(updatedUser.createdAt).toISOString(),
       updatedAt: new Date(updatedUser.updatedAt).toISOString(),
-      bookmarks: updatedUser.bookmarks?.length
-        ? updatedUser.bookmarks.map((bookmark) => ({
-            ...bookmark,
-            poemId: bookmark.poemId?.toString() || "",
-            bookmarkedAt: bookmark.bookmarkedAt
-              ? new Date(bookmark.bookmarkedAt).toISOString()
-              : new Date().toISOString(),
-          }))
-        : [],
-      poems: updatedUser.poems?.length
-        ? updatedUser.poems.map((poem) => ({
-            ...poem,
-            poemId: poem.poemId?.toString() || "",
-          }))
-        : [],
+      bookmarks: updatedUser.bookmarks?.map((bookmark) => ({
+        poemId: bookmark.poemId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        poem: bookmark.poem || null,
+      })) || [],
+      poems: updatedUser.poems?.map((poem) => ({
+        poemId: poem.poemId, // Keep as Types.ObjectId
+      })) || [],
+      articles: updatedUser.articles?.map((article) => ({
+        articleId: article.articleId, // Keep as Types.ObjectId
+      })) || [],
+      articleCount: updatedUser.articleCount || 0,
+      bookmarkedArticles: updatedUser.bookmarkedArticles?.map((bookmark) => ({
+        articleId: bookmark.articleId, // Keep as Types.ObjectId
+        bookmarkedAt: bookmark.bookmarkedAt, // Keep as Date | null
+        article: bookmark.article || null,
+      })) || [],
     };
 
     return NextResponse.json({ user: userResponse }, { status: 200 });
