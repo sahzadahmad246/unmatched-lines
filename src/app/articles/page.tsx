@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { ArticleCard } from "@/components/articles/article-card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-
+import { ArticleCardSkeleton } from "@/components/articles/article-card-skeleton"
 interface Article {
   _id: string
   title: string
@@ -106,9 +106,7 @@ export default function ArticleListPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-64px)]">
-        <p>Loading articles...</p>
-      </div>
+      <ArticleCardSkeleton/>
     )
   }
 
@@ -121,8 +119,8 @@ export default function ArticleListPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4 md:px-6">
-      <h1 className="text-3xl font-bold mb-8 text-center"></h1>
+    <main className="container mx-auto py-4 px-0 md:px-6">
+      
       {articles.length === 0 ? (
         <div className="text-center text-muted-foreground">No articles found.</div>
       ) : (

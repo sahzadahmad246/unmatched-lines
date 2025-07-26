@@ -268,7 +268,7 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
           showStickyHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
         }`}
       >
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-center bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <Avatar className="h-7 w-7">
               <AvatarImage
