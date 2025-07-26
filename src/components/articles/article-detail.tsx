@@ -1,148 +1,173 @@
-"use client"
-import Image from "next/image"
-import type React from "react"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bookmark, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useState, useCallback, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import { toast } from "sonner"
-import { useRouter } from "next/navigation"
-import { ArticleCard } from "./article-card"
-import { ArticleCardSkeleton } from "./article-card-skeleton" // Import the new skeleton
-import type { TransformedArticle } from "@/types/articleTypes"
-import "./../styles/ArticleContent.css"
+"use client";
+import Image from "next/image";
+import type React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bookmark, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useState, useCallback, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { ArticleCard } from "./article-card";
+import { ArticleCardSkeleton } from "./article-card-skeleton"; // Import the new skeleton
+import type { TransformedArticle } from "@/types/articleTypes";
+import "./../styles/ArticleContent.css";
 
 interface Couplet {
-  en?: string
-  hi?: string
-  ur?: string
+  en?: string;
+  hi?: string;
+  ur?: string;
 }
 
 interface ArticleDetailProps {
   article: {
-    _id: string
-    title: string
-    content: string
-    couplets: Couplet[]
-    summary: string
+    _id: string;
+    title: string;
+    content: string;
+    couplets: Couplet[];
+    summary: string;
     poet: {
-      _id: string
-      name: string
-      profilePicture?: string | null
-    }
-    slug: string
-    coverImage: string | null
-    category: string[]
-    tags: string[]
-    bookmarkCount: number
-    viewsCount: number
-    metaDescription: string
-    metaKeywords: string
-    status: "draft" | "published"
-    publishedAt: string
-    createdAt: string
-    updatedAt: string
-    isBookmarked?: boolean
-  }
+      _id: string;
+      name: string;
+      profilePicture?: string | null;
+    };
+    slug: string;
+    coverImage: string | null;
+    category: string[];
+    tags: string[];
+    bookmarkCount: number;
+    viewsCount: number;
+    metaDescription: string;
+    metaKeywords: string;
+    status: "draft" | "published";
+    publishedAt: string;
+    createdAt: string;
+    updatedAt: string;
+    isBookmarked?: boolean;
+  };
 }
 
 export function formatDate(date: Date | string): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return "Unknown date"
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "Unknown date";
   return d.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  })
+  });
 }
 
 export function formatRelativeTime(date: Date | string): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return "Unknown date"
-  const now = new Date()
-  const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000)
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "Unknown date";
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000);
 
-  if (diffInSeconds < 0) return formatDate(date)
-  if (diffInSeconds < 60) return "just now"
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  return formatDate(date)
+  if (diffInSeconds < 0) return formatDate(date);
+  if (diffInSeconds < 60) return "just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800)
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  return formatDate(date);
 }
 
 export function ArticleDetail({ article }: ArticleDetailProps) {
-  const { data: session } = useSession()
-  const router = useRouter()
-  const [currentBookmarkCount, setCurrentBookmarkCount] = useState(article.bookmarkCount)
-  const [isBookmarked, setIsBookmarked] = useState(article.isBookmarked || false)
-  const [showFullContent, setShowFullContent] = useState(false)
-  const [activeCoupletLanguage, setActiveCoupletLanguage] = useState<"en" | "hi" | "ur">("en")
-  const [showStickyHeader, setShowStickyHeader] = useState(false)
-  const [relatedArticles, setRelatedArticles] = useState<TransformedArticle[]>([])
-  const [poetArticles, setPoetArticles] = useState<TransformedArticle[]>([])
-  const [isLoadingRelatedArticles, setIsLoadingRelatedArticles] = useState(true)
-  const [isLoadingPoetArticles, setIsLoadingPoetArticles] = useState(true)
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [currentBookmarkCount, setCurrentBookmarkCount] = useState(
+    article.bookmarkCount
+  );
+  const [isBookmarked, setIsBookmarked] = useState(
+    article.isBookmarked || false
+  );
+  const [showFullContent, setShowFullContent] = useState(false);
+  const [activeCoupletLanguage, setActiveCoupletLanguage] = useState<
+    "en" | "hi" | "ur"
+  >("en");
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
+  const [relatedArticles, setRelatedArticles] = useState<TransformedArticle[]>(
+    []
+  );
+  const [poetArticles, setPoetArticles] = useState<TransformedArticle[]>([]);
+  const [isLoadingRelatedArticles, setIsLoadingRelatedArticles] =
+    useState(true);
+  const [isLoadingPoetArticles, setIsLoadingPoetArticles] = useState(true);
 
   // Fetch related articles by category
   useEffect(() => {
     async function fetchRelatedArticles() {
       if (article.category.length === 0) {
-        setIsLoadingRelatedArticles(false)
-        return
+        setIsLoadingRelatedArticles(false);
+        return;
       }
-      setIsLoadingRelatedArticles(true)
+      setIsLoadingRelatedArticles(true);
       try {
-        const response = await fetch(`/api/articles/category?category=${encodeURIComponent(article.category[0])}`)
-        const data = await response.json()
+        const response = await fetch(
+          `/api/articles/category?category=${encodeURIComponent(
+            article.category[0]
+          )}`
+        );
+        const data = await response.json();
         if (response.ok) {
           // Filter out the current article
-          const filteredArticles = data.articles.filter((a: TransformedArticle) => a._id !== article._id)
-          setRelatedArticles(filteredArticles)
+          const filteredArticles = data.articles.filter(
+            (a: TransformedArticle) => a._id !== article._id
+          );
+          setRelatedArticles(filteredArticles);
         } else {
-          console.error("Error fetching related articles:", data.message)
+          console.error("Error fetching related articles:", data.message);
         }
       } catch (error) {
-        console.error("Error fetching related articles:", error)
+        console.error("Error fetching related articles:", error);
       } finally {
-        setIsLoadingRelatedArticles(false)
+        setIsLoadingRelatedArticles(false);
       }
     }
-    fetchRelatedArticles()
-  }, [article.category, article._id])
+    fetchRelatedArticles();
+  }, [article.category, article._id]);
 
   // Fetch more articles by poet
   useEffect(() => {
     async function fetchPoetArticles() {
-      setIsLoadingPoetArticles(true)
+      setIsLoadingPoetArticles(true);
       try {
         // Use poet.name as the slug, converted to lowercase and hyphenated
-        const poetSlug = article.poet.name.toLowerCase().replace(/\s+/g, "-")
-        const response = await fetch(`/api/articles/poet?poet=${encodeURIComponent(poetSlug)}`)
-        const data = await response.json()
+        const poetSlug = article.poet.name.toLowerCase().replace(/\s+/g, "-");
+        const response = await fetch(
+          `/api/articles/poet?poet=${encodeURIComponent(poetSlug)}`
+        );
+        const data = await response.json();
         if (response.ok) {
           // Filter out the current article
-          const filteredArticles = data.articles.filter((a: TransformedArticle) => a._id !== article._id)
-          setPoetArticles(filteredArticles)
+          const filteredArticles = data.articles.filter(
+            (a: TransformedArticle) => a._id !== article._id
+          );
+          setPoetArticles(filteredArticles);
         } else {
-          console.error("Error fetching poet articles:", data.message)
+          console.error("Error fetching poet articles:", data.message);
         }
       } catch (error) {
-        console.error("Error fetching poet articles:", error)
+        console.error("Error fetching poet articles:", error);
       } finally {
-        setIsLoadingPoetArticles(false)
+        setIsLoadingPoetArticles(false);
       }
     }
-    fetchPoetArticles()
-  }, [article.poet.name, article._id])
+    fetchPoetArticles();
+  }, [article.poet.name, article._id]);
 
   useEffect(() => {
     async function checkBookmarkStatus() {
       if (!session?.user?.id) {
-        setIsBookmarked(false)
-        return
+        setIsBookmarked(false);
+        return;
       }
       try {
         const response = await fetch("/api/articles/bookmark", {
@@ -155,42 +180,42 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
             userId: session.user.id,
             action: "check",
           }),
-        })
-        const data = await response.json()
+        });
+        const data = await response.json();
         if (response.ok) {
-          setIsBookmarked(data.isBookmarked)
-          setCurrentBookmarkCount(data.article.bookmarkCount)
+          setIsBookmarked(data.isBookmarked);
+          setCurrentBookmarkCount(data.article.bookmarkCount);
         } else {
-          console.error("Error checking bookmark status:", data.message)
-          toast.error(`Error checking bookmark status: ${data.message}`)
+          console.error("Error checking bookmark status:", data.message);
+          toast.error(`Error checking bookmark status: ${data.message}`);
         }
       } catch {
-        toast.error("Error checking bookmark status")
+        toast.error("Error checking bookmark status");
       }
     }
-    checkBookmarkStatus()
-  }, [article._id, session?.user?.id])
+    checkBookmarkStatus();
+  }, [article._id, session?.user?.id]);
 
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 200) {
-        setShowStickyHeader(true)
+        setShowStickyHeader(true);
       } else {
-        setShowStickyHeader(false)
+        setShowStickyHeader(false);
       }
-    }
-    window.addEventListener("scroll", handleScroll)
+    };
+    window.addEventListener("scroll", handleScroll);
     return () => {
-      window.removeEventListener("scroll", handleScroll)
-    }
-  }, [])
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const handleBookmark = useCallback(async () => {
     if (!session?.user?.id) {
-      toast.error("Please log in to bookmark articles.")
-      return
+      toast.error("Please log in to bookmark articles.");
+      return;
     }
-    const action = isBookmarked ? "remove" : "add"
+    const action = isBookmarked ? "remove" : "add";
     try {
       const response = await fetch("/api/articles/bookmark", {
         method: "POST",
@@ -202,70 +227,85 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
           userId: session.user.id,
           action,
         }),
-      })
-      const result = await response.json()
+      });
+      const result = await response.json();
       if (response.ok) {
-        setIsBookmarked(result.isBookmarked)
-        setCurrentBookmarkCount(result.article.bookmarkCount)
-        toast.success(`Article ${action === "add" ? "bookmarked" : "unbookmarked"} successfully!`)
+        setIsBookmarked(result.isBookmarked);
+        setCurrentBookmarkCount(result.article.bookmarkCount);
+        toast.success(
+          `Article ${
+            action === "add" ? "bookmarked" : "unbookmarked"
+          } successfully!`
+        );
       } else {
-        setIsBookmarked(result.isBookmarked)
-        toast.info(result.message)
+        setIsBookmarked(result.isBookmarked);
+        toast.info(result.message);
       }
     } catch (error) {
-      toast.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+      toast.error(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
-  }, [isBookmarked, article._id, session?.user?.id])
+  }, [isBookmarked, article._id, session?.user?.id]);
 
   const handleEdit = useCallback(
     (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      router.push(`/admin/articles/${article.slug}/edit`)
+      e.preventDefault();
+      e.stopPropagation();
+      router.push(`/admin/articles/${article.slug}/edit`);
     },
-    [article.slug, router],
-  )
+    [article.slug, router]
+  );
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (!confirm("Are you sure you want to delete this article?")) return
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm("Are you sure you want to delete this article?")) return;
       try {
         const response = await fetch(`/api/articles/${article.slug}`, {
           method: "DELETE",
-        })
+        });
         if (response.ok) {
           toast.success("Article deleted successfully!", {
-            description: `The article "${article.title.substring(0, 30)}..." has been removed.`,
-          })
-          router.push("/articles")
+            description: `The article "${article.title.substring(
+              0,
+              30
+            )}..." has been removed.`,
+          });
+          router.push("/articles");
         } else {
-          const result = await response.json()
+          const result = await response.json();
           toast.error("Failed to delete article", {
             description: result.message || "An unknown error occurred.",
-          })
+          });
         }
       } catch (error) {
-        console.error("Deletion error:", error)
+        console.error("Deletion error:", error);
         toast.error("Deletion Error", {
           description: "Could not connect to the server.",
-        })
+        });
       }
     },
-    [article.slug, article.title, router],
-  )
+    [article.slug, article.title, router]
+  );
 
   if (!article) {
-    return <div className="container mx-auto py-12 text-center">Article not found.</div>
+    return (
+      <div className="container mx-auto py-12 text-center">
+        Article not found.
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-6 lg:py-12">
+    <div className="container mx-auto py-8 px-0 md:px-4 lg:py-12">
       {/* Sticky Header */}
       <div
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          showStickyHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+          showStickyHeader
+            ? "translate-y-0 opacity-100"
+            : "-translate-y-full opacity-0"
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-center bg-background/95 backdrop-blur-sm border-b border-border">
@@ -281,9 +321,13 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               />
               <AvatarFallback>{article.poet.name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="text-sm text-muted-foreground hidden md:block">{article.poet.name}</span>
+            <span className="text-sm text-muted-foreground hidden md:block">
+              {article.poet.name}
+            </span>
           </div>
-          <h2 className="text-lg font-semibold truncate text-center flex-1 mx-4">{article.title}</h2>
+          <h2 className="text-lg font-semibold truncate text-center flex-1 mx-4">
+            {article.title}
+          </h2>
           {/* Placeholder for right-aligned items if needed, or remove if not used */}
           <div className="w-14"></div> {/* Adjust width as needed */}
         </div>
@@ -291,7 +335,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
 
       <article className="max-w-4xl mx-auto space-y-8">
         <header className="space-y-4 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">{article.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">
+            {article.title}
+          </h1>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
@@ -320,8 +366,8 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               {article.publishedAt
                 ? formatRelativeTime(article.publishedAt)
                 : article.updatedAt
-                  ? formatRelativeTime(article.updatedAt)
-                  : "Unknown date"}
+                ? formatRelativeTime(article.updatedAt)
+                : "Unknown date"}
             </span>
           </div>
           <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
@@ -334,12 +380,19 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               size="sm"
               onClick={handleBookmark}
               className="flex items-center gap-1 text-sm p-0 h-auto"
-              aria-label={isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+              aria-label={
+                isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"
+              }
             >
-              <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
+              <Bookmark
+                className={`h-4 w-4 ${
+                  isBookmarked ? "fill-primary text-primary" : ""
+                }`}
+              />
               <span>{currentBookmarkCount}</span>
             </Button>
-            {(session?.user?.role === "admin" || session?.user?.role === "poet") && (
+            {(session?.user?.role === "admin" ||
+              session?.user?.role === "poet") && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -348,8 +401,8 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
                     className="flex items-center gap-1 text-sm p-0 h-auto"
                     aria-label="More options"
                     onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
+                      e.preventDefault();
+                      e.stopPropagation();
                     }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -375,7 +428,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
             <div className="flex space-x-2 mb-4">
               {article.couplets.some((c) => c.en) && (
                 <Button
-                  variant={activeCoupletLanguage === "en" ? "default" : "outline"}
+                  variant={
+                    activeCoupletLanguage === "en" ? "default" : "outline"
+                  }
                   onClick={() => setActiveCoupletLanguage("en")}
                   size="sm"
                   className="text-xs px-2 py-1 h-auto"
@@ -385,7 +440,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               )}
               {article.couplets.some((c) => c.hi) && (
                 <Button
-                  variant={activeCoupletLanguage === "hi" ? "default" : "outline"}
+                  variant={
+                    activeCoupletLanguage === "hi" ? "default" : "outline"
+                  }
                   onClick={() => setActiveCoupletLanguage("hi")}
                   size="sm"
                   className="text-xs px-2 py-1 h-auto"
@@ -395,7 +452,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               )}
               {article.couplets.some((c) => c.ur) && (
                 <Button
-                  variant={activeCoupletLanguage === "ur" ? "default" : "outline"}
+                  variant={
+                    activeCoupletLanguage === "ur" ? "default" : "outline"
+                  }
                   onClick={() => setActiveCoupletLanguage("ur")}
                   size="sm"
                   className="text-xs px-2 py-1 h-auto"
@@ -408,7 +467,10 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               {" "}
               {/* Added min-height for stability */}
               {article.couplets.map((couplet, index) => (
-                <blockquote key={index} className="mb-4 last:mb-0 border-l-4 border-primary pl-4">
+                <blockquote
+                  key={index}
+                  className="mb-4 last:mb-0 border-l-4 border-primary pl-4"
+                >
                   {activeCoupletLanguage === "en" && couplet.en && (
                     <div className="space-y-0">
                       {" "}
@@ -432,7 +494,10 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
                   {activeCoupletLanguage === "ur" && couplet.ur && (
                     <div className="space-y-0">
                       {couplet.ur.split("\n").map((line, lineIndex) => (
-                        <p key={lineIndex} className="text-right leading-relaxed">
+                        <p
+                          key={lineIndex}
+                          className="text-right leading-relaxed"
+                        >
                           {line}
                         </p>
                       ))}
@@ -458,7 +523,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
         )}
 
         <section className="prose prose-lg dark:prose-invert mx-auto article-content">
-          {article.summary && <p className="text-lg leading-relaxed mb-5">{article.summary}</p>}
+          {article.summary && (
+            <p className="text-lg leading-relaxed mb-5">{article.summary}</p>
+          )}
           {article.content && (
             <>
               {!showFullContent && (
@@ -474,7 +541,10 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
                 </div>
               )}
               {showFullContent && (
-                <div className="article-content" dangerouslySetInnerHTML={{ __html: article.content }} />
+                <div
+                  className="article-content"
+                  dangerouslySetInnerHTML={{ __html: article.content }}
+                />
               )}
               <Button
                 variant="outline"
@@ -503,7 +573,10 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
               <div className="grid grid-cols-1 gap-6">
                 {relatedArticles.slice(0, 3).map((relatedArticle) => (
-                  <ArticleCard key={relatedArticle._id} article={relatedArticle} />
+                  <ArticleCard
+                    key={relatedArticle._id}
+                    article={relatedArticle}
+                  />
                 ))}
               </div>
             </section>
@@ -512,7 +585,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
 
         {isLoadingPoetArticles ? (
           <section className="mt-12 w-full">
-            <h2 className="text-2xl font-bold mb-6">More by {article.poet.name}</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              More by {article.poet.name}
+            </h2>
             <div className="grid grid-cols-1 gap-6">
               {[...Array(3)].map((_, i) => (
                 <ArticleCardSkeleton key={i} />
@@ -522,7 +597,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
         ) : (
           poetArticles.length > 0 && (
             <section className="mt-12 w-full">
-              <h2 className="text-2xl font-bold mb-6">More by {article.poet.name}</h2>
+              <h2 className="text-2xl font-bold mb-6">
+                More by {article.poet.name}
+              </h2>
               <div className="grid grid-cols-1 gap-6">
                 {poetArticles.slice(0, 3).map((poetArticle) => (
                   <ArticleCard key={poetArticle._id} article={poetArticle} />
@@ -546,5 +623,5 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
         </footer>
       </article>
     </div>
-  )
+  );
 }
