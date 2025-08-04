@@ -10,20 +10,39 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
+    const query = searchParams.get("query") || "";
+    const sortBy = searchParams.get("sortBy") || "";
+    const ids = searchParams.get("ids")?.split(",") || [];
     const skip = (page - 1) * limit;
 
+    // Build query
+    const findQuery: Record<string, unknown> = { status: "published" };
+    if (query) {
+      findQuery.$or = [
+        { title: { $regex: query, $options: "i" } },
+        { "poet.name": { $regex: query, $options: "i" } },
+        { content: { $regex: query, $options: "i" } },
+      ];
+    }
+    if (ids.length > 0) {
+      findQuery._id = { $in: ids };
+    }
+
+    // Build sort options
+    const sortOptions: Record<string, 1 | -1> = sortBy === "viewsCount" ? { viewsCount: -1 } : { createdAt: -1 };
+
     // Fetch articles with pagination and populate poet details
-    const articles = await Article.find({ status: "published" })
+    const articles = await Article.find(findQuery)
       .select("title couplets slug bookmarkCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
-      .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>(
-        "poet",
-        "name profilePicture"
-      )
+      .populate<{
+        poet: { _id: string; name: string; profilePicture?: { url?: string } | null };
+      }>("poet", "name profilePicture")
+      .sort(sortOptions)
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // Transform articles to match ArticleCard props
+    // Transform articles
     const transformedArticles: TransformedArticle[] = articles.map((article) => ({
       _id: article._id.toString(),
       title: article.title,
@@ -41,10 +60,10 @@ export async function GET(req: NextRequest) {
       publishedAt: article.publishedAt?.toISOString() || null,
       createdAt: article.createdAt?.toISOString() || null,
       updatedAt: article.updatedAt?.toISOString() || null,
-      isBookmarked: false, // Initial value, updated client-side
+      isBookmarked: false, // Bookmark status is checked client-side
     }));
 
-    const totalArticles = await Article.countDocuments({ status: "published" });
+    const totalArticles = await Article.countDocuments(findQuery);
 
     return NextResponse.json({
       articles: transformedArticles,
@@ -57,9 +76,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching articles:", error);
-    return NextResponse.json(
-      { message: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

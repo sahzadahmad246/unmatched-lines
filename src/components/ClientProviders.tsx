@@ -4,11 +4,13 @@
 import type React from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "next-auth/react";
-
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 interface ClientProvidersProps {
   children: React.ReactNode;
 }
 
+const queryClient = new QueryClient();
 export default function ClientProviders({ children }: ClientProvidersProps) {
   return (
     <ThemeProvider
@@ -16,7 +18,10 @@ export default function ClientProviders({ children }: ClientProvidersProps) {
       defaultTheme="dark"
       disableTransitionOnChange
     >
-      <SessionProvider>{children}</SessionProvider>
+      <QueryClientProvider client={queryClient}>
+         <ReactQueryDevtools initialIsOpen={false} />
+        <SessionProvider>{children}</SessionProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

@@ -1,3 +1,4 @@
+// src/app/api/articles/[slug]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import dbConnect from "@/lib/mongodb";

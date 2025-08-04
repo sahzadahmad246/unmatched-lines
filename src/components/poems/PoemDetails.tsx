@@ -17,7 +17,6 @@ import {
   Info,
   BookOpen,
   Languages,
-  Download,
   Sparkles,
   Quote,
   MessageCircle,
@@ -32,7 +31,7 @@ import { toast } from "sonner";
 const RecommendedPoems = lazy(
   () => import("@/components/poems/RecommendedPoems")
 );
-const DownloadCouplet = lazy(() => import("./DownloadCouplet"));
+
 const Dialog = lazy(() =>
   import("@/components/ui/dialog").then((mod) => ({ default: mod.Dialog }))
 );
@@ -176,7 +175,7 @@ export default function OptimizedPoemDetails({
   } | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [fullViewDialogOpen, setFullViewDialogOpen] = useState(false);
-  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  
   const [showRecommended, setShowRecommended] = useState(false);
 
   const { userData, fetchUserData } = useUserStore();
@@ -726,15 +725,7 @@ export default function OptimizedPoemDetails({
                   {(poem.bookmarkCount || 0).toLocaleString()}
                 </span>
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDownloadDialogOpen(true)}
-                className="flex items-center gap-1"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Download</span>
-              </Button>
+              
               <Button
                 variant="ghost"
                 size="sm"
@@ -748,14 +739,7 @@ export default function OptimizedPoemDetails({
           </div>
         </footer>
 
-        {/* Lazy-loaded Dialogs */}
-        <Suspense fallback={null}>
-          <DownloadCouplet
-            poemSlug={poem.slug.en}
-            open={isDownloadDialogOpen}
-            onOpenChange={setIsDownloadDialogOpen}
-          />
-        </Suspense>
+        
 
         <Suspense fallback={null}>
           <Dialog open={meaningDialogOpen} onOpenChange={setMeaningDialogOpen}>

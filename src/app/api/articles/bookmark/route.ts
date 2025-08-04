@@ -1,3 +1,4 @@
+// src/app/api/articles/bookmark/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { z } from "zod";
@@ -10,9 +11,12 @@ import { authOptions } from "@/lib/auth/authOptions";
 
 // Define validation schema for bookmarking articles (non-exported)
 const bookmarkArticleSchema = z.object({
-  articleId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Article ID"),
-  userId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid User ID"),
-  action: z.enum(["add", "remove", "check"]),
+  articleId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/)
+    .optional(),
+  userId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+  action: z.enum(["add", "remove", "check", "getAll"]),
 });
 
 // Interface for bookmark entries in Article
@@ -54,19 +58,39 @@ export async function POST(req: NextRequest) {
     // Parse and validate request body
     body = await req.json();
     const validatedData = bookmarkArticleSchema.parse(body);
+    if (validatedData.action === "getAll") {
+      const user = await User.findById(validatedData.userId).select(
+        "bookmarkedArticles"
+      );
+      if (!user)
+        return NextResponse.json(
+          { message: "User not found" },
+          { status: 404 }
+        );
 
+      const ids = user.bookmarkedArticles.map((b) => b.articleId.toString());
+      return NextResponse.json({ bookmarkedArticleIds: ids });
+    }
     // Ensure userId matches session
     if (validatedData.userId !== session.user.id) {
-      return NextResponse.json({ message: "Forbidden: User ID mismatch" }, { status: 403 });
+      return NextResponse.json(
+        { message: "Forbidden: User ID mismatch" },
+        { status: 403 }
+      );
     }
 
     // Fetch article with relevant fields and populated poet
     const article = await Article.findById(validatedData.articleId)
-      .select("title slug poet category bookmarkCount bookmarks viewsCount publishedAt createdAt updatedAt couplets coverImage")
+      .select(
+        "title slug poet category bookmarkCount bookmarks viewsCount publishedAt createdAt updatedAt couplets coverImage"
+      )
       .populate<{ poet: PopulatedPoet }>("poet", "name profilePicture");
 
     if (!article) {
-      return NextResponse.json({ message: "Article not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Article not found" },
+        { status: 404 }
+      );
     }
 
     // Initialize bookmarks if undefined
@@ -75,15 +99,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch user
-    const user = await User.findById(validatedData.userId).select("bookmarkedArticles");
+    const user = await User.findById(validatedData.userId).select(
+      "bookmarkedArticles"
+    );
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
     // Check current bookmark status
     const isBookmarked =
-      article.bookmarks.some((b: Bookmark) => b.userId.toString() === validatedData.userId) ||
-      user.bookmarkedArticles.some((b: UserBookmark) => b.articleId.toString() === validatedData.articleId);
+      article.bookmarks.some(
+        (b: Bookmark) => b.userId.toString() === validatedData.userId
+      ) ||
+      user.bookmarkedArticles.some(
+        (b: UserBookmark) => b.articleId.toString() === validatedData.articleId
+      );
 
     if (validatedData.action === "check") {
       // Transform article for response
@@ -124,7 +154,12 @@ export async function POST(req: NextRequest) {
         await article.save();
 
         // Add bookmark to user (ensure no duplicates)
-        if (!user.bookmarkedArticles.some((b: UserBookmark) => b.articleId.toString() === validatedData.articleId)) {
+        if (
+          !user.bookmarkedArticles.some(
+            (b: UserBookmark) =>
+              b.articleId.toString() === validatedData.articleId
+          )
+        ) {
           await User.updateOne(
             { _id: validatedData.userId },
             {
@@ -171,7 +206,10 @@ export async function POST(req: NextRequest) {
           isBookmarked: true,
         });
       }
-      return NextResponse.json({ message: "Article already bookmarked", isBookmarked: true }, { status: 400 });
+      return NextResponse.json(
+        { message: "Article already bookmarked", isBookmarked: true },
+        { status: 400 }
+      );
     } else {
       if (isBookmarked) {
         // Remove bookmark from article
@@ -184,7 +222,11 @@ export async function POST(req: NextRequest) {
         // Remove bookmark from user
         await User.updateOne(
           { _id: validatedData.userId },
-          { $pull: { bookmarkedArticles: { articleId: validatedData.articleId } } }
+          {
+            $pull: {
+              bookmarkedArticles: { articleId: validatedData.articleId },
+            },
+          }
         );
 
         // Transform article for response
@@ -214,7 +256,10 @@ export async function POST(req: NextRequest) {
           isBookmarked: false,
         });
       }
-      return NextResponse.json({ message: "Article not bookmarked by user", isBookmarked: false }, { status: 400 });
+      return NextResponse.json(
+        { message: "Article not bookmarked by user", isBookmarked: false },
+        { status: 400 }
+      );
     }
   } catch (error: unknown) {
     console.error("Bookmark error:", {
@@ -224,10 +269,16 @@ export async function POST(req: NextRequest) {
       action: body?.action ?? "unknown",
     });
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: "Validation error", errors: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { message: "Validation error", errors: error.errors },
+        { status: 400 }
+      );
     }
     if (error instanceof mongoose.Error.CastError) {
-      return NextResponse.json({ message: `Invalid ID format: ${error.message}` }, { status: 400 });
+      return NextResponse.json(
+        { message: `Invalid ID format: ${error.message}` },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       {

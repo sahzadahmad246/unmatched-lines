@@ -36,6 +36,13 @@ export interface IArticle extends Document {
 export interface TransformedArticle {
   _id: string;
   title: string;
+  couplets?: [
+    {
+      en?: string;
+      hi?: string;
+      ur?: string;
+    }
+  ]
   firstCoupletEn: string;
   poet: {
     _id: string;

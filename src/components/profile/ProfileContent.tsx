@@ -1,58 +1,95 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Bookmark, Trash2, Sparkles, Heart, Eye } from "lucide-react"
-import { formatRelativeTime } from "@/lib/utils/date"
-import Link from "next/link"
-import { usePoemStore } from "@/store/poem-store"
-import { useUserStore } from "@/store/user-store"
-import { useState } from "react"
-import { toast } from "sonner"
-import type { IUser } from "@/types/userTypes"
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Bookmark, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { ArticleCard } from "../articles/article-card";
+import { TransformedArticle } from "@/types/articleTypes";
 
-interface ProfileContentProps {
-  userData: IUser
+
+// Type for API response
+interface ArticleResponse {
+  articles: TransformedArticle[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
+interface ProfileContentProps {
+  userData: { _id: string }; // Minimal user data, only need _id for fetching
+}
+
+// Fetch bookmarked article IDs
+const fetchBookmarkedArticleIds = async (userId: string): Promise<string[]> => {
+  const response = await fetch("/api/articles/bookmark", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      action: "getAll",
+    }),
+  });
+  if (!response.ok) throw new Error("Failed to fetch bookmarked article IDs");
+  const data = await response.json();
+  return data.bookmarkedArticleIds || [];
+};
+
+// Fetch articles by IDs
+const fetchArticles = async ({
+  ids,
+  limit = 100,
+}: {
+  ids: string[];
+  limit?: number;
+}): Promise<ArticleResponse> => {
+  const url = new URL("/api/articles/list", window.location.origin);
+  url.searchParams.set("page", "1");
+  url.searchParams.set("limit", limit.toString());
+  if (ids.length > 0) url.searchParams.set("ids", ids.join(","));
+
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error("Failed to fetch articles");
+  return response.json();
+};
+
 export default function ProfileContent({ userData }: ProfileContentProps) {
-  const { bookmarkPoem } = usePoemStore()
-  const { fetchUserData } = useUserStore()
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [optimisticBookmarks, setOptimisticBookmarks] = useState(userData.bookmarks || [])
+  // Fetch bookmarked article IDs
+  const {
+    data: bookmarkedArticleIds = [],
+    isLoading: bookmarksLoading,
+    error: bookmarksError,
+  } = useQuery({
+    queryKey: ["bookmarkedArticleIds", userData._id] as const,
+    queryFn: () => fetchBookmarkedArticleIds(userData._id),
+    enabled: !!userData._id,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const handleRemoveBookmark = async (poemId: string) => {
-    if (!userData._id) {
-      toast.error("Please log in to remove bookmarks")
-      return
-    }
+  // Fetch bookmarked articles using article IDs
+  const {
+    data: bookmarkedArticlesData,
+    isLoading: bookmarkedArticlesLoading,
+    error: bookmarkedArticlesError,
+  } = useQuery({
+    queryKey: ["bookmarkedArticles", bookmarkedArticleIds] as const,
+    queryFn: () => fetchArticles({ ids: bookmarkedArticleIds }),
+    enabled: !!userData._id && bookmarkedArticleIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    setActionLoading(poemId)
-    const previousBookmarks = optimisticBookmarks
-    setOptimisticBookmarks(previousBookmarks.filter((b) => b.poemId.toString() !== poemId))
-
-    try {
-      const result = await bookmarkPoem(poemId, userData._id, "remove")
-      if (result.success) {
-        await fetchUserData()
-        toast.success("Poem removed from bookmarks")
-      } else {
-        throw new Error(result.message || "Failed to remove bookmark")
-      }
-    } catch (error) {
-      console.error("Failed to remove bookmark:", error)
-      toast.error("Failed to remove bookmark")
-      setOptimisticBookmarks(previousBookmarks)
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const formatCouplet = (couplet: string) => {
-    return couplet.split("\n").map((line, index) => (
-      <div key={index} className="leading-relaxed">
-        {line}
-      </div>
-    ))
+  // Handle errors
+  if (bookmarksError || bookmarkedArticlesError) {
+    toast.error(
+      (bookmarksError || bookmarkedArticlesError)?.message ||
+        "Failed to load bookmarked articles"
+    );
   }
 
   return (
@@ -62,84 +99,32 @@ export default function ProfileContent({ userData }: ProfileContentProps) {
           <Bookmark className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Bookmarked Poems</h2>
-          <p className="text-sm text-muted-foreground">Your saved poetry collection</p>
+          <h2 className="text-xl font-semibold">Bookmarked Articles</h2>
+          <p className="text-sm text-muted-foreground">
+            Your saved article collection
+          </p>
         </div>
       </div>
 
-      {optimisticBookmarks.length ? (
+      {bookmarksLoading || bookmarkedArticlesLoading ? (
         <div className="grid gap-4">
-          {optimisticBookmarks.map((bookmark, index) => {
-            const bookmarkedAt = bookmark.bookmarkedAt ? new Date(bookmark.bookmarkedAt) : null
-            const isValidDate = bookmarkedAt && !isNaN(bookmarkedAt.getTime())
-
-            return (
-              <article
-                key={bookmark.poemId.toString()}
-                className="group relative rounded-xl bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 p-6"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-
-                <div className="relative">
-                  {bookmark.poem ? (
-                    <>
-                      {/* Couplet with vertical line like poem card */}
-                      <Link href={`/poems/en/${bookmark.poem.slug}`} className="block group/link mb-4">
-                        <div className="relative pl-6">
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-primary/40 rounded-full" />
-                          <div className="text-lg leading-loose text-foreground/90 group-hover/link:text-primary/90 transition-colors duration-300 space-y-1">
-                            {formatCouplet(bookmark.poem.firstCouplet || `Poem ${index + 1}`)}
-                          </div>
-                        </div>
-                      </Link>
-
-                      {/* Poem Info */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Sparkles className="h-3 w-3" />
-                            By {bookmark.poem.poetName}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            {bookmark.poem.viewsCount} views
-                          </span>
-                        </div>
-                        {isValidDate && (
-                          <span className="text-xs text-muted-foreground">
-                            Bookmarked {formatRelativeTime(bookmarkedAt)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Action Bar */}
-                      <div className="flex items-center justify-between pt-3 border-t border-border/30">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Bookmark className="h-4 w-4 text-primary fill-current" />
-                          <span>Bookmarked</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-                          onClick={() => handleRemoveBookmark(bookmark.poemId.toString())}
-                          disabled={actionLoading === bookmark.poemId.toString()}
-                        >
-                          {actionLoading === bookmark.poemId.toString() ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-destructive border-muted" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Poem data not available</p>
-                  )}
-                </div>
-              </article>
+          {[...Array(5)].map((_, index) => (
+            <div
+              key={index}
+              className="h-40 rounded-xl bg-muted/50 animate-pulse"
+            />
+          ))}
+        </div>
+      ) : bookmarkedArticlesData?.articles?.length ? (
+        <div className="grid gap-4">
+          {bookmarkedArticlesData.articles.map(
+            (article: TransformedArticle) => (
+              <ArticleCard
+                key={article._id}
+                article={{ ...article, isBookmarked: true }}
+              />
             )
-          })}
+          )}
         </div>
       ) : (
         <div className="text-center py-12 bg-gradient-to-br from-card/50 to-card/30 rounded-xl backdrop-blur-sm">
@@ -149,18 +134,21 @@ export default function ProfileContent({ userData }: ProfileContentProps) {
             </div>
             <Sparkles className="absolute top-2 right-1/3 h-5 w-5 text-primary/40 animate-pulse" />
           </div>
-          <h3 className="text-xl font-semibold mb-3">No bookmarked poems yet</h3>
+          <h3 className="text-xl font-semibold mb-3">
+            No bookmarked articles yet
+          </h3>
           <p className="text-muted-foreground leading-relaxed mb-6 max-w-md mx-auto">
-            Start exploring and bookmark your favorite poems to see them here. Build your personal poetry collection!
+            Start exploring and bookmark your favorite articles to see them
+            here. Build your personal article collection!
           </p>
           <Button asChild className="gap-2">
-            <Link href="/poems">
-              <Heart className="h-4 w-4" />
-              Explore Poems
+            <Link href="/articles">
+              <Sparkles className="h-4 w-4" />
+              Explore Articles
             </Link>
           </Button>
         </div>
       )}
     </div>
-  )
+  );
 }

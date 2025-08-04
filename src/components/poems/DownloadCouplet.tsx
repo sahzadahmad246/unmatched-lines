@@ -20,34 +20,51 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePoemStore } from "@/store/poem-store";
 import { toast } from "sonner";
 import {
   Loader2,
   Upload,
   Download,
-  BookOpen,
-  Feather,
   Eye,
   Settings,
   ArrowLeft,
   ArrowRight,
   Star,
   Moon,
+  BookOpen,
 } from "lucide-react";
+import { TransformedArticle } from "@/types/articleTypes";
 
-interface DownloadCoupletProps {
-  poemSlug: string;
+interface DownloadArticleCoupletProps {
+  articleSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function DownloadCouplet({
-  poemSlug,
+// Fetch article by slug
+const fetchArticleBySlug = async (slug: string): Promise<TransformedArticle | null> => {
+  try {
+    const response = await fetch(`/api/articles/${slug}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch article: ${response.statusText}`);
+    }
+    const data: TransformedArticle = await response.json();
+    console.log("[fetchArticleBySlug] Response:", data); // Debug log
+    return data;
+  } catch (error) {
+    console.error("[fetchArticleBySlug] Error:", error);
+    throw error;
+  }
+};
+
+export default function DownloadArticleCouplet({
+  articleSlug,
   open,
   onOpenChange,
-}: DownloadCoupletProps) {
-  const { poem, fetchPoemByIdOrSlug, loading, error } = usePoemStore();
+}: DownloadArticleCoupletProps) {
+  const [article, setArticle] = useState<TransformedArticle | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "ur">("en");
   const [selectedCoupletIndex, setSelectedCoupletIndex] = useState<number>(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -56,23 +73,40 @@ export default function DownloadCouplet({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch article when dialog opens
   useEffect(() => {
-    if (open && !poem) {
-      fetchPoemByIdOrSlug(poemSlug).catch((err) => {
-        console.error("[DownloadCouplet] Failed to fetch poem:", err);
-      });
+    if (open && !article) {
+      setLoading(true);
+      setError(null);
+      fetchArticleBySlug(articleSlug)
+        .then((fetchedArticle) => {
+          if (fetchedArticle) {
+            setArticle(fetchedArticle);
+            console.log("[DownloadArticleCouplet] Fetched article:", fetchedArticle); // Debug log
+            console.log("[DownloadArticleCouplet] Couplets:", fetchedArticle.couplets); // Debug log
+            if (!fetchedArticle.couplets?.length) {
+              setError("No couplets available for this article");
+              toast.error("No couplets available for this article");
+            }
+          } else {
+            setError("Article not found");
+            toast.error("Article not found");
+          }
+        })
+        .catch((err) => {
+          console.error("[DownloadArticleCouplet] Failed to fetch article:", err);
+          setError("Failed to load article");
+          toast.error("Failed to load article");
+        })
+        .finally(() => setLoading(false));
     }
-  }, [open, poemSlug, fetchPoemByIdOrSlug, poem]);
+  }, [open, articleSlug, article]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
-
+  // Reset tab and couplet index when dialog opens
   useEffect(() => {
     if (open) {
       setActiveTab("customize");
+      setSelectedCoupletIndex(0);
     }
   }, [open]);
 
@@ -93,7 +127,7 @@ export default function DownloadCouplet({
   };
 
   const drawImageOnCanvas = async () => {
-    if (!canvasRef.current || !poem) return null;
+    if (!canvasRef.current || !article) return null;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
@@ -118,7 +152,8 @@ export default function DownloadCouplet({
         drawDefaultBackground(ctx, canvas.width, canvas.height);
       }
 
-      const couplet = poem.content[selectedLanguage][selectedCoupletIndex]?.couplet || "";
+      const couplet = article.couplets?.[selectedCoupletIndex]?.[selectedLanguage] || "";
+      console.log("[drawImageOnCanvas] Rendering couplet:", couplet); // Debug log
       drawText(ctx, couplet, canvas.width, canvas.height);
       return canvas.toDataURL("image/png", 1.0);
     } catch (error) {
@@ -212,8 +247,8 @@ export default function DownloadCouplet({
   };
 
   const handleDownload = async () => {
-    if (!poem) {
-      toast.error("Cannot download: Missing poem data");
+    if (!article) {
+      toast.error("Cannot download: Missing article data");
       return;
     }
     setIsDownloading(true);
@@ -222,7 +257,7 @@ export default function DownloadCouplet({
       if (!dataUrl) throw new Error("Failed to generate image");
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `${poem.title[selectedLanguage]}-couplet-${selectedCoupletIndex + 1}.png`;
+      link.download = `${article.title}-couplet-${selectedCoupletIndex + 1}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -235,7 +270,7 @@ export default function DownloadCouplet({
   };
 
   const renderPreview = () => {
-    const couplet = poem?.content[selectedLanguage][selectedCoupletIndex]?.couplet || "Select a couplet";
+    const couplet = article?.couplets?.[selectedCoupletIndex]?.[selectedLanguage] || "Select a couplet";
     const isUrdu = selectedLanguage === "ur";
     return (
       <div className="flex flex-col items-center space-y-2">
@@ -288,9 +323,8 @@ export default function DownloadCouplet({
   };
 
   const renderCustomizationSection = () => {
-    // Function to truncate couplet text for display, shorter on mobile
     const truncateCouplet = (couplet: string) => {
-      const maxLength = window.innerWidth < 640 ? 20 : 50; // Shorter truncation for mobile
+      const maxLength = window.innerWidth < 640 ? 20 : 50;
       if (couplet.length <= maxLength) return couplet;
       return couplet.substring(0, maxLength - 3) + "...";
     };
@@ -301,7 +335,7 @@ export default function DownloadCouplet({
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center gap-2">
               <Settings className="h-4 w-4 text-primary" />
-              <h3 className="font-bold text-sm">Customize Poetry Image</h3>
+              <h3 className="font-bold text-sm">Customize Article Couplet Image</h3>
             </div>
             <div className="flex flex-row gap-4">
               <div className="space-y-1 flex-1">
@@ -327,25 +361,36 @@ export default function DownloadCouplet({
               </div>
               <div className="space-y-1 flex-1">
                 <Label htmlFor="couplet" className="text-xs font-semibold flex items-center gap-1">
-                  <Feather className="h-3 w-3 text-primary" /> Couplet
+                  <BookOpen className="h-3 w-3 text-primary" /> Couplet
                 </Label>
                 <Select
                   value={selectedCoupletIndex.toString()}
                   onValueChange={(value) => setSelectedCoupletIndex(Number.parseInt(value))}
+                  disabled={!article?.couplets?.length}
                 >
                   <SelectTrigger id="couplet" className="bg-background/80 border-primary/30 h-8 text-xs">
-                    <SelectValue placeholder="Select couplet" />
+                    <SelectValue placeholder={article?.couplets?.length ? "Select couplet" : "No couplets available"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {poem?.content[selectedLanguage].map((item, index) => (
-                      <SelectItem
-                        key={index}
-                        value={index.toString()}
-                        className="text-xs overflow-hidden text-ellipsis whitespace-nowrap"
-                      >
-                        {truncateCouplet(item.couplet)}
+                    {article?.couplets?.length ? (
+                      article.couplets.map((item, index) => {
+                        const coupletText = item[selectedLanguage] || `Couplet ${index + 1}`;
+                        console.log(`[renderCustomizationSection] Couplet ${index}:`, coupletText); // Debug log
+                        return (
+                          <SelectItem
+                            key={index}
+                            value={index.toString()}
+                            className="text-xs overflow-hidden text-ellipsis whitespace-nowrap"
+                          >
+                            {truncateCouplet(coupletText)}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No couplets available
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -394,7 +439,7 @@ export default function DownloadCouplet({
         </Card>
         <Button
           onClick={handleDownload}
-          disabled={isDownloading || !poem?.content[selectedLanguage][selectedCoupletIndex]}
+          disabled={isDownloading || !article?.couplets?.[selectedCoupletIndex]?.[selectedLanguage]}
           className="w-full h-10 text-xs font-bold bg-primary hover:bg-primary/90"
         >
           {isDownloading ? (
@@ -417,20 +462,20 @@ export default function DownloadCouplet({
         <DialogContent className="w-full sm:max-w-[50%] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4">
           <div className="flex justify-center items-center h-full">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground">Loading poem...</p>
+            <p className="text-xs text-muted-foreground">Loading article...</p>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  if (!poem) {
+  if (!article || error) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-full sm:max-w-[50%] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4">
           <div className="flex justify-center items-center h-full">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Poem not found</p>
+            <p className="text-xs text-muted-foreground">Article not found</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -443,7 +488,7 @@ export default function DownloadCouplet({
         <DialogHeader className="pb-2 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Download className="h-4 w-4 text-primary" />
-            Download Poetry Image
+            Download Article Couplet Image
           </DialogTitle>
         </DialogHeader>
         <Tabs
@@ -471,7 +516,7 @@ export default function DownloadCouplet({
             {renderPreview()}
             <Button
               onClick={handleDownload}
-              disabled={isDownloading || !poem?.content[selectedLanguage][selectedCoupletIndex]}
+              disabled={isDownloading || !article?.couplets?.[selectedCoupletIndex]?.[selectedLanguage]}
               className="w-full h-10 text-xs font-bold bg-primary hover:bg-primary/90 mt-2"
             >
               {isDownloading ? (

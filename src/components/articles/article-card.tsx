@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type React from "react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2, Download } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -11,7 +11,8 @@ import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { formatRelativeTime } from "@/lib/utils/date"; // Import formatRelativeTime
+import { formatRelativeTime } from "@/lib/utils/date";
+import DownloadArticleCouplet from "../poems/DownloadCouplet";
 
 interface ArticleCardProps {
   article: {
@@ -36,6 +37,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const [copied, setCopied] = useState(false);
   const [currentBookmarkCount, setCurrentBookmarkCount] = useState(article.bookmarkCount);
   const [isBookmarked, setIsBookmarked] = useState(article.isBookmarked || false);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
 
   // Effect to check initial bookmark status
   useEffect(() => {
@@ -157,94 +159,113 @@ export function ArticleCard({ article }: ArticleCardProps) {
   };
 
   return (
-    <Link href={`/article/${article.slug}`} className="block h-full">
-      <Card className="flex flex-col h-full overflow-hidden transition-all duration-200 hover:shadow-lg">
-        <CardContent className="flex flex-col flex-grow justify-between p-4 pt-0">
-          {/* Poet on left, Date on right */}
-          <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarImage
-                  src={article.poet.profilePicture || "/placeholder.svg?height=40&width=40&query=poet profile"}
-                  alt={article.poet.name}
-                />
-                <AvatarFallback>{article.poet.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span>{article.poet.name}</span>
+    <>
+      <Link href={`/article/${article.slug}`} className="block h-full">
+        <Card className="flex flex-col h-full overflow-hidden transition-all duration-200 hover:shadow-lg">
+          <CardContent className="flex flex-col flex-grow justify-between p-4 pt-0">
+            {/* Poet on left, Date on right */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage
+                    src={article.poet.profilePicture || "/placeholder.svg?height=40&width=40&query=poet profile"}
+                    alt={article.poet.name}
+                  />
+                  <AvatarFallback>{article.poet.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <span>{article.poet.name}</span>
+              </div>
+              <span>{formatRelativeTime(article.publishedAt || "")}</span>
             </div>
-            <span>{formatRelativeTime(article.publishedAt || "")}</span> {/* Use formatRelativeTime */}
-          </div>
-          {/* First Couplet */}
-          {article.firstCoupletEn && (
-            <CardDescription
-              className="text-base mt-2 mb-4 border-l-4 border-gray-300 pl-4"
-              style={{ whiteSpace: "pre-line" }}
-            >
-              {article.firstCoupletEn}
-            </CardDescription>
-          )}
-          {/* Views, Bookmarks, Copy, and More Menu */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-auto">
-            <div className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
-              <span>{article.viewsCount}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBookmark}
-              className="flex items-center gap-1 text-sm p-0 h-auto"
-              aria-label={isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-            >
-              <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
-              <span>{currentBookmarkCount}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCopyCouplet();
-              }}
-              className="flex items-center gap-1 text-sm p-0 h-auto"
-              aria-label="Copy couplet"
-            >
-              <Copy className="h-4 w-4" />
-              {copied && <span className="ml-1 text-xs text-green-500">Copied!</span>}
-            </Button>
-            {/* More Menu for Edit/Delete */}
-            {(session?.user?.role === "admin" || session?.user?.role === "poet") && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto flex items-center gap-1 text-sm p-0 h-auto"
-                    aria-label="More options"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleEdit}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDelete}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* First Couplet */}
+            {article.firstCoupletEn && (
+              <CardDescription
+                className="text-base mt-2 mb-4 border-l-4 border-gray-300 pl-4"
+                style={{ whiteSpace: "pre-line" }}
+              >
+                {article.firstCoupletEn}
+              </CardDescription>
             )}
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+            {/* Views, Bookmarks, Copy, Download, and More Menu */}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-auto">
+              <div className="flex items-center gap-1">
+                <Eye className="h-4 w-4" />
+                <span>{article.viewsCount}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBookmark}
+                className="flex items-center gap-1 text-sm p-0 h-auto"
+                aria-label={isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+              >
+                <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
+                <span>{currentBookmarkCount}</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCopyCouplet();
+                }}
+                className="flex items-center gap-1 text-sm p-0 h-auto"
+                aria-label="Copy couplet"
+              >
+                <Copy className="h-4 w-4" />
+                {copied && <span className="ml-1 text-xs text-green-500">Copied!</span>}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDownloadOpen(true);
+                }}
+                className="flex items-center gap-1 text-sm p-0 h-auto"
+                aria-label="Download couplet"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              {(session?.user?.role === "admin" || session?.user?.role === "poet") && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto flex items-center gap-1 text-sm p-0 h-auto"
+                      aria-label="More options"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDelete}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+      <DownloadArticleCouplet
+        articleSlug={article.slug}
+        open={isDownloadOpen}
+        onOpenChange={setIsDownloadOpen}
+      />
+    </>
   );
 }

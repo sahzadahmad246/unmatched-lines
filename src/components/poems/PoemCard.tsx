@@ -15,7 +15,7 @@ import { formatRelativeTime } from "@/lib/utils/date"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import DownloadCouplet from "./DownloadCouplet"
+
 
 interface PoemCardProps {
   feedItem: FeedItem
@@ -26,7 +26,7 @@ export default function PoemCard({ feedItem }: PoemCardProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [optimisticBookmarkCount, setOptimisticBookmarkCount] = useState(feedItem.bookmarkCount || 0)
   const [topicsDialogOpen, setTopicsDialogOpen] = useState(false)
-  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false)
+ 
   const { userData, fetchUserData } = useUserStore()
   const { bookmarkPoem } = usePoemStore()
 
@@ -280,7 +280,7 @@ export default function PoemCard({ feedItem }: PoemCardProps) {
           <div className="flex items-center gap-1">
             <button
               className="flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-background/60 dark:hover:bg-background/40 hover:shadow-md transition-all duration-300"
-              onClick={() => setIsDownloadDialogOpen(true)}
+              
             >
               <Download className="h-4 w-4" />
               <span className="text-sm font-semibold font-inter hidden sm:inline">Download</span>
@@ -297,7 +297,7 @@ export default function PoemCard({ feedItem }: PoemCardProps) {
         </div>
       </div>
 
-      <DownloadCouplet poemSlug={feedItem.slug} open={isDownloadDialogOpen} onOpenChange={setIsDownloadDialogOpen} />
+      
 
       <style jsx>{`
         .poetry-preview {

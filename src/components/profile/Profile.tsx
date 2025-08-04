@@ -16,7 +16,7 @@ export default function Profile() {
   const router = useRouter()
   const [isScrolled, setIsScrolled] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
-
+console.log(userData)
   useEffect(() => {
     if (status === "authenticated") {
       fetchUserData()

@@ -234,12 +234,12 @@ export default function DesktopNav({ children }: DesktopNavProps) {
       </aside>
 
       {/* Enhanced Main Content */}
-      <main className="flex-1 min-h-screen ml-[280px] mr-[380px]">
-        <div className="max-w-full mx-auto py-6 px-6">{children}</div>
+      <main className="flex-1 min-h-screen ml-[260px] mr-[400px]">
+        <div className="max-w-auto mx-auto py-6 px-6">{children}</div>
       </main>
 
       {/* Enhanced Right Sidebar */}
-      <aside className="fixed top-0 bottom-0 w-[380px] right-[calc(50%-640px)] border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-10 shadow-lg">
+      <aside className="fixed top-0 bottom-0 w-[420px] right-[calc(50%-640px)] border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-10 shadow-lg">
         <div className="h-full">
           <ExploreClientOnly />
         </div>
