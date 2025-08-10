@@ -21,7 +21,7 @@ export default function PoetProfileContent({ poet }: PoetProfileContentProps) {
   const bioText = poet.bio || "No biography available."
   const shouldShowToggle = bioText.length > 200
   const displayBio = shouldShowToggle && !showFullBio ? bioText.slice(0, 200) + "..." : bioText
-
+console.log("Poet Profile Content:", poet)
   return (
     <div className="space-y-6">
       {/* Bio Section */}
@@ -89,7 +89,7 @@ export default function PoetProfileContent({ poet }: PoetProfileContentProps) {
                 <FileText className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium">Total Poems</span>
               </div>
-              <span className="text-2xl font-bold text-primary">{poet.poemCount || 0}</span>
+              <span className="text-2xl font-bold text-primary">{poet.articleCount || 0}</span>
             </div>
 
             <div className="bg-blue-500/10 rounded-xl p-4 text-center">

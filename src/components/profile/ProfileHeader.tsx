@@ -1,26 +1,39 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, MapPin, Calendar, Settings, LogOut, MoreHorizontal, Sparkles } from "lucide-react"
-import { formatDate } from "@/lib/utils/date"
-import type { IUser } from "@/types/userTypes"
-import EditProfileDialog from "./ProfileForm"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Settings,
+  LogOut,
+  MoreHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { formatDate } from "@/lib/utils/date";
+import type { IUser } from "@/types/userTypes";
+import EditProfileDialog from "./ProfileForm";
 
 interface ProfileHeaderProps {
-  userData: IUser
-  onBack: () => void
-  onLogout: () => void
+  userData: IUser;
+  onBack: () => void;
+  onLogout: () => void;
 }
 
-export default function ProfileHeader({ userData, onBack, onLogout }: ProfileHeaderProps) {
-  const [showEditDialog, setShowEditDialog] = useState(false)
-  const dob = userData.dob ? new Date(userData.dob) : null
-  const isValidDob = dob && !isNaN(dob.getTime())
-  const shouldShowPoemCount = userData.role === "admin" || userData.role === "poet"
+export default function ProfileHeader({
+  userData,
+  onBack,
+  onLogout,
+}: ProfileHeaderProps) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const dob = userData.dob ? new Date(userData.dob) : null;
+  const isValidDob = dob && !isNaN(dob.getTime());
+  const shouldShowPoemCount =
+    userData.role === "admin" || userData.role === "poet";
 
   return (
     <>
@@ -89,16 +102,23 @@ export default function ProfileHeader({ userData, onBack, onLogout }: ProfileHea
               <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                 {userData.name}
               </h1>
-              <Badge variant="secondary" className="capitalize bg-primary/10 text-primary border-primary/20">
+              <Badge
+                variant="secondary"
+                className="capitalize bg-primary/10 text-primary border-primary/20"
+              >
                 {userData.role}
               </Badge>
             </div>
-            <p className="text-muted-foreground font-medium">@{userData.slug}</p>
+            <p className="text-muted-foreground font-medium">
+              @{userData.slug}
+            </p>
           </div>
 
           {userData.bio && (
             <div className="bg-gradient-to-r from-muted/30 to-muted/20 rounded-lg p-4">
-              <p className="text-sm leading-relaxed text-foreground/90">{userData.bio}</p>
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {userData.bio}
+              </p>
             </div>
           )}
 
@@ -125,13 +145,21 @@ export default function ProfileHeader({ userData, onBack, onLogout }: ProfileHea
           <div className="flex gap-6 pt-2">
             {shouldShowPoemCount && (
               <div className="text-center p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5">
-                <p className="text-xl font-bold text-primary">{userData.poemCount ?? 0}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Poems</p>
+                <p className="text-xl font-bold text-primary">
+                  {userData.poemCount ?? 0}
+                </p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                  Poems
+                </p>
               </div>
             )}
             <div className="text-center p-4 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20">
-              <p className="text-xl font-bold text-accent-foreground">{userData.bookmarks?.length ?? 0}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Bookmarks</p>
+              <p className="text-xl font-bold text-accent-foreground">
+                {userData.bookmarkedArticles?.length ?? 0}
+              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                Bookmarks
+              </p>
             </div>
           </div>
         </div>
@@ -139,7 +167,11 @@ export default function ProfileHeader({ userData, onBack, onLogout }: ProfileHea
 
       <Separator className="my-6 bg-gradient-to-r from-transparent via-border to-transparent" />
 
-      <EditProfileDialog open={showEditDialog} onOpenChange={setShowEditDialog} userData={userData} />
+      <EditProfileDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        userData={userData}
+      />
     </>
-  )
+  );
 }

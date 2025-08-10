@@ -29,7 +29,7 @@ export default function CookiesPolicyPage() {
     {
       title: "Contact",
       content:
-        'For any questions related to cookies or privacy, reach out at: <a href="mailto:unmatchedloe@gmail.com" class="text-primary hover:underline">unmatchedloe@gmail.com</a>',
+        'For any questions related to cookies or privacy, reach out at: <a href="mailto:unmatchedlines@gmail.com" class="text-primary hover:underline">unmatchedlines@gmail.com</a>',
     },
   ]
 
@@ -37,10 +37,10 @@ export default function CookiesPolicyPage() {
     <PolicyPage
       title="Cookies Policy"
       icon={Cookie}
-      lastUpdated="June 17, 2025"
+      lastUpdated="August 10, 2025"
       description="unmatchedlines.com uses cookies only to improve your browsing experience. We do not use cookies for advertising or marketing."
       sections={sections}
-      contactEmail="unmatchedloe@gmail.com"
+      contactEmail="unmatchedlines@gmail.com"
       footerText="Have questions about our cookies usage?"
       additionalFooterButton={{
         text: "Privacy Policy",

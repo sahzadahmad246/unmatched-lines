@@ -134,7 +134,7 @@ export default async function PoetProfilePage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData, null, 0), // Minify JSON-LD
+          __html: JSON.stringify(structuredData, null, 0),
         }}
       />
       <PoetProfileLayout poet={poet} currentTab="profile">

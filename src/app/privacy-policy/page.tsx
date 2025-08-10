@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
     {
       title: "Your Rights",
       content: [
-        'You can request to view or delete your stored data by emailing us at: <a href="mailto:unmatchedloe@gmail.com" class="text-primary hover:underline">unmatchedloe@gmail.com</a>',
+        'You can request to view or delete your stored data by emailing us at: <a href="mailto:unmatchedlines@gmail.com" class="text-primary hover:underline">unmatchedlines@gmail.com</a>',
       ],
     },
     {
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
       lastUpdated="June 17, 2025"
       description="At unmatchedlines.com, we respect your privacy and are committed to protecting the personal information you provide when using our website."
       sections={sections}
-      contactEmail="unmatchedloe@gmail.com"
+      contactEmail="unmatchedlines@gmail.com"
       footerText="Have questions about our privacy practices?"
     />
   )

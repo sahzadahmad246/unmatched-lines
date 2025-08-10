@@ -131,7 +131,7 @@ export default function PoetProfileLayout({ poet, currentTab, children }: PoetPr
               <div className="flex justify-between items-center">
                 <div className="flex gap-6 sm:gap-8">
                   <div className="text-center">
-                    <div className="font-bold text-lg sm:text-xl text-foreground">{poet.poemCount || 0}</div>
+                    <div className="font-bold text-lg sm:text-xl text-foreground">{poet.articleCount || 0}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Poems</div>
                   </div>
                   <div className="text-center">
