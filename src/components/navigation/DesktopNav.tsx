@@ -8,10 +8,11 @@ import { useTheme } from "next-themes";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Feather, Moon, Sun, Sparkles, Crown, User } from "lucide-react";
+import { Feather, Moon, Sun, Sparkles, Crown, User, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/store/user-store";
 import { navItems } from "./navItems";
+import { useExplore } from "@/contexts/ExploreContext";
 // Wrap the Explore component in a client-side only wrapper to prevent hydration issues:
 
 // Add this import at the top
@@ -35,6 +36,7 @@ export default function DesktopNav({ children }: DesktopNavProps) {
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
   const { userData, fetchUserData } = useUserStore();
+  const { isExploreOpen, toggleExplore } = useExplore();
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
@@ -234,12 +236,41 @@ export default function DesktopNav({ children }: DesktopNavProps) {
       </aside>
 
       {/* Enhanced Main Content */}
-      <main className="flex-1 min-h-screen ml-[260px] mr-[400px]">
+      <main className={cn(
+        "flex-1 min-h-screen transition-all duration-300",
+        isExploreOpen ? "ml-[260px] mr-[420px]" : "ml-[260px] mr-0"
+      )}>
         <div className="max-w-auto mx-auto py-6 px-6">{children}</div>
       </main>
 
+      {/* Explore Toggle Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          "fixed top-6 right-6 z-20 transition-all duration-300 shadow-lg",
+          isExploreOpen ? "bg-primary text-primary-foreground" : "bg-background"
+        )}
+        onClick={toggleExplore}
+      >
+        {isExploreOpen ? (
+          <>
+            <X className="h-4 w-4 mr-2" />
+            Close Explore
+          </>
+        ) : (
+          <>
+            <Search className="h-4 w-4 mr-2" />
+            Open Explore
+          </>
+        )}
+      </Button>
+
       {/* Enhanced Right Sidebar */}
-      <aside className="fixed top-0 bottom-0 w-[420px] right-[calc(50%-640px)] border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-10 shadow-lg">
+      <aside className={cn(
+        "fixed top-0 bottom-0 w-[420px] right-[calc(50%-640px)] border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-10 shadow-lg transition-all duration-300",
+        isExploreOpen ? "translate-x-0" : "translate-x-full"
+      )}>
         <div className="h-full">
           <ExploreClientOnly />
         </div>

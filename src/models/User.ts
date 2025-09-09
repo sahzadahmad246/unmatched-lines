@@ -42,6 +42,12 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+// Add database indexes for performance
+UserSchema.index({ role: 1 }); // For role filtering
+UserSchema.index({ "name": "text", "bio": "text" }); // For text search
+UserSchema.index({ createdAt: -1 }); // For recent users
+UserSchema.index({ poemCount: -1 }); // For popular poets
+
 UserSchema.pre("save", async function (next) {
   try {
     if (this.bio) this.bio = sanitizeHtml(this.bio);

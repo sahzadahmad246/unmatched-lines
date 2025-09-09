@@ -10,7 +10,7 @@ import type { IPoet } from "@/types/userTypes"
 
 // Extend IPoet to include totalViews as an optional field
 interface PoetProfileContentProps {
-  poet: IPoet & { totalViews?: number }
+  poet: IPoet
 }
 
 export default function PoetProfileContent({ poet }: PoetProfileContentProps) {
@@ -21,7 +21,6 @@ export default function PoetProfileContent({ poet }: PoetProfileContentProps) {
   const bioText = poet.bio || "No biography available."
   const shouldShowToggle = bioText.length > 200
   const displayBio = shouldShowToggle && !showFullBio ? bioText.slice(0, 200) + "..." : bioText
-console.log("Poet Profile Content:", poet)
   return (
     <div className="space-y-6">
       {/* Bio Section */}
@@ -87,7 +86,7 @@ console.log("Poet Profile Content:", poet)
             <div className="bg-primary/10 rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <FileText className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium">Total Poems</span>
+                <span className="text-sm font-medium">Total Articles</span>
               </div>
               <span className="text-2xl font-bold text-primary">{poet.articleCount || 0}</span>
             </div>
@@ -97,7 +96,7 @@ console.log("Poet Profile Content:", poet)
                 <Eye className="h-5 w-5 text-blue-500" />
                 <span className="text-sm font-medium">Total Views</span>
               </div>
-              <span className="text-2xl font-bold text-blue-500">{poet.totalViews || 0}</span>
+              <span className="text-2xl font-bold text-blue-500">{poet.totalViewsOnArticles || 0}</span>
             </div>
 
             <div className="bg-red-500/10 rounded-xl p-4 text-center">
@@ -105,7 +104,7 @@ console.log("Poet Profile Content:", poet)
                 <Heart className="h-5 w-5 text-red-500" />
                 <span className="text-sm font-medium">Bookmarks</span>
               </div>
-              <span className="text-2xl font-bold text-red-500">{poet.bookmarks?.length || 0}</span>
+              <span className="text-2xl font-bold text-red-500">{poet.totalBookmarksOnArticles || 0}</span>
             </div>
           </div>
         </CardContent>

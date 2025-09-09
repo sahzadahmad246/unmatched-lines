@@ -49,7 +49,6 @@ const fetchArticleBySlug = async (slug: string): Promise<TransformedArticle | nu
       throw new Error(`Failed to fetch article: ${response.statusText}`);
     }
     const data: TransformedArticle = await response.json();
-    console.log("[fetchArticleBySlug] Response:", data); // Debug log
     return data;
   } catch (error) {
     console.error("[fetchArticleBySlug] Error:", error);
@@ -82,8 +81,6 @@ export default function DownloadArticleCouplet({
         .then((fetchedArticle) => {
           if (fetchedArticle) {
             setArticle(fetchedArticle);
-            console.log("[DownloadArticleCouplet] Fetched article:", fetchedArticle); // Debug log
-            console.log("[DownloadArticleCouplet] Couplets:", fetchedArticle.couplets); // Debug log
             if (!fetchedArticle.couplets?.length) {
               setError("No couplets available for this article");
               toast.error("No couplets available for this article");
@@ -153,7 +150,6 @@ export default function DownloadArticleCouplet({
       }
 
       const couplet = article.couplets?.[selectedCoupletIndex]?.[selectedLanguage] || "";
-      console.log("[drawImageOnCanvas] Rendering couplet:", couplet); // Debug log
       drawText(ctx, couplet, canvas.width, canvas.height);
       return canvas.toDataURL("image/png", 1.0);
     } catch (error) {
@@ -375,7 +371,6 @@ export default function DownloadArticleCouplet({
                     {article?.couplets?.length ? (
                       article.couplets.map((item, index) => {
                         const coupletText = item[selectedLanguage] || `Couplet ${index + 1}`;
-                        console.log(`[renderCustomizationSection] Couplet ${index}:`, coupletText); // Debug log
                         return (
                           <SelectItem
                             key={index}

@@ -87,6 +87,15 @@ const PoemSchema = new Schema<IPoem>(
   { timestamps: true }
 );
 
+// Add database indexes for performance
+PoemSchema.index({ status: 1, createdAt: -1 }); // For published poems by date
+PoemSchema.index({ poet: 1, status: 1 }); // For poet's poems
+PoemSchema.index({ category: 1, status: 1 }); // For category filtering
+PoemSchema.index({ viewsCount: -1 }); // For popular poems
+PoemSchema.index({ bookmarkCount: -1 }); // For most bookmarked
+PoemSchema.index({ "title.en": "text", "title.hi": "text", "title.ur": "text" }); // For text search
+PoemSchema.index({ topics: 1 }); // For topic filtering
+
 // Sanitize inputs and sync bookmarkCount
 PoemSchema.pre("save", function (this: Document & IPoem, next) {
   if (this.title?.en) this.title.en = sanitizeHtml(this.title.en);

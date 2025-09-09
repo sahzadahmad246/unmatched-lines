@@ -32,7 +32,7 @@ export function generatePoetStructuredData(poet: IPoet) {
     dateCreated: poet.createdAt
       ? new Date(poet.createdAt).toISOString()
       : undefined,
-    numberOfWorks: poet.poemCount || 0,
+    numberOfWorks: poet.articleCount || 0,
     genre: ["Poetry", "Urdu Literature", "Ghazal", "Nazm", "Sher"],
     hasCreativeWork: [
       {

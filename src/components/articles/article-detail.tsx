@@ -3,7 +3,7 @@ import Image from "next/image";
 import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bookmark, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Bookmark, Eye, MoreVertical, Pencil, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,9 @@ import { useRouter } from "next/navigation";
 import { ArticleCard } from "./article-card";
 import { ArticleCardSkeleton } from "./article-card-skeleton"; // Import the new skeleton
 import type { TransformedArticle } from "@/types/articleTypes";
+import { useExplore } from "@/contexts/ExploreContext";
+import { StickyHeader } from "@/components/ui/sticky-header";
+import DownloadArticleCouplet from "@/components/poems/DownloadCouplet";
 import "./../styles/ArticleContent.css";
 
 interface Couplet {
@@ -82,6 +85,7 @@ export function formatRelativeTime(date: Date | string): string {
 export function ArticleDetail({ article }: ArticleDetailProps) {
   const { data: session } = useSession();
   const router = useRouter();
+  const { isExploreOpen } = useExplore();
   const [currentBookmarkCount, setCurrentBookmarkCount] = useState(
     article.bookmarkCount
   );
@@ -92,13 +96,13 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
   const [activeCoupletLanguage, setActiveCoupletLanguage] = useState<
     "en" | "hi" | "ur"
   >("en");
-  const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [relatedArticles, setRelatedArticles] = useState<TransformedArticle[]>(
     []
   );
   const [poetArticles, setPoetArticles] = useState<TransformedArticle[]>([]);
   const [isLoadingRelatedArticles, setIsLoadingRelatedArticles] =
     useState(true);
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
   const [isLoadingPoetArticles, setIsLoadingPoetArticles] = useState(true);
 
   // Fetch related articles by category
@@ -196,19 +200,6 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
     checkBookmarkStatus();
   }, [article._id, session?.user?.id]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 200) {
-        setShowStickyHeader(true);
-      } else {
-        setShowStickyHeader(false);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
 
   const handleBookmark = useCallback(async () => {
     if (!session?.user?.id) {
@@ -233,8 +224,7 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
         setIsBookmarked(result.isBookmarked);
         setCurrentBookmarkCount(result.article.bookmarkCount);
         toast.success(
-          `Article ${
-            action === "add" ? "bookmarked" : "unbookmarked"
+          `Article ${action === "add" ? "bookmarked" : "unbookmarked"
           } successfully!`
         );
       } else {
@@ -299,16 +289,13 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
   }
 
   return (
-    <div className="container mx-auto py-8 px-0 md:px-4 lg:py-12">
+    <div className="container mx-auto py-8 px-0 md:px-4 lg:py-12" style={{
+      marginRight: isExploreOpen ? '420px' : '0',
+      transition: 'margin-right 0.3s ease'
+    }}>
       {/* Sticky Header */}
-      <div
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          showStickyHeader
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-full opacity-0"
-        }`}
-      >
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-center bg-background/95 backdrop-blur-sm border-b border-border">
+      <StickyHeader>
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-7 w-7">
               <AvatarImage
@@ -328,10 +315,10 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
           <h2 className="text-lg font-semibold truncate text-center flex-1 mx-4">
             {article.title}
           </h2>
-          {/* Placeholder for right-aligned items if needed, or remove if not used */}
-          <div className="w-14"></div> {/* Adjust width as needed */}
+          <div className="w-14"></div>
         </div>
-      </div>
+      </StickyHeader>
+
 
       <article className="max-w-4xl mx-auto space-y-8">
         <header className="space-y-4 text-center">
@@ -366,8 +353,8 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               {article.publishedAt
                 ? formatRelativeTime(article.publishedAt)
                 : article.updatedAt
-                ? formatRelativeTime(article.updatedAt)
-                : "Unknown date"}
+                  ? formatRelativeTime(article.updatedAt)
+                  : "Unknown date"}
             </span>
           </div>
           <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
@@ -385,41 +372,50 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               }
             >
               <Bookmark
-                className={`h-4 w-4 ${
-                  isBookmarked ? "fill-primary text-primary" : ""
-                }`}
+                className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""
+                  }`}
               />
               <span>{currentBookmarkCount}</span>
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDownloadDialogOpen(true)}
+              className="flex items-center gap-1 text-sm p-0 h-auto"
+              aria-label="Download couplet image"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download</span>
+            </Button>
             {(session?.user?.role === "admin" ||
               session?.user?.role === "poet") && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-1 text-sm p-0 h-auto"
-                    aria-label="More options"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleEdit}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDelete}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-1 text-sm p-0 h-auto"
+                      aria-label="More options"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDelete}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
           </div>
         </header>
 
@@ -622,6 +618,13 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
           )}
         </footer>
       </article>
+
+      {/* Download Dialog */}
+      <DownloadArticleCouplet
+        articleSlug={article.slug}
+        open={isDownloadDialogOpen}
+        onOpenChange={setIsDownloadDialogOpen}
+      />
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { authOptions } from "@/lib/auth/authOptions";
 import { createPoemSchema } from "@/validators/poemValidator";
 import { configureCloudinary, uploadImageStream } from "@/lib/utils/cloudinary";
 import { slugify } from "@/lib/slugify";
+import { rateLimit, getClientIP, rateLimitPresets } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 interface PoemFormData {
   title?: { en: string; hi: string; ur: string };
@@ -28,8 +30,8 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect();
     const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "10")));
     const random = url.searchParams.get("random") === "true";
     const skip = (page - 1) * limit;
 
@@ -83,10 +85,11 @@ export async function GET(req: NextRequest) {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Poems API error:", errorMessage);
+    logger.error("Poems API GET error", error instanceof Error ? error : undefined, {
+      endpoint: "GET /api/poems"
+    });
     return NextResponse.json(
-      { message: "Server error", error: errorMessage },
+      { message: "Internal server error" },
       { status: 500 }
     );
   }
@@ -94,6 +97,24 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(req);
+    const rateLimitResult = rateLimit(`poem-create-${clientIP}`, rateLimitPresets.strict); // 10 requests per 15 minutes
+    
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { message: "Too many requests. Please try again later." },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '10',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
+        }
+      );
+    }
+
     await dbConnect();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -108,30 +129,52 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const body: PoemFormData = {};
 
-    // Validate required title fields
+    // Validate required title fields with length limits
     const titleEn = formData.get("title[en]");
     const titleHi = formData.get("title[hi]");
     const titleUr = formData.get("title[ur]");
+    
     if (typeof titleEn !== "string" || typeof titleHi !== "string" || typeof titleUr !== "string") {
       return NextResponse.json({ message: "Missing or invalid title fields" }, { status: 400 });
     }
-    body.title = { en: titleEn, hi: titleHi, ur: titleUr };
+    
+    // Sanitize and validate title lengths
+    const sanitizedTitleEn = titleEn.trim().substring(0, 200);
+    const sanitizedTitleHi = titleHi.trim().substring(0, 200);
+    const sanitizedTitleUr = titleUr.trim().substring(0, 200);
+    
+    if (!sanitizedTitleEn || !sanitizedTitleHi || !sanitizedTitleUr) {
+      return NextResponse.json({ message: "Title fields cannot be empty" }, { status: 400 });
+    }
+    
+    body.title = { en: sanitizedTitleEn, hi: sanitizedTitleHi, ur: sanitizedTitleUr };
     body.slug = {
       en: slugify(titleEn, "en"),
       hi: slugify(titleEn, "hi"),
       ur: slugify(titleEn, "ur"),
     };
 
-    // Handle JSON-parsed fields with error checking
+    // Handle JSON-parsed fields with error checking and size limits
     for (const key of ["content", "topics", "faqs"]) {
       const value = formData.get(key);
       if (value) {
         if (typeof value !== "string") {
           return NextResponse.json({ message: `Invalid ${key} format: must be a string` }, { status: 400 });
         }
+        
+        // Check JSON size limit (1MB)
+        if (value.length > 1024 * 1024) {
+          return NextResponse.json({ message: `${key} data too large` }, { status: 400 });
+        }
+        
         try {
-          body[key] = JSON.parse(value);
-        } catch {
+          const parsed = JSON.parse(value);
+          body[key] = parsed;
+        } catch (parseError) {
+          logger.error(`JSON parse error for ${key}`, parseError instanceof Error ? parseError : undefined, {
+            key,
+            endpoint: "POST /api/poems"
+          });
           return NextResponse.json({ message: `Invalid ${key} JSON format` }, { status: 400 });
         }
       }

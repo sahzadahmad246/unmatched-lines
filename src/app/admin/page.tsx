@@ -5,75 +5,84 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAdminStore } from "@/store/admin-store"
-import { usePoemStore } from "@/store/poem-store"
-import { Users, BookOpen, TrendingUp, Eye, Plus, Calendar } from "lucide-react"
+import { Users, BookOpen, Eye, Plus, Calendar, FileText } from "lucide-react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { IUser } from "@/types/userTypes"
-import { IPoem, SerializedPoem } from "@/types/poemTypes"
+import { TransformedArticle } from "@/types/articleTypes"
 
 interface Stats {
   totalUsers: number;
-  totalPoems: number;
+  totalArticles: number;
   totalViews: number;
+  totalBookmarks: number;
   recentUsers: IUser[];
-  recentPoems: IPoem[];
+  recentArticles: TransformedArticle[];
 }
 
 export default function AdminDashboard() {
   const { users, fetchAllUsers, loading: usersLoading } = useAdminStore()
-  const { poems, fetchPoems, loading: poemsLoading } = usePoemStore()
+  const [articles, setArticles] = useState<TransformedArticle[]>([])
+  const [articlesLoading, setArticlesLoading] = useState(true)
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
-    totalPoems: 0,
+    totalArticles: 0,
     totalViews: 0,
+    totalBookmarks: 0,
     recentUsers: [],
-    recentPoems: [],
+    recentArticles: [],
   })
 
   useEffect(() => {
     fetchAllUsers(1, 100)
-    fetchPoems(1, 100)
-  }, [fetchAllUsers, fetchPoems])
+    fetchArticles()
+  }, [fetchAllUsers])
+
+  const fetchArticles = async () => {
+    try {
+      setArticlesLoading(true)
+      const response = await fetch('/api/articles/list?limit=100')
+      if (response.ok) {
+        const data = await response.json()
+        setArticles(data.articles || [])
+      }
+    } catch (error) {
+      console.error('Error fetching articles:', error)
+    } finally {
+      setArticlesLoading(false)
+    }
+  }
 
  useEffect(() => {
-  // Ensure poems and users are defined before processing
-  if (!poems || !users) return;
+  // Ensure articles and users are defined before processing
+  if (!articles || !users) return;
 
   try {
-    // Convert SerializedPoem[] to IPoem[]
-    const convertedPoems: IPoem[] = (poems || []).map((poem: SerializedPoem): IPoem => ({
-      ...poem,
-      createdAt: new Date(poem.createdAt),
-      updatedAt: new Date(poem.updatedAt),
-      bookmarks: (poem.bookmarks || []).map(bookmark => ({
-        ...bookmark,
-        bookmarkedAt: new Date(bookmark.bookmarkedAt),
-      })),
-    }));
-
-    const totalViews = convertedPoems.reduce((sum, poem) => sum + (poem.viewsCount || 0), 0);
+    const totalViews = articles.reduce((sum, article) => sum + (article.viewsCount || 0), 0);
+    const totalBookmarks = articles.reduce((sum, article) => sum + (article.bookmarkCount || 0), 0);
     
     const recentUsers: IUser[] = (users || [])
       .sort((a: IUser, b: IUser) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
       
-    const recentPoems: IPoem[] = convertedPoems
-      .sort((a: IPoem, b: IPoem) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const recentArticles: TransformedArticle[] = articles
+      .sort((a: TransformedArticle, b: TransformedArticle) => 
+        new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+      )
       .slice(0, 5);
 
     setStats({
       totalUsers: users.length,
-      totalPoems: convertedPoems.length,
+      totalArticles: articles.length,
       totalViews,
+      totalBookmarks,
       recentUsers,
-      recentPoems,
+      recentArticles,
     });
   } catch (error) {
     console.error("Error processing dashboard data:", error);
-    // Optionally set some error state here
   }
-}, [users, poems]);
+}, [users, articles]);
 
   const roleStats = users.reduce(
     (acc, user: IUser) => {
@@ -83,9 +92,12 @@ export default function AdminDashboard() {
     {} as Record<string, number>,
   )
 
-  const categoryStats = poems.reduce(
-    (acc, poem: SerializedPoem) => {
-      acc[poem.category] = (acc[poem.category] || 0) + 1
+  const categoryStats = articles.reduce(
+    (acc, article: TransformedArticle) => {
+      const categories = article.category || []
+      categories.forEach(cat => {
+        acc[cat] = (acc[cat] || 0) + 1
+      })
       return acc
     },
     {} as Record<string, number>,
@@ -112,12 +124,6 @@ export default function AdminDashboard() {
               Add Article
             </Link>
           </Button>
-          <Button asChild>
-            <Link href="/admin/poems/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Poem
-            </Link>
-          </Button>
         </div>
       </div>
 
@@ -138,13 +144,13 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Poems</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Articles</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPoems}</div>
+            <div className="text-2xl font-bold">{stats.totalArticles}</div>
             <p className="text-xs text-muted-foreground">
-              {poems.filter((p: SerializedPoem) => p.status === "published").length} published
+              {articles.filter((a: TransformedArticle) => a.publishedAt).length} published
             </p>
           </CardContent>
         </Card>
@@ -156,18 +162,18 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalViews.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Across all poems</p>
+            <p className="text-xs text-muted-foreground">Across all articles</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Categories</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Bookmarks</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Object.keys(categoryStats).length}</div>
-            <p className="text-xs text-muted-foreground">Different poem types</p>
+            <div className="text-2xl font-bold">{stats.totalBookmarks.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">User bookmarks</p>
           </CardContent>
         </Card>
       </div>
@@ -223,16 +229,16 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Poems */}
+        {/* Recent Articles */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Poems</CardTitle>
+            <CardTitle>Recent Articles</CardTitle>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/poems">View All</Link>
+              <Link href="/admin/articles">View All</Link>
             </Button>
           </CardHeader>
           <CardContent>
-            {poemsLoading ? (
+            {articlesLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="space-y-2">
@@ -244,22 +250,24 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {stats.recentPoems.map((poem) => (
-                  <div key={poem._id} className="space-y-2">
+                {stats.recentArticles.map((article) => (
+                  <div key={article._id} className="space-y-2">
                     <div className="flex items-start justify-between">
-                      <h4 className="text-sm font-medium line-clamp-1">{poem.title.en}</h4>
-                      <Badge variant={poem.status === "published" ? "default" : "secondary"} className="text-xs ml-2">
-                        {poem.status}
+                      <h4 className="text-sm font-medium line-clamp-1">{article.title}</h4>
+                      <Badge variant={article.publishedAt ? "default" : "secondary"} className="text-xs ml-2">
+                        {article.publishedAt ? "published" : "draft"}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="text-xs">
-                        {poem.category}
+                        {article.category?.[0] || "General"}
                       </Badge>
-                      <span>{poem.viewsCount || 0} views</span>
-                      <span>{poem.bookmarkCount || 0} bookmarks</span>
+                      <span>{article.viewsCount || 0} views</span>
+                      <span>{article.bookmarkCount || 0} bookmarks</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{new Date(poem.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(article.createdAt || '').toLocaleDateString()}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -271,7 +279,7 @@ export default function AdminDashboard() {
       {/* Category Distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>Poem Categories</CardTitle>
+          <CardTitle>Article Categories</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

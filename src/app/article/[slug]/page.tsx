@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: ArticlePageProps) {
   await dbConnect();
   const article = await Article.findOne({ slug })
     .select("title summary metaDescription metaKeywords tags poet coverImage publishedAt updatedAt slug")
-    .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>("poet", "name")
+    .populate<{ poet: { _id: string; name: string; slug: string; profilePicture?: { url?: string } | null } }>("poet", "name slug")
     .lean();
 
   if (!article) {
@@ -31,24 +31,51 @@ export async function generateMetadata({ params }: ArticlePageProps) {
     ? article.coverImage.url
     : `${BASE_URL}${article.coverImage?.url || "/default-og-image.jpg"}`;
 
+  const description = article.metaDescription || article.summary || `Read "${article.title}" by ${article.poet?.name || "Unknown Poet"} on Unmatched Lines. Discover beautiful poetry and literary works.`;
+  const keywords = article.metaKeywords || article.tags?.join(", ") || `${article.title}, ${article.poet?.name}, poetry, literature, urdu poetry, hindi poetry, english poetry`;
+
   return {
-    title: `${article.title} by ${article.poet?.name || "Unknown Poet"}`,
-    description: article.metaDescription || article.summary || "Read this amazing article on Unmatched Lines.",
-    keywords: article.metaKeywords || article.tags?.join(", ") || "",
+    title: `${article.title} by ${article.poet?.name || "Unknown Poet"} | Unmatched Lines`,
+    description: description,
+    keywords: keywords,
     authors: [{ name: article.poet?.name || "Unknown" }],
     openGraph: {
       type: "article",
-      title: article.title,
-      description: article.metaDescription || article.summary || "Read this amazing article on Unmatched Lines.",
-      images: [imageUrl],
+      title: `${article.title} by ${article.poet?.name || "Unknown Poet"}`,
+      description: description,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${article.title} by ${article.poet?.name || "Unknown Poet"}`,
+        }
+      ],
       url: `${BASE_URL}/article/${article.slug}`,
       siteName: "Unmatched Lines",
+      locale: "en_US",
     },
     twitter: {
       card: "summary_large_image",
-      title: article.title,
-      description: article.metaDescription || article.summary || "Read this amazing article on Unmatched Lines.",
+      title: `${article.title} by ${article.poet?.name || "Unknown Poet"}`,
+      description: description,
       images: [imageUrl],
+      creator: "@unmatchedlines",
+      site: "@unmatchedlines",
+    },
+    alternates: {
+      canonical: `${BASE_URL}/article/${article.slug}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
   };
 }
@@ -62,9 +89,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     .select(
       "title content couplets summary poet slug coverImage category tags bookmarkCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt bookmarks"
     )
-    .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>(
+    .populate<{ poet: { _id: string; name: string; slug: string; profilePicture?: { url?: string } | null } }>(
       "poet",
-      "name profilePicture"
+      "name slug profilePicture"
     )
     .lean();
 
@@ -89,7 +116,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     _id: article._id.toString(),
     title: article.title,
     content: article.content,
-    couplets: article.couplets || [],
+    couplets: (article.couplets || []).map(couplet => ({
+      en: couplet.en || "",
+      hi: couplet.hi || "",
+      ur: couplet.ur || ""
+    })),
     summary: article.summary || "",
     poet: {
       _id: article.poet?._id.toString() || "",
@@ -129,26 +160,43 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               "@type": "Article",
               headline: article.title,
               description: article.metaDescription || article.summary || "",
+              image: {
+                "@type": "ImageObject",
+                url: imageUrl,
+                width: 1200,
+                height: 630,
+              },
               author: {
                 "@type": "Person",
                 name: article.poet?.name || "Unknown",
+                url: `${BASE_URL}/poet/${article.poet?.slug || ""}`,
               },
-              datePublished: article.publishedAt?.toISOString(),
-              dateModified: article.updatedAt?.toISOString(),
-              image: imageUrl,
               publisher: {
                 "@type": "Organization",
                 name: "Unmatched Lines",
+                url: BASE_URL,
                 logo: {
                   "@type": "ImageObject",
-                  url: `${BASE_URL}/your-logo.png`,
+                  url: `${BASE_URL}/logo.png`,
+                  width: 200,
+                  height: 200,
                 },
               },
+              datePublished: article.publishedAt?.toISOString() || "",
+              dateModified: article.updatedAt?.toISOString() || "",
               mainEntityOfPage: {
                 "@type": "WebPage",
                 "@id": `${BASE_URL}/article/${article.slug}`,
               },
-              keywords: article.metaKeywords || article.tags?.join(", "),
+              articleSection: article.category?.join(", ") || "Poetry",
+              keywords: article.tags?.join(", ") || "",
+              wordCount: article.content?.length || 0,
+              inLanguage: ["en", "hi", "ur"],
+              isPartOf: {
+                "@type": "WebSite",
+                name: "Unmatched Lines",
+                url: BASE_URL,
+              },
             }),
           }}
         />

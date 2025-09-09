@@ -55,7 +55,7 @@ export default function PoetCard({ poet }: PoetCardProps) {
             className="absolute top-0 right-4 bg-primary/10 text-primary hover:bg-primary/20"
           >
             <FileText className="h-3 w-3 mr-1" />
-            {poet.poemCount}
+            {poet.articleCount}
           </Badge>
         </div>
 

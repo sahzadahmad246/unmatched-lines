@@ -58,10 +58,8 @@ export default function ArticleListPage() {
           setArticles(cachedArticles)
           setPagination(cachedPagination)
           setLoading(false)
-          console.log("Loaded from cache!")
           return // Exit if data is from cache
         } else {
-          console.log("Cache expired, fetching new data.")
           localStorage.removeItem(cacheKey)
           localStorage.removeItem(timestampKey)
         }
@@ -79,7 +77,6 @@ export default function ArticleListPage() {
       // Cache the new data
       localStorage.setItem(cacheKey, JSON.stringify(data))
       localStorage.setItem(timestampKey, Date.now().toString())
-      console.log("Fetched from API and cached.")
     } catch (err) {
       console.error("Failed to fetch articles:", err)
       setError("Failed to load articles. Please try again later.")

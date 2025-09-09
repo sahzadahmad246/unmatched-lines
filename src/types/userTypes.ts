@@ -41,6 +41,10 @@ export interface IPoet {
       authorName: string; // Assuming you'd populate author for display
     } | null;
   }[];
+  // NEW: Total bookmarks on articles written by this poet
+  totalBookmarksOnArticles?: number;
+  // NEW: Total views on articles written by this poet
+  totalViewsOnArticles?: number;
   createdAt: string;
   updatedAt: string;
 }

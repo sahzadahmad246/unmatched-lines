@@ -4,7 +4,7 @@ import type React from "react"
 import { usePathname } from "next/navigation"
 import Navigation from "./Navigation"
 import { AdminNavigation } from "./admin-navigation"
-import { useEffect, useState } from 'react'; // Import useState and useEffect
+import { useEffect, useState } from 'react'
 
 interface ConditionalNavigationProps {
   children: React.ReactNode
@@ -12,24 +12,25 @@ interface ConditionalNavigationProps {
 
 export default function ConditionalNavigation({ children }: ConditionalNavigationProps) {
   const pathname = usePathname();
-  const [isClient, setIsClient] = useState(false); // State to track if we're on the client
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true); // Set to true once the component mounts on the client
+    setMounted(true);
   }, []);
 
-  // On the server, always render the default Navigation (or a loading state)
-  // This ensures the server-rendered HTML is consistent.
-  if (!isClient) {
-    return <Navigation>{children}</Navigation>; // Or a simple loading spinner if preferred
-  }
-
-  // Once on the client, use the actual pathname
+  // Always render the same structure on server and client
+  // Use CSS to hide/show based on route
   const isAdminRoute = pathname.startsWith('/admin');
 
-  if (isAdminRoute) {
-    return <AdminNavigation>{children}</AdminNavigation>;
-  }
-
-  return <Navigation>{children}</Navigation>;
+  return (
+    <div>
+      <div className={mounted && isAdminRoute ? 'block' : 'hidden'}>
+        <AdminNavigation>{children}</AdminNavigation>
+      </div>
+      <div className={mounted && !isAdminRoute ? 'block' : 'hidden'}>
+        <Navigation>{children}</Navigation>
+      </div>
+      {!mounted && <Navigation>{children}</Navigation>}
+    </div>
+  );
 }

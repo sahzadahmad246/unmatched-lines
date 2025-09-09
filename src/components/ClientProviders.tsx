@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { ExploreProvider } from "@/contexts/ExploreContext";
 interface ClientProvidersProps {
   children: React.ReactNode;
 }
@@ -20,7 +21,11 @@ export default function ClientProviders({ children }: ClientProvidersProps) {
     >
       <QueryClientProvider client={queryClient}>
          <ReactQueryDevtools initialIsOpen={false} />
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <ExploreProvider>
+            {children}
+          </ExploreProvider>
+        </SessionProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

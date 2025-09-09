@@ -95,7 +95,8 @@ export const authOptions: NextAuthOptions = {
           };
         }
         return token;
-      } catch {
+      } catch (error) {
+        console.error("JWT callback error:", error);
         return token;
       }
     },
@@ -121,7 +122,8 @@ export const authOptions: NextAuthOptions = {
           }
         }
         return session;
-      } catch {
+      } catch (error) {
+        console.error("Session callback error:", error);
         return session;
       }
     },

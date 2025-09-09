@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
+import Article from "@/models/Article";
 import { IPoet } from "@/types/userTypes";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ identifier: string }> }) {
@@ -20,6 +21,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ iden
     if (!user) {
       return NextResponse.json({ error: "Poet not found" }, { status: 404 });
     }
+
+    // Calculate total bookmarks on articles written by this poet
+    const totalBookmarksOnArticles = await Article.aggregate([
+      { $match: { poet: new mongoose.Types.ObjectId(user._id) } },
+      { $group: { _id: null, totalBookmarks: { $sum: "$bookmarkCount" } } }
+    ]);
+
+    const totalBookmarks = totalBookmarksOnArticles.length > 0 ? totalBookmarksOnArticles[0].totalBookmarks : 0;
+
+    // Calculate total views on articles written by this poet
+    const totalViewsOnArticles = await Article.aggregate([
+      { $match: { poet: new mongoose.Types.ObjectId(user._id) } },
+      { $group: { _id: null, totalViews: { $sum: "$viewsCount" } } }
+    ]);
+
+    const totalViews = totalViewsOnArticles.length > 0 ? totalViewsOnArticles[0].totalViews : 0;
+
+    // Calculate total published articles authored by this poet
+    const computedArticleCount = await Article.countDocuments({ poet: user._id, status: "published" });
 
     const poetResponse: IPoet = {
       ...user,
@@ -47,7 +67,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ iden
             articleId: article.articleId?.toString() || "", // Convert ObjectId to string
           }))
         : [],
-      articleCount: user.articleCount || 0,
+      // Override with computed article count to ensure accuracy
+      articleCount: computedArticleCount || 0,
       bookmarkedArticles: user.bookmarkedArticles?.length
         ? user.bookmarkedArticles.map((bookmark) => ({
             articleId: bookmark.articleId?.toString() || "", // Convert ObjectId to string
@@ -57,6 +78,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ iden
             article: bookmark.article || null,
           }))
         : [],
+      // Add total bookmarks on articles by this poet
+      totalBookmarksOnArticles: totalBookmarks,
+      // Add total views on articles by this poet
+      totalViewsOnArticles: totalViews,
     };
 
     return NextResponse.json(poetResponse);

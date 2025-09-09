@@ -176,7 +176,6 @@ export default function RecommendedPoems({
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.log("Error sharing:", err);
       }
     } else {
       // Fallback to clipboard
@@ -186,7 +185,6 @@ export default function RecommendedPoems({
         );
         // You might want to show a toast notification here
       } catch (err) {
-        console.log("Error copying to clipboard:", err);
       }
     }
   };

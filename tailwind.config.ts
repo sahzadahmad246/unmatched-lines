@@ -3,10 +3,7 @@ import typography from "@tailwindcss/typography" // Use ES module import
 import animate from "tailwindcss-animate" // Use ES module import
 
 const config: Config = {
-  // Fix 1: Change darkMode to "class" or ["class", ".dark"]
-  // The most common and usually correct way is "class".
-  // If your specific setup/types insist on an array, use ["class", ".dark"]
-  darkMode: "class", // Changed from ["class"] to "class"
+  darkMode: "class",
   
 
   content: [
@@ -126,7 +123,6 @@ const config: Config = {
       }),
     },
   },
-  // Fix 2: Use imported modules instead of require()
   plugins: [animate, typography],
 }
 export default config

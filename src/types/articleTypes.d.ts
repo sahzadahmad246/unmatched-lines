@@ -54,6 +54,7 @@ export interface TransformedArticle {
   viewsCount: number;
   category: string[];
   coverImage: string | null;
+  status?: "draft" | "published";
   publishedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;

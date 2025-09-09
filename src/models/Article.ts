@@ -52,8 +52,18 @@ const ArticleSchema = new Schema<IArticle>(
 
     viewsCount: { type: Number, default: 0 },
   },
-  { timestamps: true } // 
+  { timestamps: true }
 );
+
+// Add database indexes for performance
+ArticleSchema.index({ status: 1, createdAt: -1 }); // For published articles by date
+ArticleSchema.index({ poet: 1, status: 1 }); // For poet's articles
+ArticleSchema.index({ category: 1, status: 1 }); // For category filtering
+ArticleSchema.index({ viewsCount: -1 }); // For popular articles
+ArticleSchema.index({ bookmarkCount: -1 }); // For most bookmarked
+ArticleSchema.index({ title: "text", content: "text" }); // For text search
+ArticleSchema.index({ tags: 1 }); // For tag filtering
+ArticleSchema.index({ publishedAt: -1 }); // For published date sorting
 
 // Pre-save Hook for Sanitization and count updates
 ArticleSchema.pre("save", function (this: Document & IArticle, next) {

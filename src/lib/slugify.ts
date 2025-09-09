@@ -14,6 +14,5 @@ export function slugifyUser(name: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
-  console.log(`[slugifyUser] Generated slug: ${slug}`);
   return slug;
 }

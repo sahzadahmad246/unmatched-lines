@@ -145,7 +145,13 @@ export default async function PoemPage({ params }: PoemPageProps) {
     notFound();
   }
 
-  const serializedPoem = serializePoem(poem);
+  // Increment views count
+  await Poem.updateOne({ _id: poem._id }, { $inc: { viewsCount: 1 } });
+
+  const serializedPoem = serializePoem({
+    ...poem,
+    viewsCount: poem.viewsCount + 1
+  });
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://unmatchedlines.com";
 
   // Structured Data (Poem + BreadcrumbList)

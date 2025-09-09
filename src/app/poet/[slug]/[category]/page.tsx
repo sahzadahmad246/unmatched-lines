@@ -4,10 +4,83 @@ import { notFound } from "next/navigation";
 import Head from "next/head";
 import PoetProfileLayout from "@/components/poets/poet-profile-layout";
 import PoetWorksContent from "@/components/poets/poet-works-content";
-import { generatePoemCollectionStructuredData } from "@/lib/structured-data";
+// Generate structured data for category pages
+function generateCategoryStructuredData(poet: { name: string; slug: string; bio?: string; profilePicture?: { url?: string } }, category: string, worksData: { pagination?: { total?: number } }) {
+  const categoryLabel = categoryLabels[category];
+  const categoryDescription = categoryDescriptions[category];
+  
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": `${poet.name} - ${categoryLabel}`,
+    "description": `Collection of ${poet.name}'s ${categoryLabel.toLowerCase()} - ${categoryDescription}`,
+    "url": `${baseUrl}/poet/${poet.slug}/${category}`,
+    "mainEntity": {
+      "@type": "Person",
+      "name": poet.name,
+      "url": `${baseUrl}/poet/${poet.slug}`,
+      "image": poet.profilePicture?.url,
+      "description": poet.bio || `Poet ${poet.name}`,
+      "jobTitle": "Poet",
+      "worksFor": {
+        "@type": "Organization",
+        "name": "Unmatched Lines"
+      }
+    },
+    "about": {
+      "@type": "Thing",
+      "name": categoryLabel,
+      "description": categoryDescription
+    },
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Unmatched Lines",
+      "url": baseUrl
+    },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": baseUrl
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Poets",
+          "item": `${baseUrl}/poets`
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": poet.name,
+          "item": `${baseUrl}/poet/${poet.slug}`
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": categoryLabel,
+          "item": `${baseUrl}/poet/${poet.slug}/${category}`
+        }
+      ]
+    },
+    "numberOfItems": worksData?.pagination?.total || 0,
+    "publisher": {
+      "@type": "Organization",
+      "name": "Unmatched Lines",
+      "url": baseUrl,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${baseUrl}/logo.png`
+      }
+    }
+  };
+}
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
-import { SerializedPoem } from "@/types/poemTypes";
+import type { TransformedArticle } from "@/types/articleTypes";
 
 // Define baseUrl using environment variables
 const baseUrl =
@@ -26,9 +99,14 @@ const validCategories = [
   "ghazal",
   "sher",
   "nazm",
+  "rubai",
+  "marsiya",
+  "qataa",
+  "other",
   "top-20",
   "top-20-ghazal",
   "top-20-sher",
+  "top-20-nazm",
 ];
 
 const categoryLabels: Record<string, string> = {
@@ -36,9 +114,29 @@ const categoryLabels: Record<string, string> = {
   ghazal: "Ghazals",
   sher: "Shers",
   nazm: "Nazms",
+  rubai: "Rubais",
+  marsiya: "Marsiyas",
+  qataa: "Qataas",
+  other: "Other Poems",
   "top-20": "Top 20 Poems",
   "top-20-ghazal": "Top 20 Ghazals",
   "top-20-sher": "Top 20 Shers",
+  "top-20-nazm": "Top 20 Nazms",
+};
+
+const categoryDescriptions: Record<string, string> = {
+  "all-works": "Complete collection of poetry",
+  ghazal: "Beautiful ghazals in multiple languages",
+  sher: "Thoughtful shers and couplets",
+  nazm: "Narrative poems and verses",
+  rubai: "Four-line poems with deep meaning",
+  marsiya: "Elegiac poems and laments",
+  qataa: "Short poems and fragments",
+  other: "Various other poetic forms",
+  "top-20": "Most popular and beloved poems",
+  "top-20-ghazal": "Most popular ghazals",
+  "top-20-sher": "Most popular shers",
+  "top-20-nazm": "Most popular nazms",
 };
 
 async function getPoet(slug: string) {
@@ -67,16 +165,11 @@ async function getPoetWorks(
     });
     if (!response.ok) return null;
     const data = await response.json();
-    
-    // Serialize the poems array to handle MongoDB ObjectIds and Dates
-    return {
-      ...data,
-      poems: data.poems.map((poem: SerializedPoem) => ({
-        ...poem,
-        _id: poem._id.toString(), // Convert ObjectId to string
-        bookmarkedAt: poem.bookmarkedAt ? new Date(poem.bookmarkedAt).toISOString() : null, // Convert Date to string
-        // Add other fields that might need serialization (e.g., nested ObjectIds)
-      })),
+    return data as {
+      articles: TransformedArticle[];
+      pagination: { page: number; limit: number; total: number; pages: number; hasNext: boolean; hasPrev: boolean };
+      category: string;
+      sortBy: string;
     };
   } catch {
     return null;
@@ -114,32 +207,42 @@ export async function generateMetadata({
   }
 
   const categoryLabel = categoryLabels[category];
+  const categoryDescription = categoryDescriptions[category];
   const pageNum = parseInt(page, 10);
   const title = `${poet.name} - ${categoryLabel}${
     pageNum > 1 ? ` - Page ${pageNum}` : ""
   } | Unmatched Lines`;
+  
   let description = "";
   if (category === "all-works") {
-    description = `Browse all poetry by ${poet.name}, including ghazals, shers, and nazms in English, Hindi, and Urdu on Unmatched Lines.`;
+    description = `Explore the complete collection of ${poet.name}'s poetry including ghazals, shers, nazms, and more. Read beautiful verses in English, Hindi, and Urdu with meanings and translations.`;
   } else if (category.startsWith("top-20")) {
     const type = category === "top-20" ? "poems" : category.split("-")[2] + "s";
-    description = `Discover ${poet.name}'s top ${type}, the most popular poetry in English, Hindi, and Urdu on Unmatched Lines.`;
+    description = `Discover ${poet.name}'s most popular ${type} - the top-rated and most beloved poetry. Read these acclaimed verses in English, Hindi, and Urdu with detailed meanings.`;
   } else {
-    description = `Read ${
-      poet.name
-    }'s ${categoryLabel.toLowerCase()}, a beautiful collection of ${category} poetry in English, Hindi, and Urdu on Unmatched Lines.`;
+    description = `Read ${poet.name}'s ${categoryLabel.toLowerCase()} - ${categoryDescription}. Explore beautiful ${category} poetry in English, Hindi, and Urdu with meanings, translations, and cultural context.`;
   }
 
+  // Enhanced keywords for better SEO
   const keywords = [
     `${poet.name} ${categoryLabel.toLowerCase()}`,
     `${poet.name} poetry`,
+    `${poet.name} ${category}`,
     categoryLabel.toLowerCase(),
     "poetry collection",
     `${categoryLabel.toLowerCase()} poems`,
     "urdu poetry",
-    "hindi poetry",
+    "hindi poetry", 
     "english poetry",
-    `poet ${category}`,
+    "poetry with meaning",
+    "poetry translation",
+    "classic poetry",
+    "poetry reading",
+    `best ${categoryLabel.toLowerCase()}`,
+    `${category} collection`,
+    "poetry lovers",
+    "literature",
+    "poetry analysis",
   ].join(", ");
 
   return {
@@ -161,7 +264,7 @@ export async function generateMetadata({
               url: poet.profilePicture.url,
               width: 400,
               height: 400,
-              alt: `${poet.name}'s ${categoryLabel} collection`,
+              alt: `${poet.name}'s ${categoryLabel} collection - ${categoryDescription}`,
               type: "image/webp",
             },
           ]
@@ -175,6 +278,7 @@ export async function generateMetadata({
       description,
       images: poet.profilePicture?.url ? [poet.profilePicture.url] : [],
       creator: "@UnmatchedLines",
+      site: "@UnmatchedLines",
     },
     alternates: {
       canonical: `${baseUrl}/poet/${slug}/${category}${
@@ -201,15 +305,26 @@ export const dynamicParams = true;
 export async function generateStaticParams() {
   try {
     await dbConnect();
-    const poets = await User.find({ role: "poet" }).select("slug").lean();
+    const poets = await User.find({ role: { $in: ["poet", "admin"] } }).select("slug").lean();
     const slugs = poets.map((poet) => poet.slug);
-    return slugs.flatMap((slug) =>
+    
+    // Generate params for all poets and categories
+    const params = slugs.flatMap((slug) =>
       validCategories.map((category) => ({
         slug,
         category,
       }))
     );
-  } catch {
+    
+    // Also add some default params for fallback
+    const defaultParams = validCategories.map((category) => ({
+      slug: "default",
+      category,
+    }));
+    
+    return [...params, ...defaultParams];
+  } catch (error) {
+    console.error("Error generating static params:", error);
     return validCategories.map((category) => ({
       slug: "default",
       category,
@@ -254,11 +369,7 @@ export default async function PoetCategoryPage({
     );
   }
 
-  const structuredData = generatePoemCollectionStructuredData(
-    poet,
-    worksData.poems,
-    category
-  );
+  const structuredData = generateCategoryStructuredData(poet, category, worksData);
 
   return (
     <>
@@ -269,7 +380,7 @@ export default async function PoetCategoryPage({
             href={`${baseUrl}/poet/${slug}/${category}?page=${pageNum - 1}`}
           />
         )}
-        {worksData.total > pageNum * 20 && (
+        {worksData.pagination.total > pageNum * 20 && (
           <link
             rel="next"
             href={`${baseUrl}/poet/${slug}/${category}?page=${pageNum + 1}`}
