@@ -175,7 +175,7 @@ export default function RecommendedPoems({
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) {
+      } catch {
       }
     } else {
       // Fallback to clipboard
@@ -184,7 +184,7 @@ export default function RecommendedPoems({
           `${shareData.title}\n\n${shareData.text}\n\n${shareData.url}`
         );
         // You might want to show a toast notification here
-      } catch (err) {
+      } catch {
       }
     }
   };
