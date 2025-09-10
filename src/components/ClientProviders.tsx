@@ -16,8 +16,10 @@ export default function ClientProviders({ children }: ClientProvidersProps) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
-      disableTransitionOnChange
+      defaultTheme="system"
+      enableSystem
+      storageKey="unmatched-lines-theme"
+      disableTransitionOnChange={false}
     >
       <QueryClientProvider client={queryClient}>
          <ReactQueryDevtools initialIsOpen={false} />

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type React from "react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2, Download } from "lucide-react";
+import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2, Download, Share2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -38,6 +38,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const [currentBookmarkCount, setCurrentBookmarkCount] = useState(article.bookmarkCount);
   const [isBookmarked, setIsBookmarked] = useState(article.isBookmarked || false);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Effect to check initial bookmark status
   useEffect(() => {
@@ -82,6 +83,39 @@ export function ArticleCard({ article }: ArticleCardProps) {
         console.error("Failed to copy text: ", err);
         toast.error("Failed to copy couplet.");
       }
+    }
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsSharing(true);
+    
+    try {
+      const articleUrl = `${window.location.origin}/article/${article.slug}`;
+      const shareData = {
+        title: `"${article.firstCoupletEn}" by ${article.poet.name}`,
+        text: `Read this beautiful couplet by ${article.poet.name} on Unmatched Lines`,
+        url: articleUrl,
+      };
+
+      // Check if Web Share API is supported
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success("Article shared successfully!");
+      } else {
+        // Fallback to copying URL to clipboard
+        await navigator.clipboard.writeText(articleUrl);
+        toast.success("Article URL copied to clipboard!");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("Share error:", error);
+        toast.error("Failed to share article");
+      }
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -160,103 +194,126 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
   return (
     <>
-      <Link href={`/article/${article.slug}`} className="block h-full">
-        <Card className="flex flex-col h-full overflow-hidden transition-all duration-200 hover:shadow-lg">
-          <CardContent className="flex flex-col flex-grow justify-between p-4 pt-0">
-            {/* Poet on left, Date on right */}
+      <Link href={`/article/${article.slug}`} className="block h-full group">
+        <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="flex flex-col flex-grow justify-between p-6">
+            {/* Header with Poet and Date */}
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-              <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-8 w-8 ring-2 ring-primary/10">
                   <AvatarImage
                     src={article.poet.profilePicture || "/placeholder.svg?height=40&width=40&query=poet profile"}
                     alt={article.poet.name}
                   />
-                  <AvatarFallback>{article.poet.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-semibold">
+                    {article.poet.name.charAt(0)}
+                  </AvatarFallback>
                 </Avatar>
-                <span>{article.poet.name}</span>
+                <div>
+                  <span className="font-medium text-foreground">{article.poet.name}</span>
+                  <div className="text-xs text-muted-foreground">{formatRelativeTime(article.publishedAt || "")}</div>
+                </div>
               </div>
-              <span>{formatRelativeTime(article.publishedAt || "")}</span>
             </div>
+            
+           
+            
             {/* First Couplet */}
             {article.firstCoupletEn && (
               <CardDescription
-                className="text-base mt-2 mb-4 border-l-4 border-gray-300 pl-4"
+                className="text-base leading-relaxed mb-6 border-l-4 border-primary/30 pl-4 bg-gradient-to-r from-primary/5 to-transparent py-3 rounded-r-lg font-medium text-foreground/90"
                 style={{ whiteSpace: "pre-line" }}
               >
                 {article.firstCoupletEn}
               </CardDescription>
             )}
-            {/* Views, Bookmarks, Copy, Download, and More Menu */}
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-auto">
-              <div className="flex items-center gap-1">
-                <Eye className="h-4 w-4" />
-                <span>{article.viewsCount}</span>
+            
+            {/* Actions Footer */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto pt-4 border-t border-border/30">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1 hover:text-primary transition-colors">
+                  <Eye className="h-4 w-4" />
+                  <span className="font-medium">{article.viewsCount}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBookmark}
+                  className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-primary/10"
+                  aria-label={isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+                >
+                  <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
+                  <span className="font-medium">{currentBookmarkCount}</span>
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBookmark}
-                className="flex items-center gap-1 text-sm p-0 h-auto"
-                aria-label={isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-              >
-                <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
-                <span>{currentBookmarkCount}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCopyCouplet();
-                }}
-                className="flex items-center gap-1 text-sm p-0 h-auto"
-                aria-label="Copy couplet"
-              >
-                <Copy className="h-4 w-4" />
-                {copied && <span className="ml-1 text-xs text-green-500">Copied!</span>}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDownloadOpen(true);
-                }}
-                className="flex items-center gap-1 text-sm p-0 h-auto"
-                aria-label="Download couplet"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              {(session?.user?.role === "admin" || session?.user?.role === "poet") && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto flex items-center gap-1 text-sm p-0 h-auto"
-                      aria-label="More options"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleEdit}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDelete}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCopyCouplet();
+                  }}
+                  className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-primary/10"
+                  aria-label="Copy couplet"
+                >
+                  <Copy className="h-4 w-4" />
+                  {copied && <span className="ml-1 text-xs text-green-500 font-medium">Copied!</span>}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-primary/10"
+                  aria-label="Share article"
+                >
+                  <Share2 className={`h-4 w-4 ${isSharing ? 'animate-pulse' : ''}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDownloadOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-primary/10"
+                  aria-label="Download couplet"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                {(session?.user?.role === "admin" || session?.user?.role === "poet") && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-primary/10"
+                        aria-label="More options"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleEdit}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDelete}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

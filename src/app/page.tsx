@@ -44,7 +44,7 @@ export default function ArticlesPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.03),transparent_50%)] pointer-events-none" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(168,85,247,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_bottom,rgba(196,181,253,0.03),transparent_50%)] pointer-events-none" />
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
@@ -205,7 +205,7 @@ export default function ArticlesPage() {
           {/* Decorative background elements */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.03),transparent_50%)] pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(168,85,247,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_bottom,rgba(196,181,253,0.03),transparent_50%)] pointer-events-none" />
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {articles.map((article: TransformedArticle) => (
               <ArticleCard key={article._id} article={article} />
             ))}

@@ -20,10 +20,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch articles by category
+    // Fetch articles by category (case-insensitive)
     const articles = await Article.find({ 
       status: "published",
-      category: { $in: [category] } // Match articles with the specified category
+      category: { 
+        $in: [
+          category, 
+          category.toLowerCase(), 
+          category.toUpperCase(),
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
+        ] 
+      }
     })
       .select("title couplets slug bookmarkCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
       .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>(
@@ -57,7 +64,14 @@ export async function GET(req: NextRequest) {
 
     const totalArticles = await Article.countDocuments({ 
       status: "published",
-      category: { $in: [category] }
+      category: { 
+        $in: [
+          category, 
+          category.toLowerCase(), 
+          category.toUpperCase(),
+          category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
+        ] 
+      }
     });
 
     return NextResponse.json({

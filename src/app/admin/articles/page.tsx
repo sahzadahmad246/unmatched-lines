@@ -230,8 +230,8 @@ export default function ArticlesPage() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {getUniqueCategories().map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                  <SelectItem key={category} value={category || "uncategorized"}>
+                    {category || "Uncategorized"}
                   </SelectItem>
                 ))}
               </SelectContent>

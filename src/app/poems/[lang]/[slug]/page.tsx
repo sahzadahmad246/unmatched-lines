@@ -1,3 +1,5 @@
+// src/app/poems/[lang]/[slug]/page.tsx
+
 import { notFound } from "next/navigation";
 import PoemDetails from "@/components/poems/PoemDetails";
 import dbConnect from "@/lib/mongodb";
@@ -128,25 +130,24 @@ interface PoemPageProps {
 
 export default async function PoemPage({ params }: PoemPageProps) {
   const { lang, slug } = await params;
+  
+  // Optimize database query with better indexing and lean query
   await dbConnect();
 
   const poem = await Poem.findOne({
-    $or: [
-      {
-        [`slug.${lang}`]: { $regex: `^${slug}$`, $options: "i" },
-        status: "published",
-      },
-    ],
+    [`slug.${lang}`]: { $regex: `^${slug}$`, $options: "i" },
+    status: "published",
   })
     .populate("poet", "name slug profilePicture")
-    .lean();
+    .lean()
+    .exec();
 
   if (!poem || !["en", "hi", "ur"].includes(lang)) {
     notFound();
   }
 
-  // Increment views count
-  await Poem.updateOne({ _id: poem._id }, { $inc: { viewsCount: 1 } });
+  // Increment views count asynchronously to not block page render
+  Poem.updateOne({ _id: poem._id }, { $inc: { viewsCount: 1 } }).exec().catch(console.error);
 
   const serializedPoem = serializePoem({
     ...poem,
@@ -226,7 +227,9 @@ export default async function PoemPage({ params }: PoemPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <PoemDetails poem={serializedPoem} currentLang={lang} />
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/5 to-background">
+        <PoemDetails poem={serializedPoem} currentLang={lang} />
+      </div>
     </>
   );
 }

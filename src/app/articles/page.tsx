@@ -1,9 +1,8 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
 import { ArticleCard } from "@/components/articles/article-card"
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 import { ArticleCardSkeleton } from "@/components/articles/article-card-skeleton"
+import { useInView } from "react-intersection-observer"
 interface Article {
   _id: string
   title: string
@@ -31,75 +30,63 @@ export default function ArticleListPage() {
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
-    limit: 5,
+    limit: 10,
     totalPages: 1,
   })
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+  })
 
-  const CACHE_DURATION = 2 * 60 * 1000 // 2 minutes in milliseconds
 
-  const fetchArticles = useCallback(async (page: number) => {
-    setLoading(true)
+  const fetchArticles = useCallback(async (page: number, isLoadMore = false) => {
+    if (isLoadMore) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+    }
     setError(null)
 
-    const cacheKey = `articles_cache_page_${page}_limit_${pagination.limit}`
-    const timestampKey = `articles_cache_timestamp_page_${page}_limit_${pagination.limit}`
-
     try {
-      // Check cache first
-      const cachedData = localStorage.getItem(cacheKey)
-      const cachedTimestamp = localStorage.getItem(timestampKey)
-
-      if (cachedData && cachedTimestamp) {
-        const parsedTimestamp = Number.parseInt(cachedTimestamp, 10)
-        if (Date.now() - parsedTimestamp < CACHE_DURATION) {
-          const { articles: cachedArticles, pagination: cachedPagination } = JSON.parse(cachedData)
-          setArticles(cachedArticles)
-          setPagination(cachedPagination)
-          setLoading(false)
-          return // Exit if data is from cache
-        } else {
-          localStorage.removeItem(cacheKey)
-          localStorage.removeItem(timestampKey)
-        }
-      }
-
-      // If no valid cache, fetch from API
       const response = await fetch(`/api/articles/list?page=${page}&limit=${pagination.limit}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data = await response.json()
-      setArticles(data.articles)
+      
+      if (isLoadMore) {
+        setArticles(prev => [...prev, ...data.articles])
+      } else {
+        setArticles(data.articles)
+      }
+      
       setPagination(data.pagination)
-
-      // Cache the new data
-      localStorage.setItem(cacheKey, JSON.stringify(data))
-      localStorage.setItem(timestampKey, Date.now().toString())
+      setHasMore(data.pagination.page < data.pagination.totalPages)
     } catch (err) {
       console.error("Failed to fetch articles:", err)
       setError("Failed to load articles. Please try again later.")
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
-  }, [pagination.limit, CACHE_DURATION]) // Dependency: pagination.limit
+  }, [pagination.limit])
 
   useEffect(() => {
-    fetchArticles(pagination.page)
-  }, [pagination.page, fetchArticles]) // Include fetchArticles in dependency array
+    fetchArticles(1)
+  }, [fetchArticles])
 
-  const handlePreviousPage = () => {
-    if (pagination.page > 1) {
-      setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+  // Load more articles when the load more ref comes into view
+  useEffect(() => {
+    if (inView && hasMore && !loadingMore && !loading) {
+      const nextPage = pagination.page + 1
+      setPagination(prev => ({ ...prev, page: nextPage }))
+      fetchArticles(nextPage, true)
     }
-  }
-
-  const handleNextPage = () => {
-    if (pagination.page < pagination.totalPages) {
-      setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
-    }
-  }
+  }, [inView, hasMore, loadingMore, loading, pagination.page, fetchArticles])
 
   if (loading) {
     return (
@@ -117,39 +104,39 @@ export default function ArticleListPage() {
 
   return (
     <main className="container mx-auto py-4 px-0 md:px-6">
-      
       {articles.length === 0 ? (
         <div className="text-center text-muted-foreground">No articles found.</div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {articles.map((article) => (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {articles.map((article) => (
+              <ArticleCard key={article.slug} article={article} />
+            ))}
+          </div>
+          
+          {/* Load more trigger */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="flex justify-center items-center py-8">
+              {loadingMore ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span className="text-muted-foreground">Loading more articles...</span>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-sm">
+                  Scroll down to load more articles
+                </div>
+              )}
+            </div>
+          )}
+          
+          {!hasMore && articles.length > 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              You&apos;ve reached the end of the articles
+            </div>
+          )}
+        </>
       )}
-      <div className="flex justify-center items-center gap-4 mt-8">
-        <Button
-          onClick={handlePreviousPage}
-          disabled={pagination.page <= 1}
-          variant="outline"
-          size="icon"
-          aria-label="Previous page"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          Page {pagination.page} of {pagination.totalPages}
-        </span>
-        <Button
-          onClick={handleNextPage}
-          disabled={pagination.page >= pagination.totalPages}
-          variant="outline"
-          size="icon"
-          aria-label="Next page"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
     </main>
   )
 }

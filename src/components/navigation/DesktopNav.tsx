@@ -236,10 +236,7 @@ export default function DesktopNav({ children }: DesktopNavProps) {
       </aside>
 
       {/* Enhanced Main Content */}
-      <main className={cn(
-        "flex-1 min-h-screen transition-all duration-300",
-        isExploreOpen ? "ml-[260px] mr-[420px]" : "ml-[260px] mr-0"
-      )}>
+      <main className="flex-1 min-h-screen ml-[260px] transition-all duration-300">
         <div className="max-w-auto mx-auto py-6 px-6">{children}</div>
       </main>
 
@@ -248,33 +245,43 @@ export default function DesktopNav({ children }: DesktopNavProps) {
         variant="outline"
         size="sm"
         className={cn(
-          "fixed top-6 right-6 z-20 transition-all duration-300 shadow-lg",
-          isExploreOpen ? "bg-primary text-primary-foreground" : "bg-background"
+          "fixed top-6 right-6 z-20 transition-all duration-300 shadow-lg hover:shadow-xl border-border/50",
+          isExploreOpen 
+            ? "bg-primary text-primary-foreground hover:bg-primary/90 border-primary/50" 
+            : "bg-background text-foreground hover:bg-muted/50 border-border/50"
         )}
         onClick={toggleExplore}
       >
         {isExploreOpen ? (
           <>
             <X className="h-4 w-4 mr-2" />
-            Close Explore
+            <span className="font-medium">Close Explore</span>
           </>
         ) : (
           <>
             <Search className="h-4 w-4 mr-2" />
-            Open Explore
+            <span className="font-medium">Open Explore</span>
           </>
         )}
       </Button>
 
-      {/* Enhanced Right Sidebar */}
+      {/* Enhanced Right Sidebar - Fixed Overlay */}
       <aside className={cn(
-        "fixed top-0 bottom-0 w-[420px] right-[calc(50%-640px)] border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-10 shadow-lg transition-all duration-300",
+        "fixed top-0 bottom-0 w-1/2 right-0 border-l border-border/40 bg-gradient-to-b from-background/95 to-muted/20 backdrop-blur-xl overflow-y-auto py-6 z-50 shadow-2xl transition-all duration-300",
         isExploreOpen ? "translate-x-0" : "translate-x-full"
       )}>
-        <div className="h-full">
+        <div className="h-full px-6">
           <ExploreClientOnly />
         </div>
       </aside>
+      
+      {/* Backdrop overlay when explore is open */}
+      {isExploreOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-all duration-300"
+          onClick={toggleExplore}
+        />
+      )}
     </div>
   );
 }

@@ -1,20 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useArticleFeedStore } from "@/store/feed-store";
 import { notFound } from "next/navigation";
 import { ArticleCard } from "@/components/articles/article-card";
 import { BookOpen, Sparkles, Heart, Feather, Star } from "lucide-react";
 import type { TransformedArticle } from "@/types/articleTypes";
+import { useInView } from "react-intersection-observer";
 
 export default function ArticlesPage() {
   const { articles, loading, error, fetchFeed, clearFeed } =
     useArticleFeedStore();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+  });
 
   useEffect(() => {
     clearFeed(); // Clear feed on mount to ensure fresh data
     fetchFeed(1, 10); // Fetch initial page with 10 articles
+    setCurrentPage(1);
+    setHasMore(true);
   }, [fetchFeed, clearFeed]);
+
+  // Load more articles when the load more ref comes into view
+  useEffect(() => {
+    if (inView && hasMore && !loadingMore && !loading && articles.length > 0) {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      fetchFeed(nextPage, 10).then(() => {
+        setCurrentPage(nextPage);
+        setLoadingMore(false);
+        // Check if we've reached the end (assuming no more data if less than 10 articles returned)
+        if (articles.length < nextPage * 10) {
+          setHasMore(false);
+        }
+      }).catch(() => {
+        setLoadingMore(false);
+      });
+    }
+  }, [inView, hasMore, loadingMore, loading, currentPage, articles.length, fetchFeed]);
 
   if (error) {
     notFound();
@@ -214,11 +242,33 @@ export default function ArticlesPage() {
           {/* Decorative background elements */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.03),transparent_50%)] pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(168,85,247,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_bottom,rgba(196,181,253,0.03),transparent_50%)] pointer-events-none" />
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {articles.map((article: TransformedArticle) => (
               <ArticleCard key={article._id} article={article} />
             ))}
           </div>
+          
+          {/* Load more trigger */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="flex justify-center items-center py-8">
+              {loadingMore ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span className="text-muted-foreground">Loading more articles...</span>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-sm">
+                  Scroll down to load more articles
+                </div>
+              )}
+            </div>
+          )}
+          
+          {!hasMore && articles.length > 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              You&apos;ve reached the end of the articles
+            </div>
+          )}
         </div>
       </div>
     </div>

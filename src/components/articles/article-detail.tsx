@@ -3,7 +3,7 @@ import Image from "next/image";
 import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bookmark, Eye, MoreVertical, Pencil, Trash2, Download } from "lucide-react";
+import { Bookmark, Eye, MoreVertical, Pencil, Trash2, Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,7 +18,6 @@ import { useRouter } from "next/navigation";
 import { ArticleCard } from "./article-card";
 import { ArticleCardSkeleton } from "./article-card-skeleton"; // Import the new skeleton
 import type { TransformedArticle } from "@/types/articleTypes";
-import { useExplore } from "@/contexts/ExploreContext";
 import { StickyHeader } from "@/components/ui/sticky-header";
 import DownloadArticleCouplet from "@/components/poems/DownloadCouplet";
 import "./../styles/ArticleContent.css";
@@ -85,7 +84,6 @@ export function formatRelativeTime(date: Date | string): string {
 export function ArticleDetail({ article }: ArticleDetailProps) {
   const { data: session } = useSession();
   const router = useRouter();
-  const { isExploreOpen } = useExplore();
   const [currentBookmarkCount, setCurrentBookmarkCount] = useState(
     article.bookmarkCount
   );
@@ -104,6 +102,7 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
     useState(true);
   const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
   const [isLoadingPoetArticles, setIsLoadingPoetArticles] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Fetch related articles by category
   useEffect(() => {
@@ -280,6 +279,36 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
     [article.slug, article.title, router]
   );
 
+  const handleShare = useCallback(async () => {
+    setIsSharing(true);
+    
+    try {
+      const articleUrl = `${window.location.origin}/article/${article.slug}`;
+      const shareData = {
+        title: `"${article.title}" by ${article.poet.name}`,
+        text: `Read this beautiful article by ${article.poet.name} on Unmatched Lines`,
+        url: articleUrl,
+      };
+
+      // Check if Web Share API is supported
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success("Article shared successfully!");
+      } else {
+        // Fallback to copying URL to clipboard
+        await navigator.clipboard.writeText(articleUrl);
+        toast.success("Article URL copied to clipboard!");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("Share error:", error);
+        toast.error("Failed to share article");
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [article.slug, article.title, article.poet.name]);
+
   if (!article) {
     return (
       <div className="container mx-auto py-12 text-center">
@@ -289,10 +318,7 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
   }
 
   return (
-    <div className="container mx-auto py-8 px-0 md:px-4 lg:py-12" style={{
-      marginRight: isExploreOpen ? '420px' : '0',
-      transition: 'margin-right 0.3s ease'
-    }}>
+    <div className="container mx-auto py-8 px-0 md:px-4 lg:py-12">
       {/* Sticky Header */}
       <StickyHeader>
         <div className="flex items-center justify-between">
@@ -376,6 +402,17 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
                   }`}
               />
               <span>{currentBookmarkCount}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              disabled={isSharing}
+              className="flex items-center gap-1 text-sm p-0 h-auto"
+              aria-label="Share article"
+            >
+              <Share2 className={`h-4 w-4 ${isSharing ? 'animate-pulse' : ''}`} />
+              <span>Share</span>
             </Button>
             <Button
               variant="ghost"

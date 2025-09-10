@@ -127,7 +127,7 @@ export default function SidebarContent({ userData, status, onSignIn, onClose }: 
       {/* Navigation Section */}
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
-          {navItems.map((item, index) => (
+          {navItems.filter((item) => item.name !== "Dashboard" || userData?.role === "admin").map((item, index) => (
             <li key={item.name}>
               <Link
                 href={item.href}

@@ -44,18 +44,10 @@ export default function PoetList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Discover Poets</h1>
-        </div>
-      </div>
-
+    <div className="space-y-8">
       {/* Search and Filters */}
-      <Card className="border-border/50 bg-card">
-        <CardContent className="p-4">
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg">
+        <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -63,10 +55,10 @@ export default function PoetList() {
                 placeholder="Search poets by name or bio..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background"
+                className="pl-10 bg-background border-border/50 focus:border-primary/50"
               />
             </div>
-            <Button variant="outline" className="shrink-0">
+            <Button variant="outline" className="shrink-0 border-border/50 hover:bg-primary/10">
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
