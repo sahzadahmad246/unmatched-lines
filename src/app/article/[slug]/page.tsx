@@ -87,7 +87,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   const article = await Article.findOne({ slug })
     .select(
-      "title content couplets summary poet slug coverImage category tags bookmarkCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt bookmarks"
+      "title content couplets summary poet slug coverImage category tags bookmarkCount likeCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt bookmarks"
     )
     .populate<{ poet: { _id: string; name: string; slug: string; profilePicture?: { url?: string } | null } }>(
       "poet",
@@ -132,6 +132,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     category: article.category || [],
     tags: article.tags || [],
     bookmarkCount: article.bookmarkCount,
+    likeCount: article.likeCount || 0,
     viewsCount: article.viewsCount + 1,
     metaDescription: article.metaDescription || "",
     metaKeywords: article.metaKeywords || "",
@@ -140,6 +141,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     createdAt: article.createdAt?.toISOString() || "",
     updatedAt: article.updatedAt?.toISOString() || "",
     isBookmarked,
+    isLiked: false, // Will be checked client-side
   };
 
   return (

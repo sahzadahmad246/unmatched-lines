@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type React from "react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2, Download, Share2 } from "lucide-react";
+import { Bookmark, Eye, Copy, MoreVertical, Pencil, Trash2, Download, Share2, Heart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -24,10 +24,12 @@ interface ArticleCardProps {
     };
     slug: string;
     bookmarkCount: number;
+    likeCount: number;
     viewsCount: number;
     coverImage: string | null;
     publishedAt: string | null;
     isBookmarked?: boolean;
+    isLiked?: boolean;
   };
 }
 
@@ -37,6 +39,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const [copied, setCopied] = useState(false);
   const [currentBookmarkCount, setCurrentBookmarkCount] = useState(article.bookmarkCount);
   const [isBookmarked, setIsBookmarked] = useState(article.isBookmarked || false);
+  const [currentLikeCount, setCurrentLikeCount] = useState(article.likeCount);
+  const [isLiked, setIsLiked] = useState(article.isLiked || false);
+  const [isLiking, setIsLiking] = useState(false);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -70,8 +75,28 @@ export function ArticleCard({ article }: ArticleCardProps) {
         console.error("Error checking bookmark status:", error);
       }
     }
+    async function checkLikeStatus() {
+      if (!session?.user?.id) {
+        setIsLiked(false);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/articles/${article.slug}/like`);
+        const data = await response.json();
+        if (response.ok) {
+          setIsLiked(data.isLiked);
+          setCurrentLikeCount(data.likeCount);
+        } else {
+          console.error("Error checking like status:", data.message);
+        }
+      } catch (error) {
+        console.error("Error checking like status:", error);
+      }
+    }
+
     checkBookmarkStatus();
-  }, [article._id, session?.user?.id]);
+    checkLikeStatus();
+  }, [article._id, article.slug, session?.user?.id]);
 
   const handleCopyCouplet = async () => {
     if (article.firstCoupletEn) {
@@ -156,6 +181,43 @@ export function ArticleCard({ article }: ArticleCardProps) {
     [isBookmarked, article._id, session?.user?.id],
   );
 
+  const handleLike = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!session?.user?.id) {
+        toast.error("Please log in to like articles.");
+        return;
+      }
+      if (isLiking) return; // Prevent multiple clicks
+      
+      setIsLiking(true);
+      try {
+        const response = await fetch(`/api/articles/${article.slug}/like`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          setIsLiked(result.isLiked);
+          setCurrentLikeCount(result.likeCount);
+          // Remove toast for smoother UX
+        } else {
+          toast.error(result.message);
+        }
+      } catch (error) {
+        console.error("Like error:", error);
+        toast.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      } finally {
+        setIsLiking(false);
+      }
+    },
+    [article.slug, session?.user?.id, isLiking],
+  );
+
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -235,6 +297,21 @@ export function ArticleCard({ article }: ArticleCardProps) {
                   <Eye className="h-4 w-4" />
                   <span className="font-medium">{article.viewsCount}</span>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLike}
+                  disabled={isLiking}
+                  className="flex items-center gap-1 text-sm p-1 h-auto hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
+                  aria-label={isLiked ? "Unlike article" : "Like article"}
+                >
+                  {isLiking ? (
+                    <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Heart className={`h-4 w-4 ${isLiked ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                  )}
+                  <span className="font-medium">{currentLikeCount}</span>
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

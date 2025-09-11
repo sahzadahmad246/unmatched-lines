@@ -440,13 +440,26 @@ export default function UsersPage() {
                   )}
                 </div>
 
-                {/* Infinite Scroll Loading Indicator */}
-                {isFetching && page > 1 && (
-                  <div className="flex justify-center p-6 border-t border-border/50" role="status" aria-live="polite">
-                    <div className="flex items-center space-x-3">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <span className="text-sm font-medium text-muted-foreground">Loading more users...</span>
-                    </div>
+                {/* Load More Button */}
+                {hasMore && allUsers.length > 0 && (
+                  <div className="flex justify-center p-6 border-t border-border/50">
+                    <Button
+                      onClick={() => setPage(prev => prev + 1)}
+                      disabled={isFetching}
+                      className="flex items-center gap-2"
+                    >
+                      {isFetching ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Users className="h-4 w-4" />
+                          Load More Users
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
 

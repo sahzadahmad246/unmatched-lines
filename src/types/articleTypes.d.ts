@@ -16,6 +16,11 @@ export interface IArticle extends Document {
     bookmarkedAt?: Date;
   }[];
   bookmarkCount: number;
+  likes?: {
+    userId: Types.ObjectId;
+    likedAt?: Date;
+  }[];
+  likeCount: number;
   slug: string;
   coverImage?: {
     publicId?: string;
@@ -51,6 +56,7 @@ export interface TransformedArticle {
   };
   slug: string;
   bookmarkCount: number;
+  likeCount: number;
   viewsCount: number;
   category: string[];
   coverImage: string | null;
@@ -59,4 +65,5 @@ export interface TransformedArticle {
   createdAt: string | null;
   updatedAt: string | null;
   isBookmarked?: boolean;
+  isLiked?: boolean;
 }

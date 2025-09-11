@@ -3,7 +3,7 @@ import Image from "next/image";
 import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bookmark, Eye, MoreVertical, Pencil, Trash2, Download, Share2 } from "lucide-react";
+import { Bookmark, Eye, MoreVertical, Pencil, Trash2, Download, Share2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,6 +45,7 @@ interface ArticleDetailProps {
     category: string[];
     tags: string[];
     bookmarkCount: number;
+    likeCount: number;
     viewsCount: number;
     metaDescription: string;
     metaKeywords: string;
@@ -53,6 +54,7 @@ interface ArticleDetailProps {
     createdAt: string;
     updatedAt: string;
     isBookmarked?: boolean;
+    isLiked?: boolean;
   };
 }
 
@@ -90,6 +92,9 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
   const [isBookmarked, setIsBookmarked] = useState(
     article.isBookmarked || false
   );
+  const [currentLikeCount, setCurrentLikeCount] = useState(article.likeCount);
+  const [isLiked, setIsLiked] = useState(article.isLiked || false);
+  const [isLiking, setIsLiking] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
   const [activeCoupletLanguage, setActiveCoupletLanguage] = useState<
     "en" | "hi" | "ur"
@@ -196,8 +201,28 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
         toast.error("Error checking bookmark status");
       }
     }
+    async function checkLikeStatus() {
+      if (!session?.user?.id) {
+        setIsLiked(false);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/articles/${article.slug}/like`);
+        const data = await response.json();
+        if (response.ok) {
+          setIsLiked(data.isLiked);
+          setCurrentLikeCount(data.likeCount);
+        } else {
+          console.error("Error checking like status:", data.message);
+        }
+      } catch (error) {
+        console.error("Error checking like status:", error);
+      }
+    }
+
     checkBookmarkStatus();
-  }, [article._id, session?.user?.id]);
+    checkLikeStatus();
+  }, [article._id, article.slug, session?.user?.id]);
 
 
   const handleBookmark = useCallback(async () => {
@@ -236,6 +261,37 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
       );
     }
   }, [isBookmarked, article._id, session?.user?.id]);
+
+  const handleLike = useCallback(async () => {
+    if (!session?.user?.id) {
+      toast.error("Please log in to like articles.");
+      return;
+    }
+    if (isLiking) return; // Prevent multiple clicks
+    
+    setIsLiking(true);
+    try {
+      const response = await fetch(`/api/articles/${article.slug}/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        setIsLiked(result.isLiked);
+        setCurrentLikeCount(result.likeCount);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+      toast.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsLiking(false);
+    }
+  }, [article.slug, session?.user?.id, isLiking]);
 
   const handleEdit = useCallback(
     (e: React.MouseEvent) => {
@@ -388,6 +444,21 @@ export function ArticleDetail({ article }: ArticleDetailProps) {
               <Eye className="h-4 w-4" />
               <span>{article.viewsCount}</span>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLike}
+              disabled={isLiking}
+              className="flex items-center gap-1 text-sm p-0 h-auto disabled:opacity-50"
+              aria-label={isLiked ? "Unlike article" : "Like article"}
+            >
+              {isLiking ? (
+                <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Heart className={`h-4 w-4 ${isLiked ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+              )}
+              <span>{currentLikeCount}</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

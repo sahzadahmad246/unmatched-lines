@@ -12,53 +12,31 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
 
+    const skip = (page - 1) * limit;
+
     // Count total published articles for pagination
     const totalArticles = await Article.countDocuments({ status: "published" });
 
-    // Fetch random articles using aggregation
-    const articles = await Article.aggregate([
-      { $match: { status: "published" } },
-      { $sample: { size: limit } }, // Randomly select 'limit' articles
-      {
-        $lookup: {
-          from: "users",
-          localField: "poet",
-          foreignField: "_id",
-          as: "poet",
-        },
-      },
-      { $unwind: "$poet" },
-      {
-        $project: {
-          title: 1,
-          couplets: 1,
-          slug: 1,
-          bookmarkCount: 1,
-          viewsCount: 1,
-          category: 1,
-          coverImage: 1,
-          publishedAt: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          "poet._id": 1,
-          "poet.name": 1,
-          "poet.profilePicture": 1,
-        },
-      },
-    ]);
+    // Fetch articles with pagination and populate poet details
+    const articles = await Article.find({ status: "published" })
+      .select("title couplets slug bookmarkCount likeCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
+      .populate<{
+        poet: { _id: string; name: string; profilePicture?: { url?: string } | null };
+      }>("poet", "name profilePicture")
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
     // Transform articles to match ArticleCard props
     const transformedArticles: TransformedArticle[] = articles.map((article) => {
-      // Filter English couplets and select a random one
-      const englishCouplets = article.couplets?.filter((c: { en?: string }) => c.en) || [];
-      const randomCouplet = englishCouplets.length > 0
-        ? englishCouplets[Math.floor(Math.random() * englishCouplets.length)].en
-        : "";
+      // Get first English couplet
+      const firstCouplet = article.couplets?.[0]?.en || "";
 
       return {
         _id: article._id.toString(),
         title: article.title,
-        firstCoupletEn: randomCouplet, // Random English couplet
+        firstCoupletEn: firstCouplet,
         poet: {
           _id: article.poet?._id.toString() || "",
           name: article.poet?.name || "Unknown",
@@ -66,6 +44,7 @@ export async function GET(req: NextRequest) {
         },
         slug: article.slug,
         bookmarkCount: article.bookmarkCount || 0,
+        likeCount: article.likeCount || 0,
         viewsCount: article.viewsCount || 0,
         category: article.category || [],
         coverImage: article.coverImage?.url || null,

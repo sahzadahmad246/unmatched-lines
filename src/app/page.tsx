@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import { useArticleFeedStore } from "@/store/feed-store"
 import { notFound } from "next/navigation"
 import { ArticleCard } from "@/components/articles/article-card"
@@ -8,12 +8,56 @@ import { BookOpen, Sparkles, Heart, Feather, Star } from "lucide-react"
 import type { TransformedArticle } from "@/types/articleTypes"
 
 export default function ArticlesPage() {
-  const { articles, loading, error, fetchFeed, clearFeed } = useArticleFeedStore()
+  const { articles, loading, error, fetchFeed, clearFeed, pagination } = useArticleFeedStore()
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const observer = useRef<IntersectionObserver | null>(null)
 
   useEffect(() => {
     clearFeed() // Clear feed on mount to ensure fresh data
     fetchFeed(1, 10) // Fetch initial page with 10 articles
+    setCurrentPage(1)
+    setHasMore(true)
   }, [fetchFeed, clearFeed])
+
+  // Update hasMore when pagination changes
+  useEffect(() => {
+    if (pagination) {
+      setHasMore(currentPage < pagination.totalPages)
+    }
+  }, [pagination, currentPage])
+
+  // Load more articles when reaching the bottom
+  const loadMoreArticles = useCallback(async () => {
+    if (loading || isLoadingMore || !hasMore) return
+
+    setIsLoadingMore(true)
+    const nextPage = currentPage + 1
+    try {
+      await fetchFeed(nextPage, 10)
+      setCurrentPage(nextPage)
+    } catch (error) {
+      console.error("Error loading more articles:", error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [loading, isLoadingMore, hasMore, currentPage, fetchFeed])
+
+  // Intersection Observer for infinite scroll
+  const lastArticleElementRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (loading || isLoadingMore) return
+      if (observer.current) observer.current.disconnect()
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMoreArticles()
+        }
+      })
+      if (node) observer.current.observe(node)
+    },
+    [loading, isLoadingMore, hasMore, loadMoreArticles]
+  )
 
   if (error) {
     notFound()
@@ -167,34 +211,33 @@ export default function ArticlesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/5 to-background">
       <div className="container mx-auto px-0 py-8 max-w-6xl">
-        {/* Compact and Enhanced Header */}
-        <div className="text-center mb-12 py-8">
-          <div className="relative inline-flex items-center justify-center mb-6">
-            <div className="h-16 w-16 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm border border-primary/10">
-              <BookOpen className="h-8 w-8 text-primary" />
+        {/* Compact Header */}
+        <div className="text-center mb-8 py-4">
+          <div className="relative inline-flex items-center justify-center mb-4">
+            <div className="h-12 w-12 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm border border-primary/10">
+              <BookOpen className="h-6 w-6 text-primary" />
             </div>
-            <Sparkles className="absolute -top-1 -right-1 h-5 w-5 text-primary/60 animate-pulse" />
-            <Heart className="absolute -bottom-1 -left-1 h-4 w-4 text-accent/60 animate-pulse delay-300" />
-            <Feather className="absolute top-2 left-2 h-3 w-3 text-primary/40 animate-bounce delay-500" />
+            <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-primary/60 animate-pulse" />
+            <Heart className="absolute -bottom-1 -left-1 h-3 w-3 text-accent/60 animate-pulse delay-300" />
           </div>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-2">
             Couplet Feed
           </h1>
-          <p className="text-muted-foreground text-base md:text-lg lg:text-xl leading-relaxed max-w-2xl mx-auto">
-            Explore a beautiful collection of couplets written by poets across the globe. Let their verses speak to your soul.
+          <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-xl mx-auto">
+            Explore beautiful couplets from poets across the globe
           </p>
-          {/* Stats or Quick Actions */}
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <div className="bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/5 dark:to-accent/5 rounded-xl px-4 py-2 border border-primary/20 dark:border-primary/10">
+          {/* Stats */}
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
+            <div className="bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/5 dark:to-accent/5 rounded-lg px-3 py-1.5 border border-primary/20 dark:border-primary/10">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">{articles.length} Couplets</span>
+                <BookOpen className="h-3 w-3 text-primary" />
+                <span className="text-xs font-medium text-foreground">{articles.length} Couplets</span>
               </div>
             </div>
-            <div className="bg-gradient-to-r from-accent/10 to-primary/10 dark:from-accent/5 dark:to-primary/5 rounded-xl px-4 py-2 border border-accent/20 dark:border-accent/10">
+            <div className="bg-gradient-to-r from-accent/10 to-primary/10 dark:from-accent/5 dark:to-primary/5 rounded-lg px-3 py-1.5 border border-accent/20 dark:border-accent/10">
               <div className="flex items-center gap-2">
-                <Heart className="h-4 w-4 text-accent" />
-                <span className="text-sm font-medium text-foreground">Curated Collection</span>
+                <Heart className="h-3 w-3 text-accent" />
+                <span className="text-xs font-medium text-foreground">Curated</span>
               </div>
             </div>
           </div>
@@ -206,10 +249,38 @@ export default function ArticlesPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.03),transparent_50%)] pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(168,85,247,0.05),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_bottom,rgba(196,181,253,0.03),transparent_50%)] pointer-events-none" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {articles.map((article: TransformedArticle) => (
-              <ArticleCard key={article._id} article={article} />
+            {articles.map((article: TransformedArticle, index) => (
+              <div
+                key={article._id}
+                ref={index === articles.length - 1 ? lastArticleElementRef : null}
+              >
+                <ArticleCard article={article} />
+              </div>
             ))}
           </div>
+          
+          {/* Loading indicator for infinite scroll */}
+          {isLoadingMore && (
+            <div className="flex justify-center py-8">
+              <div className="flex flex-col items-center space-y-3">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-muted-foreground">Loading more articles...</span>
+              </div>
+            </div>
+          )}
+          
+          {/* End of results indicator */}
+          {!hasMore && articles.length > 0 && (
+            <div className="flex justify-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">You&apos;ve reached the end!</p>
+                <p className="text-xs text-muted-foreground">No more articles to load</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

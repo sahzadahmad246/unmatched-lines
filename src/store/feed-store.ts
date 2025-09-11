@@ -31,7 +31,7 @@ export const useArticleFeedStore = create<ArticleFeedState>((set) => ({
   fetchFeed: async (page = 1, limit = 10) => {
     try {
       set({ loading: true, error: null });
-      const response = await fetch(`/api/poems/feed?page=${page}&limit=${limit}`, { // Modified line: Changed endpoint to /api/poems/feed
+      const response = await fetch(`/api/poems/feed?page=${page}&limit=${limit}`, {
         credentials: "include",
         next: { revalidate: 60 },
       });

@@ -13,9 +13,12 @@ interface Article {
   }
   slug: string
   bookmarkCount: number
+  likeCount: number
   viewsCount: number
   coverImage: string | null
   publishedAt: string | null
+  isBookmarked?: boolean
+  isLiked?: boolean
 }
 
 interface Pagination {

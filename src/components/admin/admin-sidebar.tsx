@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, BookOpen, Users, Settings, Moon, Sun, FileText, BarChart3, Shield, LogOut } from "lucide-react"
+import { Home, BookOpen, Users, Settings, Moon, Sun, FileText, BarChart3, Shield, LogOut, Newspaper } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useSession, signOut } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -24,6 +24,7 @@ import { useUserStore } from "@/store/user-store"
 const adminNavItems = [
   { name: "Dashboard", href: "/admin", icon: Home },
   { name: "Poems", href: "/admin/poems", icon: BookOpen },
+  { name: "Articles", href: "/admin/articles", icon: Newspaper },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "Settings", href: "/admin/settings", icon: Settings },
@@ -82,6 +83,14 @@ export function AdminSidebar() {
                   <Link href="/admin/poems/new">
                     <FileText className="h-4 w-4" />
                     <span>Add New Poem</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/admin/articles/new">
+                    <Newspaper className="h-4 w-4" />
+                    <span>Add New Article</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

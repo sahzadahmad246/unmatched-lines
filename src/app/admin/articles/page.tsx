@@ -23,7 +23,7 @@ export default function ArticlesPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/articles/list?limit=100")
+      const response = await fetch("/api/admin/articles?limit=100")
       if (response.ok) {
         const data = await response.json()
         setArticles(data.articles || [])

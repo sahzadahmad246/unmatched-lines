@@ -34,7 +34,7 @@ export async function GET(
 
     const article = await Article.findOne({ slug }) // Remove status: "published" filter
       .select(
-        "title content couplets summary poet slug coverImage category tags bookmarkCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt"
+        "title content couplets summary poet slug coverImage category tags bookmarkCount likeCount viewsCount metaDescription metaKeywords status publishedAt createdAt updatedAt"
       )
       .populate<{ poet: PopulatedPoet }>("poet", "name profilePicture")
       .lean();
@@ -62,6 +62,7 @@ export async function GET(
       category: article.category || [],
       tags: article.tags || [],
       bookmarkCount: article.bookmarkCount,
+      likeCount: article.likeCount || 0,
       viewsCount: article.viewsCount + 1,
       metaDescription: article.metaDescription || "",
       metaKeywords: article.metaKeywords || "",
@@ -69,6 +70,8 @@ export async function GET(
       publishedAt: article.publishedAt || null,
       createdAt: article.createdAt || null,
       updatedAt: article.updatedAt || null,
+      isBookmarked: false, // Will be checked client-side
+      isLiked: false, // Will be checked client-side
     };
 
     return NextResponse.json(transformedArticle);

@@ -38,7 +38,7 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({ editor, onLinkClick, onImageClick }: EditorToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1 p-2 border-b">
+    <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-background/95 backdrop-blur-sm">
       <Toggle
         size="sm"
         pressed={editor.isActive("bold")}

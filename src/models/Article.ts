@@ -28,6 +28,14 @@ const ArticleSchema = new Schema<IArticle>(
     ],
     bookmarkCount: { type: Number, default: 0 },
 
+    likes: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        likedAt: { type: Date, default: Date.now },
+      },
+    ],
+    likeCount: { type: Number, default: 0 },
+
     slug: { type: String, required: true, unique: true },
 
     coverImage: {
@@ -61,6 +69,7 @@ ArticleSchema.index({ poet: 1, status: 1 }); // For poet's articles
 ArticleSchema.index({ category: 1, status: 1 }); // For category filtering
 ArticleSchema.index({ viewsCount: -1 }); // For popular articles
 ArticleSchema.index({ bookmarkCount: -1 }); // For most bookmarked
+ArticleSchema.index({ likeCount: -1 }); // For most liked
 ArticleSchema.index({ title: "text", content: "text" }); // For text search
 ArticleSchema.index({ tags: 1 }); // For tag filtering
 ArticleSchema.index({ publishedAt: -1 }); // For published date sorting
@@ -104,6 +113,7 @@ ArticleSchema.pre("save", function (this: Document & IArticle, next) {
     this.coverImage.publicId = sanitizeHtml(this.coverImage.publicId);
 
   this.bookmarkCount = this.bookmarks?.length || 0;
+  this.likeCount = this.likes?.length || 0;
   this.viewsCount = this.viewsCount || 0;
 
   next();

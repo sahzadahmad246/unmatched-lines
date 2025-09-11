@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       status: "published",
       poet: poet._id
     })
-      .select("title couplets slug bookmarkCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
+      .select("title couplets slug bookmarkCount likeCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
       .populate<{ poet: { _id: string; name: string; profilePicture?: { url?: string } | null } }>(
         "poet",
         "name profilePicture"
@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
       },
       slug: article.slug,
       bookmarkCount: article.bookmarkCount || 0,
+      likeCount: article.likeCount || 0,
       viewsCount: article.viewsCount || 0,
       category: article.category || [],
       coverImage: article.coverImage?.url || null,
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       createdAt: article.createdAt?.toISOString() || null,
       updatedAt: article.updatedAt?.toISOString() || null,
       isBookmarked: false, // Initial value, updated client-side
+      isLiked: false,
     }));
 
     const totalArticles = await Article.countDocuments({ 

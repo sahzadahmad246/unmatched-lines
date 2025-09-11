@@ -128,6 +128,7 @@ export async function POST(req: NextRequest) {
         },
         slug: article.slug,
         bookmarkCount: article.bookmarkCount || 0,
+        likeCount: article.likeCount || 0,
         viewsCount: article.viewsCount || 0,
         category: article.category || [],
         coverImage: article.coverImage?.url || null,
@@ -135,6 +136,7 @@ export async function POST(req: NextRequest) {
         createdAt: article.createdAt?.toISOString() || null,
         updatedAt: article.updatedAt?.toISOString() || null,
         isBookmarked,
+        isLiked: false, // Will be set by client-side like check
       };
       return NextResponse.json({
         message: "Bookmark status checked",
@@ -191,6 +193,7 @@ export async function POST(req: NextRequest) {
           },
           slug: article.slug,
           bookmarkCount: article.bookmarkCount,
+          likeCount: article.likeCount || 0,
           viewsCount: article.viewsCount || 0,
           category: article.category || [],
           coverImage: article.coverImage?.url || null,
@@ -198,6 +201,7 @@ export async function POST(req: NextRequest) {
           createdAt: article.createdAt?.toISOString() || null,
           updatedAt: article.updatedAt?.toISOString() || null,
           isBookmarked: true,
+          isLiked: false, // Will be set by client-side like check
         };
 
         return NextResponse.json({
@@ -241,6 +245,7 @@ export async function POST(req: NextRequest) {
           },
           slug: article.slug,
           bookmarkCount: article.bookmarkCount,
+          likeCount: article.likeCount || 0,
           viewsCount: article.viewsCount || 0,
           category: article.category || [],
           coverImage: article.coverImage?.url || null,

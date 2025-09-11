@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/authOptions";
 import dbConnect from "@/lib/mongodb";
 import Article from "@/models/Article";
-import { TransformedArticle } from "@/types/articleTypes";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user || session.user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "100");
     const query = searchParams.get("query") || "";
-    const sortBy = searchParams.get("sortBy") || "";
-    const ids = searchParams.get("ids")?.split(",") || [];
+    const status = searchParams.get("status") || "all";
+    const category = searchParams.get("category") || "all";
     const skip = (page - 1) * limit;
 
-    // Build query
-    const findQuery: Record<string, unknown> = { status: "published" };
+    // Build query - no status filter for admin
+    const findQuery: Record<string, unknown> = {};
+    
     if (query) {
       findQuery.$or = [
         { title: { $regex: query, $options: "i" } },
@@ -24,45 +32,49 @@ export async function GET(req: NextRequest) {
         { content: { $regex: query, $options: "i" } },
       ];
     }
-    if (ids.length > 0) {
-      findQuery._id = { $in: ids };
+    
+    if (status !== "all") {
+      findQuery.status = status;
     }
-
-    // Build sort options
-    const sortOptions: Record<string, 1 | -1> = sortBy === "viewsCount" ? { viewsCount: -1 } : { createdAt: -1 };
+    
+    if (category !== "all") {
+      findQuery.category = { $in: [category] };
+    }
 
     // Fetch articles with pagination and populate poet details
     const articles = await Article.find(findQuery)
-      .select("title couplets slug bookmarkCount likeCount viewsCount category poet coverImage publishedAt createdAt updatedAt")
+      .select("title content slug summary metaDescription metaKeywords status category tags poet coverImage bookmarkCount viewsCount publishedAt createdAt updatedAt")
       .populate<{
         poet: { _id: string; name: string; profilePicture?: { url?: string } | null };
       }>("poet", "name profilePicture")
-      .sort(sortOptions)
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // Transform articles
-    const transformedArticles: TransformedArticle[] = articles.map((article) => ({
+    // Transform articles for admin view
+    const transformedArticles = articles.map((article) => ({
       _id: article._id.toString(),
       title: article.title,
-      firstCoupletEn: article.couplets?.[0]?.en || "",
+      content: article.content,
+      slug: article.slug,
+      summary: article.summary,
+      metaDescription: article.metaDescription,
+      metaKeywords: article.metaKeywords,
+      status: article.status,
+      category: article.category || [],
+      tags: article.tags || [],
       poet: {
         _id: article.poet?._id.toString() || "",
         name: article.poet?.name || "Unknown",
         profilePicture: article.poet?.profilePicture?.url || null,
       },
-      slug: article.slug,
-      bookmarkCount: article.bookmarkCount || 0,
-      likeCount: article.likeCount || 0,
-      viewsCount: article.viewsCount || 0,
-      category: article.category || [],
       coverImage: article.coverImage?.url || null,
+      bookmarkCount: article.bookmarkCount || 0,
+      viewsCount: article.viewsCount || 0,
       publishedAt: article.publishedAt?.toISOString() || null,
       createdAt: article.createdAt?.toISOString() || null,
       updatedAt: article.updatedAt?.toISOString() || null,
-      isBookmarked: false, // Bookmark status is checked client-side
-      isLiked: false,
     }));
 
     const totalArticles = await Article.countDocuments(findQuery);
@@ -77,7 +89,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching articles:", error);
+    console.error("Error fetching admin articles:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

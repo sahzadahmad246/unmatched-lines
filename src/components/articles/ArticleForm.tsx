@@ -1,10 +1,11 @@
 "use client"
 import type React from "react"
 import { useState, useTransition, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createArticleSchema, type CreateArticleSchema } from "@/validators/articleValidator"
-import { generateSlugFromTitle } from "@/lib/clientUtils/slugifyClient"
+import { generateSlugFromTitle, generateUniqueSlug } from "@/lib/clientUtils/slugifyClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,9 +43,17 @@ function ArrayInput({ label, placeholder, value, onChange, error }: ArrayInputPr
   const [inputValue, setInputValue] = useState("")
 
   const handleAdd = () => {
-    if (inputValue.trim() && !value.includes(inputValue.trim())) {
-      onChange([...value, inputValue.trim()])
-      setInputValue("")
+    if (inputValue.trim()) {
+      // Split by comma and process each tag
+      const newTags = inputValue
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag && !value.includes(tag))
+      
+      if (newTags.length > 0) {
+        onChange([...value, ...newTags])
+        setInputValue("")
+      }
     }
   }
 
@@ -59,6 +68,24 @@ function ArrayInput({ label, placeholder, value, onChange, error }: ArrayInputPr
     }
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+    setInputValue(newValue)
+    
+    // Auto-add tags when comma is typed
+    if (newValue.includes(',')) {
+      const tags = newValue
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag && !value.includes(tag))
+      
+      if (tags.length > 0) {
+        onChange([...value, ...tags])
+        setInputValue("")
+      }
+    }
+  }
+
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -67,7 +94,7 @@ function ArrayInput({ label, placeholder, value, onChange, error }: ArrayInputPr
           type="text"
           placeholder={placeholder}
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
         />
         <Button type="button" onClick={handleAdd}>
@@ -132,6 +159,7 @@ const DRAFT_KEY = "article-form-draft"
 const DRAFT_SAVE_DELAY = 2000 // 2 seconds debounce
 
 export default function ArticleForm({ initialData, isEdit = false, articleSlug }: ArticleFormProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null)
   const { poets, fetchAllPoets, searchPoets } = usePoetStore()
@@ -152,8 +180,10 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
     control,
     formState: { errors },
     reset,
+    trigger,
   } = useForm<CreateArticleSchema>({
     resolver: zodResolver(createArticleSchema),
+    mode: "onChange", // Enable real-time validation
     defaultValues: {
       title: "",
       content: "",
@@ -313,11 +343,11 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
     fetchAllPoets()
   }, [fetchAllPoets])
 
-  // Debounce poet search query
+  // Debounce poet search query with longer delay
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedPoetSearchQuery(poetSearchQuery)
-    }, 500)
+    }, 1200) // Increased to 1200ms for smoother search
 
     return () => {
       clearTimeout(handler)
@@ -333,24 +363,37 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
     }
   }, [debouncedPoetSearchQuery, searchPoets, fetchAllPoets])
 
-  // Auto-generate slug from title (only if not in edit mode or slug is empty)
+  // Auto-generate unique slug from title
   useEffect(() => {
-    if (!isEdit || !initialData?.slug) {
-      if (title) {
-        setValue("slug", generateSlugFromTitle(title), {
-          shouldValidate: true,
-        })
-      } else {
-        setValue("slug", "", { shouldValidate: true })
-      }
+    if (title) {
+      const generateSlug = async () => {
+        try {
+          const uniqueSlug = await generateUniqueSlug(title, isEdit ? initialData?.slug : undefined);
+          setValue("slug", uniqueSlug, { shouldValidate: true });
+        } catch (error) {
+          console.error("Error generating unique slug:", error);
+          // Fallback to basic slug generation
+          setValue("slug", generateSlugFromTitle(title), { shouldValidate: true });
+        }
+      };
+      
+      generateSlug();
+    } else {
+      setValue("slug", "", { shouldValidate: true });
     }
   }, [title, setValue, isEdit, initialData?.slug])
 
   // Handle initial data for editing
   useEffect(() => {
-    if (initialData) {
+    if (initialData && isEdit) {
       reset({
-        ...initialData,
+        title: initialData.title || "",
+        content: initialData.content || "",
+        slug: initialData.slug || "",
+        summary: initialData.summary || "",
+        metaDescription: initialData.metaDescription || "",
+        metaKeywords: initialData.metaKeywords || "",
+        status: initialData.status || "draft",
         poetId: initialData.poet?._id || "",
         coverImage: undefined,
         couplets: initialData.couplets || [],
@@ -363,7 +406,7 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
         setCoverImagePreview(initialData.coverImage)
       }
     }
-  }, [initialData, reset])
+  }, [initialData, reset, isEdit])
 
   // Handle cover image preview for new uploads
   useEffect(() => {
@@ -441,6 +484,9 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
             description: `Slug: ${result.slug}`,
           })
 
+          // Redirect to admin articles page
+          router.push("/admin/articles")
+
           if (!isEdit) {
             reset()
             setCoverImagePreview(null)
@@ -514,12 +560,23 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" {...register("title")} />
+                <Input 
+                  id="title" 
+                  {...register("title", {
+                    onChange: () => trigger("title")
+                  })} 
+                />
                 {errors.title && <p className="text-sm text-red-500">{errors.title.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" {...register("slug")} disabled={isEdit && initialData?.slug !== undefined} />
+                <Input 
+                  id="slug" 
+                  {...register("slug", {
+                    onChange: () => trigger("slug")
+                  })} 
+                  disabled={isEdit && initialData?.slug !== undefined} 
+                />
                 {errors.slug && <p className="text-sm text-red-500">{errors.slug.message}</p>}
               </div>
             </div>
@@ -528,7 +585,10 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
               <Label htmlFor="content">Content</Label>
               <RichTextEditor
                 content={content}
-                onChange={(newContent) => setValue("content", newContent, { shouldValidate: true })}
+                onChange={(newContent) => {
+                  setValue("content", newContent, { shouldValidate: true })
+                  trigger("content")
+                }}
                 placeholder="Start writing your article here..."
                 className="min-h-[300px]"
               />
@@ -552,24 +612,26 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
                 <SelectTrigger id="poet">
                   <SelectValue placeholder="Select a poet" />
                 </SelectTrigger>
-                <SelectContent>
-                  <div className="p-2">
+                <SelectContent className="max-h-[300px] overflow-y-auto p-0">
+                  <div className="p-3 sticky top-0 bg-background border-b z-10">
                     <Input
                       placeholder="Search poets..."
                       value={poetSearchQuery}
                       onChange={(e) => setPoetSearchQuery(e.target.value)}
-                      className="mb-2"
+                      className="w-full"
                     />
                   </div>
-                  {poets.length > 0 ? (
-                    poets.map((poet) => (
-                      <SelectItem key={poet._id} value={poet._id}>
-                        {poet.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-2 text-center text-muted-foreground">No poets found.</div>
-                  )}
+                  <div className="p-1">
+                    {poets.length > 0 ? (
+                      poets.map((poet) => (
+                        <SelectItem key={poet._id} value={poet._id} className="cursor-pointer">
+                          {poet.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-muted-foreground">No poets found.</div>
+                    )}
+                  </div>
                 </SelectContent>
               </Select>
               {errors.poetId && <p className="text-sm text-red-500">{errors.poetId.message}</p>}
@@ -690,7 +752,7 @@ export default function ArticleForm({ initialData, isEdit = false, articleSlug }
 
             <ArrayInput
               label="Tags"
-              placeholder="Add a tag (e.g., Love, Nature)"
+              placeholder="Add tags separated by commas (e.g., Love, Nature, Poetry)"
               value={watch("tags") || []}
               onChange={(newTags) => setValue("tags", newTags, { shouldValidate: true })}
               error={errors.tags?.message}
